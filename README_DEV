@@ -1,0 +1,19 @@
+Developers/Contributers should follow these rules:
+
+Licence
+-------
+All code files must contain the GPL v2+ header
+All contributors must update the copyright holders on edit
+
+Exceptions: 
+* interpolateBM: same license as scipy
+
+Code structure
+--------------
+
+* All source code goes in the src folder under a subdirector of the subproject
+* For experiments, use ini files. Add some defaults/example to the inifile folder
+* For data needed for experiments/test, use the data folder.
+
+For real data you do not want to commit, add the text rdata. gitignore contains the 
+string *.rdat*, eg confidentialdata.rdat.conc

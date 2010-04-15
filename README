@@ -1,1 +1,12 @@
-readme
+Requirements
+------------
+The following packages *MUST* be installed in order for STICK to work:
+
+* python 2.6+
+* numpy-scipy-matplotlib
+
+Documentation
+-------------
+
+See the doc folder. Idea is to use sphinx with rst doc format,
+see  (http://docutils.sourceforge.net/docs/user/rst/quickref.html), so doc builds automatic
