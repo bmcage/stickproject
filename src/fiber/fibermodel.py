@@ -20,12 +20,19 @@
 """
 #-------------------------------------------------------------------------
 #
-# Imports
+# Global Imports
 #
 #-------------------------------------------------------------------------
 import os.path
 import sys
 import const
+import numpy as np
+
+#-------------------------------------------------------------------------
+#
+# Local Imports
+#
+#-------------------------------------------------------------------------
 import lib.utils.utils as utils
 from model.diffmodel import DiffusionModel
 import lib.utils.gridutils as GridUtils
@@ -50,50 +57,58 @@ class FiberModel(DiffusionModel):
         DiffusionModel.__init__(self, config)
         
         self.datatime = []
+        self.comps = self.cfg.get('general.components')
 
     def _create_compgrid(self):
         """
-        Construct the computational grid we need to work on as a 
-        grid over [0,1]
+        Construct the computational grid 
+        We consider fiber and layers. The grid is created in one big array
+        while we store the interfaces as gridpoint in this array
         """
-        ## TODO
-        # make mesh on [0,1]
-        self.__grid = GridUtils.create_grid(
-                        self.cfg.get('discr.points'), 0., 1., "borderrefined", 
-                        1)
+        self.nrlayer = self.cfg.get('fiber.nrlayer')
+        self.layers = ['fiber']
+        self.layerthickness = [self.cfg.get('fiber.radius')]
+        self.layerdiscr = [self.cfg.get('fiber.discrpoints')]
+        self.nrp = self.layerdiscr[0]
+        for lay in range(self.nrlayer):
+            self.layers.append(self.cfg.get('layer_%i.binder' % lay))
+            self.layerthickness.append(self.cfg.get(
+                                                'layer_%i.thickness' % lay))
+            self.layerdiscr.append(self.cfg.get('layer_%i.discrpoints' % lay))
+            self.nrp += self.layerdiscr[-1] - 1
+
+        self.__grid = np.empty(self.nrp)
+        self.__grid[0] = 0.
+        begin = 0
+        for nrp, thk in zip(self.layerdiscr, self.layerthickness):
+            # make mesh on [0,1]
+            grid = self.__grid[begin] + \
+                   thk * GridUtils.create_grid(nrp, 0., 1., "borderrefined", 1)
+            self.__grid[begin:begin+nrp] = grid[:]
+            begin += nrp - 1
 
     def _read_init_cond(self):
         """
-        Read the initial condition, determine cutoff and length of sample 
-        from it, and project on the grid to obtain the init cond over the
-        grid
+        Read the initial condition, and project on the grid to obtain the 
+        init cond over the grid
         """
         if len(self.datatime)> 0:
             print 'ERROR: initial condition already read in, do not do it twice'
             sys.exit()
-        comps = self.cfg.get('general.components')
+
         if self.cfg.get('init.initfromfile'):
-            starttime, meshinitpos, components, conc_components = \
-                    GridUtils.read_exp_file(utils.add_root_to_file(
-                                                self.cfg.get('init.initfile')))
-            self.datatime.append(starttime)
-            self.datamesh.append(meshinitpos)
-            dataval = []
-            for comp in comps:
-                #select this from component from the experiment
-                try:
-                    dataval.append(conc_components[components[comp]])
-                except KeyError:
-                    print 'ERROR: component %s not present in initfile' % comp
-                    sys.exit()
-            self.data.append(dataval)
+            #we need to define a dataformat, then write a function to read 
+            #that in
+            raise NotImplementedError
         else :
             #read from function
             initfunc = eval(self.cfg.get('init.initfunc'))
-            startgrid = self.cfg.get('init.initfuncstart')
-            endgrid = self.cfg.get('init.initfuncend')
             starttime = 0.
-            nrc = len(initfunc(pp))
+            #test that initfunc returns iterable with nrcomponents correct
+            if not (len(initfunc(0.)) == len(self.comps)):
+                raise Exception, 'wrong initfunc, nr components wrong'
+            ## TODO: create initprofile per component.
+            TODO
             data = []
             for i in range(nrc):
                 data.append([])
