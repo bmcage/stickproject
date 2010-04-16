@@ -29,7 +29,7 @@ import const
 import lib.utils.utils as utils
 from model.diffmodel import DiffusionModel
 import lib.utils.gridutils as GridUtils
-import config as conf
+import fiber.config as conf
 import lib.diff.diffusion as diffusion
 
 #-------------------------------------------------------------------------
@@ -47,7 +47,7 @@ class FiberModel(DiffusionModel):
         """
         a config class must be passed in that contains the required settings
         """
-        DiffusionModel.__init__(self)
+        DiffusionModel.__init__(self, config)
         
         self.datatime = []
 

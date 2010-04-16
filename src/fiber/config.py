@@ -37,7 +37,7 @@ from lib.config import ConfigManager
 # Constants
 #
 #---------------------------------------------------------------
-INIFILE_DEFAULT = 'fiber' + os.sep + 'default.ini'
+INIFILE_DEFAULT = const.INI_DIR + os.sep + 'fiber' + os.sep + 'default.ini'
 
 LONGOPTS = ["inifile", 'outputdir']
 SHORTOPTS = "i:o" 
@@ -114,7 +114,7 @@ class FiberConfigManager(ConfigManager):
         
         self.register('fiber.material', 'polyester')
         self.register('fiber.diffcoef', 
-                        [FIBER_MAT['polyester'][0][COMPONENT['DEET']]])
+                        [FIBER_MAT['polyester'][0][COMPONENTS['DEET'][0]]])
         self.register('fiber.radius', 1.)
         self.register('fiber.discrpoints', 101)
         self.register('fiber.nrlayer', 1)
@@ -123,7 +123,7 @@ class FiberConfigManager(ConfigManager):
         bind = BINDER.keys()[0]
         self.register('layer_0.binder', bind)
         self.register('layer_0.diffcoef', 
-                        [BINDER[bind][0][COMPONENT['DEET'][0]]])
+                        [BINDER[bind][0][COMPONENTS['DEET'][0]]])
         self.register('layer_0.discrpoints', 21)
 
         self.register("bcval.bcleft_type", ['homNeu', 'homNeu'])

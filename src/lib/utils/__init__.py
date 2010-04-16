@@ -19,5 +19,3 @@
 """
 The lib.utils module provides packages that are common utilities
 """
-
-__all__ = []

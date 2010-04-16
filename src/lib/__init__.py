@@ -20,4 +20,3 @@
 The lib module provides packages that are common to all stickproject
 """
 
-__all__ = [ "diff", "utils"]

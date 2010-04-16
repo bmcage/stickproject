@@ -92,11 +92,11 @@ class DiffusionModel(object):
         """
         setup all data as required before solving
         """
-        self.__create_compgrid()
-        self.__read_init_cond()
-        self.__read_experiments()
-        self.__setup_data_on_compgrid()
-        self.__setup_model()
+        self._create_compgrid()
+        self._read_init_cond()
+        self._read_experiments()
+        self._setup_data_on_compgrid()
+        self._setup_model()
         self.model.set_boundary_cond(self.cfg)
         timepar = TimeParameters(self.cfg, exptime=self.datatime)
         self.model.set_time(timepar)

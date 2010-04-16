@@ -19,5 +19,3 @@
 """
 The fiber module provides packages that are common to fiber modelling
 """
-
-__all__ = []

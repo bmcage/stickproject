@@ -41,7 +41,7 @@ import sys
 ARGS = sys.argv
 # module with the program, main() will be executed
 PROGS = {
-    'fiber': 'fiber.fiber'
+    'fiber': 'fiber.fiberprog'
     }
 
 #-------------------------------------------------------------------------
@@ -56,9 +56,11 @@ def main():
         print " possibilities: " + ' '.join(PROGS)
         sys.exit()
     
-    _module = __import__(PROGS[ARGS[1]])
-    #run the program
-    _module.main(ARGS[1:])
+    modname = PROGS[ARGS[1]]
+    _topmodule = __import__(modname)
+    #run the program, shift ARGS by one
+    _realmodule = sys.modules[modname]
+    _realmodule.main(ARGS[1:])
 
 if __name__ == "__main__":
     main()
