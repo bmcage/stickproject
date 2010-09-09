@@ -85,14 +85,23 @@ def main(argv=None):
         os.mkdir(outputdir)
     #create outputdir for this run, remove if existing
     outputdir = outputdir + os.sep + os.path.basename(inifile)
-    if not os.path.isdir(outputdir):
-        os.mkdir(outputdir)
-    else:
-        shutil.rmtree(outputdir)
-        os.mkdir(outputdir)
-    set_outputdir(outputdir)
-    #store the ini file in the outputdir so the experiment can be repeated
-    shutil.copy(inifile, outputdir)
+    #determine whether we make a new file for yarn2d or read the old file; the
+    #default value is 'False', which means the new file will be generated when
+    #the programme runs
+    read_old_file = cfg.get('general.read')
+    print read_old_file
+    if read_old_file == 'False':
+        if not os.path.isdir(outputdir):
+            os.mkdir(outputdir)
+        else:
+            shutil.rmtree(outputdir)
+            os.mkdir(outputdir)
+        set_outputdir(outputdir)
+        #store the ini file in the outputdir so the experiment can be repeated
+        shutil.copy(inifile, outputdir)
+    elif read_old_file == 'True':
+        set_outputdir(outputdir)
+        print "ready to read the old file"
     #determine if inverse problem must be solved
     inverseprob = cfg.get("general.inverseproblem")
     

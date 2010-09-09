@@ -87,46 +87,36 @@ class Yarn2DModel():
         """
         filename = 'yarn.geo'
         filepath = utils.OUTPUTDIR + os.sep + filename
-        if self.read == 'new':
+        if self.read == 'False':
             print self.cellSize
             
             self.type = self.cfg.get('fiber.type')
             self.circle_file = open(filepath, "w")
-
             self.current_point = 0
             self.x_position = sp.empty(self.number_fiber, float)
             self.y_position = sp.empty(self.number_fiber, float)
-            self.fiber_number = sp.empty(self.number_fiber)
-            self.point_number = sp.empty((self.number_fiber+1)*5)
-            
-            for i in sp.arange(0, self.number_fiber + 1, 1):
-                if i == 0:
-                    self.x_central = 0.
-                    self.y_central = 0.
-                    self.z = 0.
-                    index = i + 1
-                    self.point_number[i] = index
-                    self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index,
-                                            self.x_central, self.y_central, self.z, 
-                                            self.cellSize))
-                    self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+1,
-                                            self.x_central - self.radius_domain, self.y_central, 
-                                            self.z, self.cellSize))
-                    self.point_number[i+1] = index + 1
-                    self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+2,
-                                            self.x_central, self.y_central + self.radius_domain,
-                                            self.z, self.cellSize))
-                    self.point_number[i+2] = index + 2
-                    self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+3,
-                                            self.x_central + self.radius_domain, self.y_central,
-                                            self.z, self.cellSize))
-                    self.point_number[i+3] = index + 3                       
-                    self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+4,
-                                            self.x_central, self.y_central - self.radius_domain,
-                                            self.z, self.cellSize))
-                    self.point_number[i+4] = index + 4
-                    index = index + 4
-                elif i == 1:
+            self.x_central = 0.
+            self.y_central = 0.
+            self.z = 0.
+            index = 1
+            self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index,
+                                    self.x_central, self.y_central, self.z, 
+                                    self.cellSize))
+            self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+1,
+                                    self.x_central - self.radius_domain, self.y_central, 
+                                    self.z, self.cellSize))
+            self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+2,
+                                    self.x_central, self.y_central + self.radius_domain,
+                                    self.z, self.cellSize))
+            self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+3,
+                                    self.x_central + self.radius_domain, self.y_central,
+                                    self.z, self.cellSize))                      
+            self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+4,
+                                    self.x_central, self.y_central - self.radius_domain,
+                                    self.z, self.cellSize))
+            index = index + 4
+            for i in sp.arange(1, self.number_fiber + 1, 1):
+                if i == 1:
                     #generate the position of fiber
                     a = np.random.uniform(-1, 1)
                     b = np.random.uniform(-1, 1)
@@ -139,30 +129,23 @@ class Yarn2DModel():
                         self.x_position[i-1] = a
                         self.y_position[i-1] = b
                         self.current_point = self.current_point + 1
-                        self.fiber_number[i-1] = self.current_point
                         index = index + 1
                         self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index,
                                             self.x_position[i-1], self.y_position[i-1], self.z,self.cellSize))
-                        self.point_number[index-1] = index
                         self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+1,
                                             self.x_position [i-1] - self.radius_fiber,
                                             self.y_position[i-1], self.z, self.cellSize))
-                        self.point_number[index] = index + 1
                         self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+2,
                                             self.x_position[i-1], self.y_position[i-1] + self.radius_fiber,
                                             self.z, self.cellSize))
-                        self.point_number[index+1] = index + 2
                         self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+3,
                                             self.x_position[i-1] + self.radius_fiber,
                                             self.y_position[i-1], self.z, self.cellSize))
-                        self.point_number[index+2] = index+3
                         self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+4,
                                             self.x_position[i-1], self.y_position[i-1] - self.radius_fiber,
                                             self.z, self.cellSize))
-                        self.point_number[index+3] = index + 4
                         index = index + 4
-
-                else:
+                elif i > 1:
                     #generate the position of fiber
                     a = np.random.uniform(-1, 1)
                     b = np.random.uniform(-1, 1)
@@ -182,27 +165,21 @@ class Yarn2DModel():
                         self.x_position[i-1] = a
                         self.y_position[i-1] = b
                         self.current_point = self.current_point + 1
-                        self.fiber_number[i-1] = self.current_point
                         index = index + 1
                         self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index,
                                             self.x_position[i-1], self.y_position[i-1], self.z,self.cellSize))
-                        self.point_number[index-1] = index
                         self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+1,
                                             self.x_position [i-1] - self.radius_fiber,
                                             self.y_position[i-1], self.z, self.cellSize))
-                        self.point_number[index] = index + 1
                         self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+2,
                                             self.x_position[i-1], self.y_position[i-1] + self.radius_fiber,
                                             self.z, self.cellSize))
-                        self.point_number[index+1] = index + 2
                         self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+3,
                                             self.x_position[i-1] + self.radius_fiber,
                                             self.y_position[i-1], self.z, self.cellSize))
-                        self.point_number[index+2] = index+3
                         self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+4,
                                             self.x_position[i-1], self.y_position[i-1] - self.radius_fiber,
                                             self.z, self.cellSize))
-                        self.point_number[index+3] = index + 4
                         index = index + 4
             #above part is for generating the points of circle in the domain
             print "all the points has been generated"
@@ -260,7 +237,7 @@ class Yarn2DModel():
             self.circle_file.write("Plane Surface(%d) = {%d};\n" %(index, index_loop_in_plane))
             self.circle_file.close()
             circledef = open(filepath, "r").readlines()
-        elif self.read == 'old':
+        elif self.read == 'True':
             circledef = open(filepath, "r").readlines()
         return ''.join(circledef)
     
@@ -295,15 +272,13 @@ class Yarn2DModel():
         BCs = (FixedFlux(face_ex, value = 0.), FixedValue(face_in, value = 1.),)
         for i in sp.arange(0, self.steps, 1):
             self.eq.solve(var = self.conc1, boundaryConditions = BCs, 
-                          dt = self.delta_t)
+                          dt = self.delta_t, )
             print 'time = ', (i+1) * self.delta_t
             if self.viewer is not None:
                 self.viewer.plot()
                 raw_input("continue to next step, please enter <return>.....")
         
-    def run(self):
-        circledef = self.create_circle_domain_gmsh()
-        
+    def run(self):        
         self.gmsh_2d_generate()
         self.initial_yarn2d()
         self.solve_single_component()
