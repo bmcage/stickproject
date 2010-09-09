@@ -32,6 +32,7 @@ This package implements config defaults for Diffusion in yarn
 import os
 import const
 from lib.config import ConfigManager
+from __future__ import division
 
 
 #---------------------------------------------------------------

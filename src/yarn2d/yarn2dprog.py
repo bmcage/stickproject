@@ -30,6 +30,7 @@ import getopt
 import time
 import numpy as N
 import scipy as S
+from __future__ import division
 
 #-------------------------------------------------------------------------
 #

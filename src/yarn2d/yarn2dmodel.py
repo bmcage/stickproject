@@ -29,6 +29,7 @@ import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
 import sets
+from __future__ import division
 
 #-------------------------------------------------------------------------
 #

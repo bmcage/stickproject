@@ -27,6 +27,7 @@
 #-------------------------------------------------------------------------
 import os
 from subprocess import Popen, PIPE
+from __future__ import division
 import numpy as np
 AXES3D = False
 try:
