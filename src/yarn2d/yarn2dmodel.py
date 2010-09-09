@@ -22,6 +22,7 @@
 # Global Imports
 #
 #-------------------------------------------------------------------------
+from __future__ import division
 import os.path
 import sys
 import const
@@ -29,7 +30,6 @@ import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
 import sets
-from __future__ import division
 
 #-------------------------------------------------------------------------
 #

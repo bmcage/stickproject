@@ -29,9 +29,9 @@ const.VALUE
 # Standard python modules
 #
 #-------------------------------------------------------------------------
+from __future__ import division
 import os
 import platform
-from __future__ import division
 
 #-------------------------------------------------------------------------
 #

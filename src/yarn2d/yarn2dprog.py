@@ -25,12 +25,12 @@
 # Python modules
 #
 #-------------------------------------------------------------------------
+from __future__ import division
 import sys, os, shutil
 import getopt
 import time
 import numpy as N
 import scipy as S
-from __future__ import division
 
 #-------------------------------------------------------------------------
 #
