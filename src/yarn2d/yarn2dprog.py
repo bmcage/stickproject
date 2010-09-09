@@ -78,6 +78,7 @@ def main(argv=None):
             outputdir = value
     
     #Parse ini file to obtain parameters.
+    print inifile
     cfg = conf.Yarn2dConfigManager.get_instance(inifile)
     
     #create outputdir if not existing
@@ -89,7 +90,6 @@ def main(argv=None):
     #default value is 'False', which means the new file will be generated when
     #the programme runs
     read_old_file = cfg.get('general.read')
-    print read_old_file
     if read_old_file == 'False':
         if not os.path.isdir(outputdir):
             os.mkdir(outputdir)

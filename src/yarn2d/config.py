@@ -99,7 +99,7 @@ class Yarn2dConfigManager(ConfigManager):
     def register_defaults(self):
         """default ini settings for a DiffusionIT problem"""
         self.register("general.read", 'False')
-        self.register("domain.cellSize", 0.05)
+        self.register("domain.cellsize", 0.05)
         self.register("domain.radius", 1.)
         
         self.register("fiber.type", 'constant')

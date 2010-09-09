@@ -76,8 +76,8 @@ class Yarn2DModel():
         self.radius_yarn = self.scaleL * self.Ry
         self.radius_fiber =  self.scaleL * self.Rf
         self.radius_boundlayer = self.radius_fiber/2.
-        self.radius_domain = self.radius_yarn + self.radius_boundlayer        
-        self.cellSize = self.cfg.get('domain.cellSize')
+        self.radius_domain = self.radius_yarn + self.radius_boundlayer 
+        self.cellSize = self.scaleL * self.cfg.get('domain.cellsize')
         self.number_fiber = self.cfg.get('fiber.number_fiber')
         
     def create_circle_domain_gmsh(self):
@@ -99,19 +99,19 @@ class Yarn2DModel():
             self.y_central = 0.
             self.z = 0.
             index = 1
-            self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index,
+            self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
                                     self.x_central, self.y_central, self.z, 
                                     self.cellSize))
-            self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+1,
+            self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
                                     self.x_central - self.radius_domain, self.y_central, 
                                     self.z, self.cellSize))
-            self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+2,
+            self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+2,
                                     self.x_central, self.y_central + self.radius_domain,
                                     self.z, self.cellSize))
-            self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+3,
+            self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+3,
                                     self.x_central + self.radius_domain, self.y_central,
                                     self.z, self.cellSize))                      
-            self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+4,
+            self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+4,
                                     self.x_central, self.y_central - self.radius_domain,
                                     self.z, self.cellSize))
             index = index + 4
@@ -130,18 +130,18 @@ class Yarn2DModel():
                         self.y_position[i-1] = b
                         self.current_point = self.current_point + 1
                         index = index + 1
-                        self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index,
+                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
                                             self.x_position[i-1], self.y_position[i-1], self.z,self.cellSize))
-                        self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+1,
+                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
                                             self.x_position [i-1] - self.radius_fiber,
                                             self.y_position[i-1], self.z, self.cellSize))
-                        self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+2,
+                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+2,
                                             self.x_position[i-1], self.y_position[i-1] + self.radius_fiber,
                                             self.z, self.cellSize))
-                        self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+3,
+                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+3,
                                             self.x_position[i-1] + self.radius_fiber,
                                             self.y_position[i-1], self.z, self.cellSize))
-                        self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+4,
+                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+4,
                                             self.x_position[i-1], self.y_position[i-1] - self.radius_fiber,
                                             self.z, self.cellSize))
                         index = index + 4
@@ -166,18 +166,18 @@ class Yarn2DModel():
                         self.y_position[i-1] = b
                         self.current_point = self.current_point + 1
                         index = index + 1
-                        self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index,
+                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
                                             self.x_position[i-1], self.y_position[i-1], self.z,self.cellSize))
-                        self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+1,
+                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
                                             self.x_position [i-1] - self.radius_fiber,
                                             self.y_position[i-1], self.z, self.cellSize))
-                        self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+2,
+                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+2,
                                             self.x_position[i-1], self.y_position[i-1] + self.radius_fiber,
                                             self.z, self.cellSize))
-                        self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+3,
+                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+3,
                                             self.x_position[i-1] + self.radius_fiber,
                                             self.y_position[i-1], self.z, self.cellSize))
-                        self.circle_file.write("Point(%d) = {%.3f,%.3f,%.3f,%.3f};\n" %(index+4,
+                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+4,
                                             self.x_position[i-1], self.y_position[i-1] - self.radius_fiber,
                                             self.z, self.cellSize))
                         index = index + 4
@@ -276,8 +276,8 @@ class Yarn2DModel():
             print 'time = ', (i+1) * self.delta_t
             if self.viewer is not None:
                 self.viewer.plot()
-                raw_input("continue to next step, please enter <return>.....")
-        
+                #raw_input("continue to next step, please enter <return>.....")
+        raw_input("Finshed <return>.....")
     def run(self):        
         self.gmsh_2d_generate()
         self.initial_yarn2d()
