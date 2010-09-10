@@ -72,13 +72,14 @@ class Yarn2DModel():
         self.read = self.cfg.get('general.read')
         self.Ry = self.cfg.get('domain.yarnradius')
         self.Rf = self.cfg.get('fiber.radius_fiber')
-        self.scaleL = 1./self.Ry
+        self.scaleL = 1.#/self.Ry
         #computational radius
         self.radius_yarn = self.scaleL * self.Ry
         self.radius_fiber =  self.scaleL * self.Rf
         self.radius_boundlayer = self.radius_fiber/2.
-        self.radius_domain = self.radius_yarn + self.radius_boundlayer 
-        self.cellSize = self.scaleL * self.cfg.get('domain.cellsize')
+        self.radius_domain = self.radius_yarn + 0.1 #self.radius_boundlayer
+        self.cellsize_centre = self.cfg.get('domain.cellsize_centre')
+        self.cellSize = self.scaleL * self.cfg.get('domain.cellsize_fiber')
         self.number_fiber = self.cfg.get('fiber.number_fiber')
         
     def create_circle_domain_gmsh(self):
@@ -88,9 +89,7 @@ class Yarn2DModel():
         """
         filename = 'yarn.geo'
         filepath = utils.OUTPUTDIR + os.sep + filename
-        if self.read == 'False':
-            print self.cellSize
-            
+        if self.read == 'False':            
             self.type = self.cfg.get('fiber.type')
             self.circle_file = open(filepath, "w")
             self.current_point = 0
@@ -102,25 +101,26 @@ class Yarn2DModel():
             index = 1
             self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
                                     self.x_central, self.y_central, self.z, 
-                                    self.cellSize))
+                                    self.cellsize_centre))
             self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
                                     self.x_central - self.radius_domain, self.y_central, 
-                                    self.z, self.cellSize))
+                                    self.z, self.cellsize_centre))
             self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+2,
                                     self.x_central, self.y_central + self.radius_domain,
-                                    self.z, self.cellSize))
+                                    self.z, self.cellsize_centre))
             self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+3,
                                     self.x_central + self.radius_domain, self.y_central,
-                                    self.z, self.cellSize))                      
+                                    self.z, self.cellsize_centre))                      
             self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+4,
                                     self.x_central, self.y_central - self.radius_domain,
-                                    self.z, self.cellSize))
+                                    self.z, self.cellsize_centre))
             index = index + 4
+            print self.cellsize_centre, self.cellSize
             for i in sp.arange(1, self.number_fiber + 1, 1):
                 if i == 1:
                     #generate the position of fiber
-                    a = np.random.uniform(-1, 1)
-                    b = np.random.uniform(-1, 1)
+                    a = np.random.uniform(-0.5, 0.5)
+                    b = np.random.uniform(-0.5, 0.5)
                     distance_center = sp.sqrt((a - self.x_central)**2 + (b - self.y_central)**2)
                     while distance_center + self.radius_fiber >= self.radius_yarn:
                         a = np.random.uniform(-1, 1)
@@ -257,7 +257,8 @@ class Yarn2DModel():
         self.viewer = Viewer(vars = self.conc1, datamin = -1., datamax=1.)
 
     def solve_single_component(self):
-        self.diffusion_DEET = self.cfg.get('diffusion.diffusion_DEET')
+        self.diffusion_DEET = self.cfg.get('diffusion.diffusion_conc1')
+        print self.diffusion_DEET
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
         self.steps = self.time_period / self.delta_t
