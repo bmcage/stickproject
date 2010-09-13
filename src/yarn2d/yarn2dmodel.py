@@ -40,6 +40,7 @@ import lib.utils.utils as utils
 import lib.utils.gridutils as GridUtils
 import yarn2d.config as conf
 import lib.diff.diffusion as diffusion
+from mycorrection import MyDiffusionTermNoCorrection
 
 #-------------------------------------------------------------------------
 #
@@ -254,7 +255,7 @@ class Yarn2DModel():
         self.conc1 = CellVariable(name = "solution concentration1", 
                     mesh = self.mesh2d, value = self.init_conc1)
         self.viewer = None
-        self.viewer = Viewer(vars = self.conc1, datamin = -1., datamax=1.)
+        self.viewer = Viewer(vars = self.conc1, datamin = 0., datamax = 1.)
 
     def solve_single_component(self):
         self.diffusion_DEET = self.cfg.get('diffusion.diffusion_conc1')
@@ -262,20 +263,21 @@ class Yarn2DModel():
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
         self.steps = self.time_period / self.delta_t
-        self.eq = TransientTerm() == DiffusionTerm(coeff = self.diffusion_DEET)
+        self.eq = TransientTerm() == MyDiffusionTermNoCorrection(coeff = self.diffusion_DEET)
         xfc, yfc = self.mesh2d.getFaceCenters()
-        print xfc,yfc
+        print len(xfc)
+        xcc, ycc = self.mesh2d.getCellCenters()
         face_in = ((self.mesh2d.getExteriorFaces()) & 
                     (sp.power(xfc,2) + sp.power(yfc,2) \
                         < (self.radius_domain - self.radius_boundlayer)**2))
-        print face_in
         face_ex = (~face_in) & (self.mesh2d.getExteriorFaces())
-        print face_ex
         BCs = (FixedFlux(face_ex, value = 0.), FixedValue(face_in, value = 1.),)
         for i in sp.arange(0, self.steps, 1):
-            self.eq.solve(var = self.conc1, boundaryConditions = BCs, 
-                          dt = self.delta_t, )
+            self.eq.solve(var = self.conc1, boundaryConditions = BCs, dt = self.delta_t, )
             print 'time = ', (i+1) * self.delta_t
+            for i1 in sp.arange(0, len(self.conc1), 1):
+                if self.conc1[i1] < 0 or self.conc1[i1] > 1.5:
+                    print i1, xcc[i1], ycc[i1]
             if self.viewer is not None:
                 self.viewer.plot()
                 #raw_input("continue to next step, please enter <return>.....")
