@@ -30,6 +30,7 @@ import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
 import sets
+import time
 
 #-------------------------------------------------------------------------
 #
@@ -73,14 +74,14 @@ class Yarn2DModel():
         self.read = self.cfg.get('general.read')
         self.Ry = self.cfg.get('domain.yarnradius')
         self.Rf = self.cfg.get('fiber.radius_fiber')
-        self.scaleL = 1.#/self.Ry
+        self.scaleL = 1./self.Ry
         #computational radius
         self.radius_yarn = self.scaleL * self.Ry
         self.radius_fiber =  self.scaleL * self.Rf
         self.radius_boundlayer = self.radius_fiber/2.
-        self.radius_domain = self.radius_yarn + 0.1 #self.radius_boundlayer
+        self.radius_domain = self.radius_yarn + self.radius_boundlayer
         self.cellsize_centre = self.cfg.get('domain.cellsize_centre')
-        self.cellSize = self.scaleL * self.cfg.get('domain.cellsize_fiber')
+        self.cellSize = self.cfg.get('domain.cellsize_fiber')
         self.number_fiber = self.cfg.get('fiber.number_fiber')
         
     def create_circle_domain_gmsh(self):
@@ -90,6 +91,7 @@ class Yarn2DModel():
         """
         filename = 'yarn.geo'
         filepath = utils.OUTPUTDIR + os.sep + filename
+        start = time.clock()
         if self.read == 'False':            
             self.type = self.cfg.get('fiber.type')
             self.circle_file = open(filepath, "w")
@@ -156,7 +158,7 @@ class Yarn2DModel():
                     #distance between the current point and existing points
                     distance_each = sp.sqrt((a - self.x_position[:self.current_point])**2 + \
                                             (b - self.y_position[:self.current_point])**2)
-                    while distance_center + self.radius_fiber >= self.radius_yarn - self.radius_fiber or np.min(distance_each) <= 1.0005*(2*self.radius_fiber): 
+                    while distance_center + self.radius_fiber >= self.radius_yarn or np.min(distance_each) <= (2*self.radius_fiber): 
                         a = np.random.uniform(-1, 1)
                         b = np.random.uniform(-1, 1)
                         distance_center = sp.sqrt((a - self.x_central)**2 + (b - self.y_central)**2)
@@ -231,6 +233,8 @@ class Yarn2DModel():
                     index_circle_for_loop = index_circle_for_loop +1
                     self.circle_file.write("%d" %(index_circle_for_loop))
             self.circle_file.write("};\n")
+            elapsed = (time.clock() - start)
+            print "How much time is consumed is: %.3f" %(elapsed)
             #above part is for generating the surface loop in the yarn domain
             print "all the circles has been generated"
             
@@ -278,6 +282,7 @@ class Yarn2DModel():
             for i1 in sp.arange(0, len(self.conc1), 1):
                 if self.conc1[i1] < 0 or self.conc1[i1] > 1.5:
                     print i1, xcc[i1], ycc[i1]
+            #raw_input("Finshed <return>.....")
             if self.viewer is not None:
                 self.viewer.plot()
                 #raw_input("continue to next step, please enter <return>.....")
