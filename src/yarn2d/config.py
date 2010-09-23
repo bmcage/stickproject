@@ -105,12 +105,21 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("domain.radius", 1.)
         
         self.register("fiber.type", 'constant')
-        self.register("fiber.number", 20)
+        self.register("fiber.number_fiber", 20)
         self.register("fiber.radius_fiber",0.1)
+        self.register("fiber.n_point", 51)
         
         self.register("initial.init_conc1", 0.)
+        self.register("initial.init_conc1_fiber", 'lambda x:(0.2,0.0)')
         
         self.register("diffusion.diffusion_conc1", 2e-5)
+        self.register("diffusion.diffusion_co_l1", 5.0e-6)
+        self.register("diffusion.diffusion_co_l2", 5.0e-6)
+        
+        self.register("boundary.boundary_fib_left", 0.0)
+        self.register("boundary.boundary_fib_right", 1.0)
+        
+        self.register("transfer.transfer_conc1", 7.2e-11)
         
         self.register("time.time_period", 20.)
         self.register("time.dt", 0.1)
