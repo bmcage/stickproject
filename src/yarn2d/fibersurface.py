@@ -95,10 +95,10 @@ class Solving1DFiber(object):
         r = ode(self.f_conc2).set_integrator('vode', method = 'bdf')
         self.delta_t = delta_t
         self.initial_t = initial_t
-        r.set_initial_value(self.initial_c1, self.initial_t)#.set_f_params(2.0)
+        initial_w1 = self.initial_c1 * self.grid
+        r.set_initial_value(initial_w1, self.initial_t)#.set_f_params(2.0)
         while r.successful() and r.t < self.initial_t + self.delta_t:
             r.integrate(r.t + self.delta_t)
-            print r.t, r.y
             self.conc1 = r.y / self.grid    
 
 
