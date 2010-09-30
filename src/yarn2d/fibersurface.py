@@ -61,8 +61,15 @@ class Solving1DFiber(object):
         flux_edge = sp.zeros(n_cell+1, float)
         flux_edge[0] = self.boundary_fib_left
         flux_edge[-1] = self.boundary_fib_right
+        #Diffusion coefficient changes with the concentration changing
+        position_diffusion = sp.empty(n_cell, float)
+        position_diffusion[:] = self.diffusion_co_l1 + (self.diffusion_co_l2 - self.diffusion_co_l1)/(1 + \
+                 sp.exp(-100*(grid[:]-grid[(n_cell-1)/2])))
+        diffusion_co = sp.empty(n_cell, float)
+        diffusion_co[:] = position_diffusion[:] * sp.exp(self.initial_c1[:]) * grid[:]
+        print 'diffusion coefficient on each point', diffusion_co
         #calculate flux rate in each edge of the domain
-        flux_edge[1:-1] = self.diffusion_co_l1*\
+        flux_edge[1:-1] = ((diffusion_co[:-1] + diffusion_co[1:]) / 2.)*\
                           (w_rep[1:]/grid[1:] - w_rep[:-1]/grid[:-1])/delta_r
         diff_w_t[:]=(flux_edge[1:]-flux_edge[:-1])/delta_r
         return diff_w_t
