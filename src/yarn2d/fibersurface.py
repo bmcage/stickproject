@@ -67,7 +67,6 @@ class Solving1DFiber(object):
                  sp.exp(-100*(grid[:]-grid[(n_cell-1)/2])))
         diffusion_co = sp.empty(n_cell, float)
         diffusion_co[:] = position_diffusion[:] * sp.exp(self.initial_c1[:]) * grid[:]
-        print 'diffusion coefficient on each point', diffusion_co
         #calculate flux rate in each edge of the domain
         flux_edge[1:-1] = ((diffusion_co[:-1] + diffusion_co[1:]) / 2.)*\
                           (w_rep[1:]/grid[1:] - w_rep[:-1]/grid[:-1])/delta_r
