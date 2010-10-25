@@ -274,7 +274,7 @@ class Yarn2DModel():
         self.conc1 = CellVariable(name = "solution concentration1", 
                     mesh = self.mesh2d, value = self.init_conc1)
         self.viewer = None
-        self.viewer = Viewer(vars = self.conc1, datamin = 0., datamax =0.00002)
+        self.viewer = Viewer(vars = self.conc1, datamin = 0., datamax =0.005)
 
     def solve_single_component_fiber(self):
         """
@@ -286,6 +286,7 @@ class Yarn2DModel():
         """
         self.beginning_point = self.cfg.get('fiber.beginning_point')
         self.end_point = self.cfg.get('fiber.end_point')
+        self.diffusion_surface = sp.empty(self.n_point, float)
         scale_beginning = self.beginning_point * self.scaleL
         print 'this is the scale beginning point:',scale_beginning
         scale_end = self.end_point * self.scaleL
@@ -294,19 +295,21 @@ class Yarn2DModel():
         #self.grid = grid
         initial_c1 = sp.empty(self.n_point, float)
         discretization_t = self.steps + 1
-        times = sp.linspace(0, self.time_period, discretization_t)
+        self.times = sp.linspace(0, self.time_period, discretization_t)
         for i in sp.arange(0, self.n_point, 1):
             if i <= (self.n_point - 1) / 2:
                 initial_c1[i] = self.init_conc1_fiber(i)[0]
+                self.diffusion_surface[i] = self.diffusion_co_l1
             elif i > (self.n_point - 1) /2:
                 initial_c1[i] = self.init_conc1_fiber(i)[1]
+                self.diffusion_surface[i] = self.diffusion_co_l2
         print 'initial condition is:', initial_c1
         self.fiber_conc1 = fibersurface.Solving1DFiber(self.grid, initial_c1, 
                            self.boundary_fib_left, self.boundary_fib_right,
                            self.diffusion_co_l1, self.diffusion_co_l2)
-        self.fiber_conc1.solver_c(times)
-        self.fiber_surface = sp.empty(len(times), float)
-        for i in sp.arange(1,len(times) + 1,1):
+        self.fiber_conc1.solver_c(self.times)
+        self.fiber_surface = sp.empty(len(self.times), float)
+        for i in sp.arange(1,len(self.times) + 1,1):
             self.fiber_surface[i - 1] = self.fiber_conc1.conc1[i - 1][-1]
         print self.fiber_surface[:]
 
@@ -332,27 +335,12 @@ class Yarn2DModel():
                     (sp.power(xfc,2) + sp.power(yfc,2) \
                         < (self.radius_domain - self.radius_boundlayer)**2))
         face_ex = (~face_in) & (self.mesh2d.getExteriorFaces())
-        #BCs = (FixedFlux(face_ex, value = 0.), FixedValue(face_in, value = 1.),)
-        """
-        for i in sp.arange(0, self.steps, 1):
-            surface_value = self.fiber_surface[i]
-            BCs = (FixedFlux(face_ex, value = 0.), FixedValue(face_in, value = surface_value),)
-            self.eq.solve(var = self.conc1, boundaryConditions = BCs, dt = self.delta_t, )
-            print 'time = ', (i+1) * self.delta_t
-            #raw_input("Finshed <return>.....")
-            if self.viewer is not None:
-                self.viewer.plot()
-                #raw_input("continue to next step, please enter <return>.....")
-        """
         i1 = 0
         self.initial_t = 0.
         initial_c2 = sp.zeros(self.n_point,float)
-        filename = 'fiber_layer.data'
-        filepath = utils.OUTPUTDIR + os.sep + filename
-        self.fiber_file = open(filepath, "w")
-        filename1 = 'concentration_out.dat'
+        filename1 = 'concentration_out.gz'
         filepath1 = utils.OUTPUTDIR + os.sep + filename1
-        self.yarn_around = open(filepath1, "w")
+        conc1_out_yarn = sp.zeros(1, float)
         for i in sp.arange(0, self.steps, 1):
             determine_value = self.fiber_surface[i]
             if determine_value <= 0:
@@ -376,27 +364,29 @@ class Yarn2DModel():
                         print 'the method has problem'
                     for i2 in sp.arange(0, len(self.grid), 1):
                         initial_c2[i2] = self.fiber_conc1.conc1[i][i2]
-                        #self.fiber_file.write("%f, %f \n" %(self.grid[i2], initial_c2[i2])) 
-                    #self.fiber_file.close() 
-                    """
-                    self.fiber_conc1 = fibersurface.Solving1DFiber(self.grid, initial_c2, 
-                                   self.boundary_fib_left, -self.boundary_fib_right,
-                                   self.diffusion_co_l1, self.diffusion_co_l2)
-                    self.fiber_conc1.solver_c_2(self.delta_t, self.initial_t)
-                    """
                     print "the first initial condition for fipy in 1d:", initial_c2
-                
                     #using fipy to solve 1D problem in fiber
                     self.delta_r = self.grid[1] - self.grid[0]
                     self.mesh_fiber = Grid1D(nx = self.n_point, dx = self.delta_r)
-                    solution_fiber = CellVariable(name = "solution fiber", mesh = self.mesh_fiber,
-                                                    value = initial_c2)
+                    print 'length of mesh', self.mesh_fiber
+                    solution_fiber = CellVariable(name = "solution variable", 
+                                        mesh = self.mesh_fiber,
+                                        value = initial_c2, hasOld = 1)
+                    print 'the length of solution:', len(solution_fiber)
+                    print 'length of the diffusion coefficient', len(self.diffusion_surface)
+                    print len(self.grid)
+                    print 
                     BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), value = self.boundary_fib_right),
                                  FixedFlux(faces = self.mesh_fiber.getFacesLeft(), value = 0.0))
-                    eqX_fiber = TransientTerm() == ImplicitDiffusionTerm(coeff = self.diffusion_co_l2)
-                    eqX_fiber.solve(var = solution_fiber, boundaryConditions = BCs_fiber,
-                                    dt = self.delta_t)
-                    print "solution of fipy1d:", solution_fiber
+                    eqX_fiber = TransientTerm() == DiffusionTerm(coeff = self.diffusion_surface * sp.exp(-solution_fiber))
+                    solution_fiber.setValue(0.)
+                    res = 1e+1
+                    while res > 1e-8:
+                        res = eqX_fiber.sweep(var = solution_fiber, boundaryConditions = BCs_fiber,
+                                                dt = self.delta_t)
+                        print "the residual value", res
+                        #solution_fiber.updateOld()
+                    print solution_fiber
                     self.domain_conc1 = solution_fiber#self.fiber_conc1.conc1
                     surface_value = solution_fiber[-1]#self.domain_conc1[-1]
                     self.initial_t = self.initial_t + self.delta_t
@@ -406,17 +396,10 @@ class Yarn2DModel():
                     self.boundary_fib_right = self.transfer_conc1 * surface_value
                     boundary_in_yarn = self.boundary_fib_right
                     print 'the inner boundary of yarn', boundary_in_yarn
-                    #boundary_yarn_out_estep = sp.empty(len(face_ex), float)
                     conc_face_ex = sp.zeros(len(face_ex), float)
                     conc_face_ex = 0.01 * self.conc_face_ex
                     print "the length of face out", len(conc_face_ex)
                     print "the length of determine", len(face_ex)
-                            
-                    """
-                    for i3 in sp.arange(0, len(face_ex), 1):
-                        if face_ex[i3] == True:
-                            conc_face_ex[i3] = 0.001 * self.conc_face_ex[i3]
-                    """
                     BCs = (FixedFlux(face_ex, value = conc_face_ex), FixedFlux(face_in, value = -boundary_in_yarn),)
                     self.eq.solve(var = self.conc1, boundaryConditions = BCs, dt = self.delta_t, ) 
                     initial_c2 = self.domain_conc1
@@ -428,36 +411,25 @@ class Yarn2DModel():
                         determine_out[i_out] = face_ex[i_out]
                     value_out_record = value_face_out[determine_out]#get the value at the face out
                     conc1_average_out = np.sum(value_out_record) / len(value_out_record)
-                    self.yarn_around.write("%f \n" %(conc1_average_out))                    
-                    """
-                    i_total_average = 0
-                    total_conc1 = 0.
-                    for i_out in sp.arange(0, len(face_ex), 1):
-                        if face_ex[i_out] == True:
-                            total_conc1 = total_conc1 + float(self.conc_face_ex[i_out])
-                            i_total_average = i_total_average + 1
-                    """
-                    #print 'initial in fiber', initial_c2 
-                    #print len(initial_c2)
-                    if (i+1) * self.delta_t == 10:
-                        for i2 in sp.arange(0, len(self.grid), 1):
-                           self.fiber_file.write("%f, %f \n" %(self.grid[i2], initial_c2[i2]))
-                        self.fiber_file.close()
-                    """
-                    self.fiber_conc1 = fibersurface.Solving1DFiber(self.grid, initial_c2, 
-                                   self.boundary_fib_left, -self.boundary_fib_right,
-                                   self.diffusion_co_l1, self.diffusion_co_l2)
-                    self.fiber_conc1.solver_c_2(self.delta_t, self.initial_t)
-                    self.domain_conc1 = self.fiber_conc1.conc1
-                    """
-                    solution_fiber = CellVariable(name = "solution fiber", mesh = self.mesh_fiber,
-                                                    value = initial_c2)
+                    conc1_out_yarn = np.append(conc1_out_yarn, conc1_average_out)
+                    if (i+1) * self.delta_t == 30:
+                        dump.write({'space_position': self.grid, 'conc': initial_c2},
+                                    filename = utils.OUTPUTDIR + os.sep + 'fiber_layer.gz',
+                                    extension = '.gz')
                     BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), value = self.boundary_fib_right),
                                  FixedFlux(faces = self.mesh_fiber.getFacesLeft(), value = 0.0))
-                    eqX_fiber = TransientTerm() == ImplicitDiffusionTerm(coeff = self.diffusion_co_l2)
-                    eqX_fiber.solve(var = solution_fiber, boundaryConditions = BCs_fiber,
-                                    dt = self.delta_t)
-                    #print "solution of fipy1d:", solution_fiber
+                    res = 1e+1
+                    solution_fiber.updateOld()
+                    eqX_fiber = TransientTerm() == DiffusionTerm(coeff = self.diffusion_surface * sp.exp(-solution_fiber))
+                    """
+                    eqX_fiber = TransientTerm() == DiffusionTerm(coeff = (self.diffusion_co_l1 + (self.diffusion_co_l2 - \
+                                                    self.diffusion_co_l1)/(1 + sp.exp(-100 * (self.grid - (self.beginning_point * self.scaleL + \
+                                                    self.grid[(self.n_point - 1)]))))) * sp.exp(-solution_fiber))
+                    """
+                    while res > 1e-8:
+                        res = eqX_fiber.sweep(var = solution_fiber, boundaryConditions = BCs_fiber,
+                                                dt = self.delta_t)
+                    print "solution of fipy1d:", solution_fiber
                     self.domain_conc1 = solution_fiber#self.fiber_conc1.conc1
                     surface_value = solution_fiber[-1]#self.domain_conc1[-1]                               
                     self.initial_t = self.initial_t + self.delta_t
@@ -465,8 +437,11 @@ class Yarn2DModel():
                     #raw_input("Finshed <return>.....")
             if self.viewer is not None:
                 self.viewer.plot()
+        dump.write({'time_step': self.times, 'conc_out': conc1_out_yarn},
+                                filename = filepath1, extension = '.gz')
         raw_input("Finshed <return>.....")
-        self.yarn_around.close()
+        #self.yarn_around.close()
+    
     def run(self):        
         self.gmsh_2d_generate()
         self.initial_yarn2d()
