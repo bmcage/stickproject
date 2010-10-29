@@ -150,7 +150,8 @@ class Yarn2DModel():
                         self.current_point = self.current_point + 1
                         index = index + 1
                         self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
-                                            self.x_position[i-1], self.y_position[i-1], self.z,self.cellSize))
+                                            self.x_position[i-1], self.y_position[i-1], 
+                                            self.z,self.cellSize))
                         self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
                                             self.x_position [i-1] - self.radius_fiber,
                                             self.y_position[i-1], self.z, self.cellSize))
@@ -173,10 +174,12 @@ class Yarn2DModel():
                     #distance between the current point and existing points
                     distance_each = sp.sqrt((a - self.x_position[:self.current_point])**2 + \
                                             (b - self.y_position[:self.current_point])**2)
-                    while distance_center + self.radius_fiber >= self.radius_yarn or np.min(distance_each) <= (2*self.radius_fiber): 
+                    while distance_center + self.radius_fiber >= self.radius_yarn or np.min(distance_each)\
+                            <= (2*self.radius_fiber): 
                         a = np.random.uniform(-1, 1)
                         b = np.random.uniform(-1, 1)
-                        distance_center = sp.sqrt((a - self.x_central)**2 + (b - self.y_central)**2)
+                        distance_center = sp.sqrt((a - self.x_central)**2 + \
+                        (b - self.y_central)**2)
                         #distance between the current point and existing points
                         distance_each = sp.sqrt((a - self.x_position[:self.current_point])**2 + \
                                             (b - self.y_position[:self.current_point])**2)
@@ -186,7 +189,8 @@ class Yarn2DModel():
                         self.current_point = self.current_point + 1
                         index = index + 1
                         self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
-                                            self.x_position[i-1], self.y_position[i-1], self.z,self.cellSize))
+                                            self.x_position[i-1], self.y_position[i-1], 
+                                            self.z,self.cellSize))
                         self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
                                             self.x_position [i-1] - self.radius_fiber,
                                             self.y_position[i-1], self.z, self.cellSize))
@@ -298,16 +302,17 @@ class Yarn2DModel():
         self.times = sp.linspace(0, self.time_period, discretization_t)
         for i in sp.arange(0, self.n_point, 1):
             if i <= (self.n_point - 1) / 2:
-                initial_c1[i] = self.init_conc1_fiber(i)[0]
+                initial_c1[i] = self.init_conc1_fiber(i)[0] 
                 self.diffusion_surface[i] = self.diffusion_co_l1
             elif i > (self.n_point - 1) /2:
-                initial_c1[i] = self.init_conc1_fiber(i)[1]
+                initial_c1[i] = self.init_conc1_fiber(i)[1] 
                 self.diffusion_surface[i] = self.diffusion_co_l2
         print 'initial condition is:', initial_c1
         self.fiber_conc1 = fibersurface.Solving1DFiber(self.grid, initial_c1, 
                            self.boundary_fib_left, self.boundary_fib_right,
                            self.diffusion_co_l1, self.diffusion_co_l2)
         self.fiber_conc1.solver_c(self.times)
+        print self.fiber_conc1.conc1
         self.fiber_surface = sp.empty(len(self.times), float)
         for i in sp.arange(1,len(self.times) + 1,1):
             self.fiber_surface[i - 1] = self.fiber_conc1.conc1[i - 1][-1]
@@ -358,12 +363,12 @@ class Yarn2DModel():
                     BCs = (FixedFlux(face_ex, value = 0.), FixedFlux(face_in, value = boundary_in_yarn),)
                     self.eq.solve(var = self.conc1, boundaryConditions = BCs, dt = self.delta_t, )
                     try:
-                        self.conc_face_ex = self.conc1.getArithmeticFaceValue()#[self.mesh2d.getExteriorFaces().getValue()]
+                        self.conc_face_ex = self.conc1.getArithmeticFaceValue()
                         print self.conc_face_ex
                     except ValueError:
                         print 'the method has problem'
                     for i2 in sp.arange(0, len(self.grid), 1):
-                        initial_c2[i2] = self.fiber_conc1.conc1[i][i2]
+                        initial_c2[i2] = self.fiber_conc1.conc1[i][i2] * self.grid[i2]
                     print "the first initial condition for fipy in 1d:", initial_c2
                     #using fipy to solve 1D problem in fiber
                     self.delta_r = self.grid[1] - self.grid[0]
@@ -376,7 +381,8 @@ class Yarn2DModel():
                     print 'length of the diffusion coefficient', len(self.diffusion_surface)
                     print len(self.grid)
                     print 
-                    BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), value = self.boundary_fib_right),
+                    BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
+                                value = self.boundary_fib_right),
                                  FixedFlux(faces = self.mesh_fiber.getFacesLeft(), value = 0.0))
                     eqX_fiber = TransientTerm() == DiffusionTerm(coeff = self.diffusion_surface * sp.exp(-solution_fiber))
                     solution_fiber.setValue(0.)
@@ -394,15 +400,13 @@ class Yarn2DModel():
                     #raw_input("Finshed <return>.....")
                 elif i1 > 1:
                     self.boundary_fib_right = self.transfer_conc1 * surface_value
-                    boundary_in_yarn = self.boundary_fib_right
+                    boundary_in_yarn = self.boundary_fib_right / self.grid[-1]
                     print 'the inner boundary of yarn', boundary_in_yarn
                     conc_face_ex = sp.zeros(len(face_ex), float)
                     conc_face_ex = 0.01 * self.conc_face_ex
-                    print "the length of face out", len(conc_face_ex)
-                    print "the length of determine", len(face_ex)
                     BCs = (FixedFlux(face_ex, value = conc_face_ex), FixedFlux(face_in, value = -boundary_in_yarn),)
                     self.eq.solve(var = self.conc1, boundaryConditions = BCs, dt = self.delta_t, ) 
-                    initial_c2 = self.domain_conc1
+                    initial_c2 = self.domain_conc1 * self.grid[:]
                     self.conc_face_ex = self.conc1.getArithmeticFaceValue()
                     value_face_out = np.empty(len(face_ex), float)#save the concentration at the face-out
                     determine_out = np.empty(len(face_ex), bool)#save the boolean value at the face-out
@@ -435,6 +439,7 @@ class Yarn2DModel():
                     self.initial_t = self.initial_t + self.delta_t
                     print 'time = ', (i+1) * self.delta_t
                     #raw_input("Finshed <return>.....")
+                    
             if self.viewer is not None:
                 self.viewer.plot()
         dump.write({'time_step': self.times, 'conc_out': conc1_out_yarn},
