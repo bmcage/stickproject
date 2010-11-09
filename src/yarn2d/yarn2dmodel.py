@@ -78,17 +78,6 @@ class Yarn2DModel(object):
         self.datatime = []
         self.cfg = config
         self.comps = self.cfg.get('general.components')
-        self.Ry = self.cfg.get('domain.yarnradius')
-        self.Rf = self.cfg.get('fiber.radius_fiber')
-        self.scaleL = 1./self.Ry #get the scale factor for relative domain
-        #computational radius
-        self.radius_yarn = self.scaleL * self.Ry
-        self.radius_fiber =  self.scaleL * self.Rf
-        self.radius_boundlayer = self.radius_fiber/2.
-        self.radius_domain = self.radius_yarn + self.radius_boundlayer
-        self.cellsize_centre = self.cfg.get('domain.cellsize_centre')
-        self.cellSize = self.cfg.get('domain.cellsize_fiber')
-        self.number_fiber = self.cfg.get('fiber.number_fiber')
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
         self.steps = self.time_period / self.delta_t
@@ -106,8 +95,6 @@ class Yarn2DModel(object):
         Create a mesh for use in the model
         """
         self.grid = Yarn2dGrid(self.cfg)
-        print self.cfg.get('general.read'), type(self.cfg.get('general.read'))
-        print not self.cfg.get('general.read')
         self.mesh2d = self.grid.mesh_2d_generate(filename='yarn.geo',
                                 regenerate=not self.cfg.get('general.read'))
     
@@ -129,9 +116,9 @@ class Yarn2DModel(object):
         self.beginning_point = self.cfg.get('fiber.beginning_point')
         self.end_point = self.cfg.get('fiber.end_point')
         self.diffusion_surface = sp.empty(self.n_point, float)
-        scale_beginning = self.beginning_point * self.scaleL
+        scale_beginning = self.beginning_point * self.grid.scaleL
         print 'this is the scale beginning point:',scale_beginning
-        scale_end = self.end_point * self.scaleL
+        scale_end = self.end_point * self.grid.scaleL
         print 'this is the scale end point', scale_end
         self.grid = sp.linspace(scale_beginning, scale_end, self.n_point)
         #self.grid = grid
@@ -176,7 +163,7 @@ class Yarn2DModel(object):
         xcc, ycc = self.mesh2d.getCellCenters()
         face_in = ((self.mesh2d.getExteriorFaces()) & 
                     (sp.power(xfc,2) + sp.power(yfc,2) \
-                        < (self.radius_domain - self.radius_boundlayer)**2))
+                        < (self.grid.radius_domain - self.grid.radius_boundlayer)**2))
         face_ex = (~face_in) & (self.mesh2d.getExteriorFaces())
         i1 = 0
         self.initial_t = 0.
@@ -265,7 +252,7 @@ class Yarn2DModel(object):
                     eqX_fiber = TransientTerm() == DiffusionTerm(coeff = self.diffusion_surface * sp.exp(-solution_fiber))
                     """
                     eqX_fiber = TransientTerm() == DiffusionTerm(coeff = (self.diffusion_co_l1 + (self.diffusion_co_l2 - \
-                                                    self.diffusion_co_l1)/(1 + sp.exp(-100 * (self.grid - (self.beginning_point * self.scaleL + \
+                                                    self.diffusion_co_l1)/(1 + sp.exp(-100 * (self.grid - (self.beginning_point * self.grid.scaleL + \
                                                     self.grid[(self.n_point - 1)]))))) * sp.exp(-solution_fiber))
                     """
                     while res > 1e-8:
