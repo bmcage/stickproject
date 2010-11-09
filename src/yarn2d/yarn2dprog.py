@@ -91,7 +91,7 @@ def main(argv=None):
     #default value is 'False', which means the new file will be generated when
     #the programme runs
     read_old_file = cfg.get('general.read')
-    if read_old_file == 'False':
+    if not read_old_file:
         if not os.path.isdir(outputdir):
             os.mkdir(outputdir)
         else:
@@ -100,7 +100,7 @@ def main(argv=None):
         set_outputdir(outputdir)
         #store the ini file in the outputdir so the experiment can be repeated
         shutil.copy(inifile, outputdir)
-    elif read_old_file == 'True':
+    else:
         set_outputdir(outputdir)
         print "ready to read the old file"
     #determine if inverse problem must be solved
