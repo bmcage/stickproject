@@ -65,7 +65,7 @@ USER_DIRLIST = (DATA_DIR,)
 #-------------------------------------------------------------------------
 PROGRAM_NAME   = "STICK"
 VERSION        = "0.0.1a"
-COPYRIGHT_MSG  = u"\u00A9 2010 Tinne Goessens\n" \
+COPYRIGHT_MSG  = u"\u00A9 2010 Tine Goessens\n" \
                  u"\u00A9 2010 Pei Li\n" \
                  u"\u00A9 2006-2010 Benny Malengier\n"
 COMMENTS       = "Sophisticated Textile Information Computing Kit"
