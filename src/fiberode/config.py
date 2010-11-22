@@ -61,8 +61,8 @@ COMPONENTS = {
 
 #binders and typical diff coef for Deet and permethrin
 BINDER = {
-    'silocone-elastomeer' : ([0.4, 0.01], ),
-    'polyacrylac' : ([0.6, 0.09], ),
+    'silicone-elastomeer' : ([0.4, 0.01], ),
+    'polyacrylate' : ([0.6, 0.09], ),
     }
 
 #---------------------------------------------------------------
