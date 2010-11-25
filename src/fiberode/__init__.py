@@ -17,5 +17,6 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 """
-The fiber module provides packages that are common to fiber modelling
+The fiberode module provides packages that are common to fiber modelling with
+an ODE method of lines approach
 """

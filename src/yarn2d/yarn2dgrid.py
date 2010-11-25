@@ -63,9 +63,10 @@ class Yarn2dGrid(object):
         self.cellsize_centre = self.cfg.get('domain.cellsize_centre')
         self.cellSize = self.cfg.get('domain.cellsize_fiber')
         self.number_fiber = self.cfg.get('fiber.number_fiber')
+        
+        self.verbose = self.cfg.get('general.verbose')
 
-    def create_circle_domain_gmsh(self, filename='yarn.geo', regenerate=True,
-                                  verbose=False):
+    def create_circle_domain_gmsh(self, filename='yarn.geo', regenerate=True):
         """
         Create gmsh file with the circle domain of yarn and the fibers in it
         returns string with defenition, path to file
@@ -170,7 +171,7 @@ class Yarn2dGrid(object):
                                             self.z, self.cellSize))
                         index = index + 4
             #above part is for generating the points of circle in the domain
-            if verbose:
+            if self.verbose:
                 print "all the points have been generated"
             index_point_in_circle = 0 #the number of each point in Circle part
             for i1 in sp.arange(0, self.number_fiber + 1, 1):
@@ -219,7 +220,7 @@ class Yarn2dGrid(object):
                     self.circle_file.write("%d" %(index_circle_for_loop))
             self.circle_file.write("};\n")
             elapsed = (time.clock() - start)
-            if verbose:
+            if self.verbose:
                 print "Time to generate the mesh file: %.3f" %(elapsed)
                 #above part is for generating the surface loop in the yarn domain
                 print "Mesh generation finished"

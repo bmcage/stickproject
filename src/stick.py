@@ -42,7 +42,8 @@ import sys
 ARGS = sys.argv
 # module with the program, main() will be executed
 PROGS = {
-    'fiber': 'fiber.fiberprog',
+    'fiberode': 'fiberode.fiberprog',
+    'fiberfipy': 'fiberfipy.fiberprog',
     'yarn2d': 'yarn2d.yarn2dprog',
     }
 

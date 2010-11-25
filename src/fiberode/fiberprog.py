@@ -38,7 +38,7 @@ import scipy as S
 #-------------------------------------------------------------------------
 from lib.utils.utils import set_outputdir
 import const
-import fiber.config as conf
+import fiberode.config as conf
 
 #-------------------------------------------------------------------------
 #

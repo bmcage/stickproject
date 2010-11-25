@@ -40,20 +40,17 @@ from lib.config import ConfigManager
 # Constants
 #
 #---------------------------------------------------------------
-INIFILE_DEFAULTFAB = const.INI_DIR + os.sep + 'yarn2d' + os.sep + \
-                     'defaultyarn.ini'
+INIFILE_DEFAULT = const.INI_DIR + os.sep + 'fiber' + os.sep + \
+                     'defaultfiber.ini'
 
 LONGOPTS = ["inifile", 'outputdir']
 SHORTOPTS = "i:o" 
 
 METHOD = {
-    'FVM': ('Finite Volume Method discretization', ['cvode']),
+    'FVM': ('Finite Volume Method discretization', ['odeint', 'ode', 'fipy']),
     }
 
 #possible fiber materials, map to diff coeff of components
-'''
-
-''' 
 YARN_MAT = {
     'YARN_1': ([0.015], ),
     }
@@ -74,7 +71,7 @@ COMPONENTS = {
 #---------------------------------------------------------------
 
 
-class Yarn2dConfigManager(ConfigManager):
+class FiberfipyConfigManager(ConfigManager):
 
     __instance = None
     
@@ -82,17 +79,17 @@ class Yarn2dConfigManager(ConfigManager):
         """ Use this function to get the instance of the ConfigManager 
         that will work on inifile
         """
-        if Yarn2dConfigManager.__instance is None:
-            Yarn2dConfigManager.__instance = 1 # Set to 1 for __init__()
-            Yarn2dConfigManager.__instance = Yarn2dConfigManager(inifile)
-        return Yarn2dConfigManager.__instance
+        if FiberfipyConfigManager.__instance is None:
+            FiberfipyConfigManager.__instance = 1 # Set to 1 for __init__()
+            FiberfipyConfigManager.__instance = FiberfipyConfigManager(inifile)
+        return FiberfipyConfigManager.__instance
     get_instance = staticmethod(get_instance)
     
-    def __init__(self, filename = INIFILE_DEFAULTFAB):
+    def __init__(self, filename = INIFILE_DEFAULT):
         """ 
         A singleton implementation of config.ConfigManager
         """
-        if Yarn2dConfigManager.__instance is not 1:
+        if FiberfipyConfigManager.__instance is not 1:
             raise Exception("This class is a singleton. "
                             "Use the get_instance() method")
         ConfigManager.__init__(self, filename)
@@ -101,16 +98,13 @@ class Yarn2dConfigManager(ConfigManager):
         """default ini settings for a DiffusionIT problem"""
         self.register("general.read", False)
         self.register("general.verbose", False)
-        self.register("domain.cellsize_centre", 5.0e-2)
-        self.register("domain.cellsize_fiber", 5.0e-2)
-        self.register("domain.radius", 1.)
+        self.register("general.method", 'FVM')
+        self.register("general.submethod", 'ode')
         
         self.register("fiber.type", 'constant')
-        self.register("fiber.number_fiber", 20)
         self.register("fiber.radius_fiber",0.1)
         self.register("fiber.n_point", 51)
         
-        self.register("initial.init_conc1", 0.)
         self.register("initial.init_conc1_fiber", 'lambda x:(0.2,0.0)')
         
         self.register("diffusion.diffusion_conc1", 2e-5)
