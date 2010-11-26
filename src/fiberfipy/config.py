@@ -110,6 +110,7 @@ class FiberfipyConfigManager(ConfigManager):
         self.register("diffusion.diffusion_conc1", 2e-5)
         self.register("diffusion.diffusion_co_l1", 5.0e-6)
         self.register("diffusion.diffusion_co_l2", 5.0e-6)
+        self.register("diffusion.diffusion_polymer_exp_factor", 0.)
         
         self.register("boundary.boundary_fib_left", 0.0)
         self.register("boundary.boundary_fib_right", 1.0)
