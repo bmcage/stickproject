@@ -102,14 +102,14 @@ class FiberfipyConfigManager(ConfigManager):
         self.register("general.submethod", 'ode')
         
         self.register("fiber.type", 'constant')
-        self.register("fiber.radius_fiber",0.1)
+        self.register("fiber.radius_pure_fiber", 0.1)
+        self.register("fiber.radius_fiber", 0.117)
         self.register("fiber.n_point", 51)
+        self.register("fiber.nrlayers", 2)
         
         self.register("initial.init_conc1_fiber", 'lambda x:(0.2,0.0)')
         
         self.register("diffusion.diffusion_conc1", 2e-5)
-        self.register("diffusion.diffusion_co_l1", 5.0e-6)
-        self.register("diffusion.diffusion_co_l2", 5.0e-6)
         self.register("diffusion.diffusion_polymer_exp_factor", 0.)
         
         self.register("boundary.boundary_fib_left", 0.0)

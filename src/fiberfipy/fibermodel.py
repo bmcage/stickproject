@@ -68,8 +68,6 @@ class FiberModel(object):
         boundary_left: the Neumann boundary condition for left side of 1D domain;
         boundary_right: the Neumann boundary condition for right side of 1D domain;
         transfer: the Robin BC for the right side of 1D domain
-        diffusion_co_l1: the diffusion coefficient of DEET in the first layer of binder;
-        diffusion_co_l2: the diffusion coefficient of DEET in the second layer of binder;
         initial_c: the initial concentration of DEET in the whole domain
         """
         self.datatime = []
@@ -87,17 +85,14 @@ class FiberModel(object):
         self.delta_t = self.cfg.get('time.dt')
         self.steps = self.time_period / self.delta_t
         #read the initial and boundary information for fiber
-        self.n_point = self.cfg.get('fiber.n_point') #discretize the fiber radius
+        self.n_edge = self.cfg.get('fiber.n_edge') #discretize the fiber radius
         self.boundary_fib_left = self.cfg.get('boundary.boundary_fib_left')
         self.boundary_fib_right = self.cfg.get('boundary.boundary_fib_right')
         self.boundary_transf_right = self.cfg.get('transfer.transfer_conc1')
         if self.boundary_transf_right and self.boundary_fib_right:
             print 'conflicting boundary conditions, transfercoeff and flux cond right'
             sys.exit(0)
-        self.diffusion_co_l1 =  self.cfg.get('diffusion.diffusion_co_l1')
-        self.diffusion_co_l2 = self.cfg.get('diffusion.diffusion_co_l2')
         self.diff_exp_fact = self.cfg.get('diffusion.diffusion_polymer_exp_factor')
-        self.init_conc1_fiber = eval(self.cfg.get('initial.init_conc1_fiber'))
         
         self.verbose = self.cfg.get('general.verbose')
 
@@ -110,42 +105,77 @@ class FiberModel(object):
         grid: the space position of each central point for every cell element;
         """
         self.scaleL = scaleL
-        self.beginning_point = self.cfg.get('fiber.beginning_point')
-        self.end_point = self.cfg.get('fiber.end_point')
+        self.beginning_point = self.cfg.get('fiber.radius_pure_fiber')
+        self.end_point = self.cfg.get('fiber.radius_fiber')
         scale_beginning = self.beginning_point * self.scaleL
-        print 'this is the scale beginning point:',scale_beginning
+        print 'this is the scaled beginning point:',scale_beginning
         scale_end = self.end_point * self.scaleL
-        print 'this is the scale end point', scale_end
-        self.grid_edge = sp.linspace(scale_beginning, scale_end, self.n_point+1)
+        print 'this is the scaled end point', scale_end
+        self.nrlayers = self.cfg.get('fiber.nrlayers')
+        n_edge = [0]
+        self.surf = [self.beginning_point]
+        self.diff_coef = [0.]
+        self.init_conc = [lambda x: 0.0 ]
+        for i in range(self.nrlayers):
+            section = 'fiberlayer_%i' % i
+            n_edge += [self.cfg.get(section + '.n_edge')]
+            self.surf += [self.surf[-1] + self.cfg.get(section + '.thickness')]
+            self.diff_coef += [self.cfg.get(section + '.diffusion_coef')]
+            self.init_conc += [eval(self.cfg.get(section + '.init_conc')) ]
+        if not (self.surf[-1] == self.end_point):
+            print "ERROR, layers on fiber don't correspond with fiber thickness, %g, %g" % (self.surf[-1], self.end_point)
+            sys.exit(0)
+        #we now construct the full edge grid
+        self.tot_edges = 0
+        first = True
+        for nr in n_edge:
+            if nr == 0 and self.tot_edges == 0 and not first:
+                print 'ERROR, no discretization points given'
+                sys.exit(0)
+            if not (nr == 0):
+                first = False
+                if self.tot_edges:
+                    self.tot_edges += nr - 1
+                else:
+                    self.tot_edges = nr
+            
+        self.grid_edge = sp.empty(self.tot_edges , float)
+        left = 0.
+        totnr = 0
+        first = True
+        for nr, right in zip(n_edge, self.surf):
+            if nr:
+                if first:
+                    self.grid_edge[totnr:totnr+nr] = sp.linspace(left, right, nr)
+                    totnr += nr
+                else:
+                    self.grid_edge[totnr:totnr+nr-1] = sp.linspace(left, right, nr)[1:]
+                    totnr += nr-1
+                first = False
+            left = right
+        #construct cell centers from this
         self.grid = (self.grid_edge[:-1] + self.grid_edge[1:])/2.
-        self.delta_r = self.grid[1] - self.grid[0]
+        #obtain cell sizes
+        self.delta_r = self.grid_edge[1:] - self.grid_edge[:-1]
         if self.submethod == 'fipy':
-            self.mesh_fiber = CylindricalGrid1D(nr=self.n_point, dr=self.delta_r)
+            self.mesh_fiber = CylindricalGrid1D(dr=tuple(self.delta_r))
             self.mesh_fiber.periodicBC = False
             self.mesh_fiber = self.mesh_fiber + (scale_beginning,)
 
-        self.diffusion_coeff = sp.empty(self.n_point, float)
+        self.diffusion_coeff = sp.empty(self.tot_edges-1, float)
     
     def initial_fiber(self):
         """ initial concentration over the domain"""
-        self.initial_c1 = sp.empty(self.n_point, float)
-        for i in sp.arange(0, self.n_point, 1):
-            ##TODO, this is not good, change is in middle
-            if i <= (self.n_point - 1) / 2:
-                self.initial_c1[i] = self.init_conc1_fiber(i)[0] 
-                self.diffusion_coeff[i] = self.diffusion_co_l1
-            elif i > (self.n_point - 1) /2:
-                self.initial_c1[i] = self.init_conc1_fiber(i)[1]
-                self.diffusion_coeff[i] = self.diffusion_co_l2
-        if self.submethod == 'fipy':
-            #radial symmetry, solve for w with w = r*C
-            self.initial_c2 = self.initial_c1 * self.grid
+        self.initial_c1 = sp.empty(self.tot_edges-1, float)
+        st = 0
+        surf = self.surf[st]
+        for i, pos in enumerate(self.grid):
+            while pos > surf:
+                st += 1
+                surf = self.surf[st]
+            self.initial_c1[i] = self.init_conc[st](pos)
+            self.diffusion_coeff[i] = self.diff_coef[st]
         print 'initial mass = ', self.calc_mass(self.initial_c1)
-        
-        #self.conc1 = CellVariable(name = "solution concentration1", 
-        #            mesh = self.mesh2d, value = self.init_conc1)
-        #self.viewer = None
-        #self.viewer = Viewer(vars = self.conc1, datamin = 0., datamax =0.005)
 
     def calc_mass(self, conc_r):
         """calculate the mass of component present
@@ -153,7 +183,7 @@ class FiberModel(object):
         
         conc_r: concentration in self.grid
         """
-        return sp.sum(conc_r * self.grid) * 2. * sp.pi * self.delta_r
+        return sp.sum(conc_r * self.grid * self.delta_r) * 2. * sp.pi 
 
     def _set_bound_flux(self, flux_edge, w_rep):
         """
@@ -183,8 +213,9 @@ class FiberModel(object):
         flux_edge[1:-1] = (self.diffusion_coeff[:-1] * sp.exp(-self.diff_exp_fact * w_rep[:-1]/self.grid[:-1]) \
                          + self.diffusion_coeff[1:] * sp.exp(-self.diff_exp_fact * w_rep[1:]/self.grid[1:]))/2.\
                     * self.grid_edge[1:-1] \
-                    * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])/self.delta_r
-        diff_w_t[:]=(flux_edge[1:]-flux_edge[:-1])/self.delta_r
+                    * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
+                    / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
+        diff_w_t[:]=(flux_edge[1:]-flux_edge[:-1])/self.delta_r[:]
         return diff_w_t
     
     def solve_odeint(self):
@@ -276,11 +307,14 @@ class FiberModel(object):
         Show the solution in conc with times.
         conc[i][:] contains solution at time times[i]
         """
-        self.mesh_fiber = CylindricalGrid1D(nr = self.n_point, dr = self.delta_r)
+        
+        self.mesh_fiber = CylindricalGrid1D(dr=tuple(self.delta_r))
+        self.mesh_fiber.periodicBC = False
+        self.mesh_fiber = self.mesh_fiber + (self.beginning_point,)
         self.solution_fiber = CellVariable(name = "fiber concentration", 
                             mesh = self.mesh_fiber,
                             value = conc[0])
-        self.viewer =  Viewer(vars = self.solution_fiber, datamin=0., datamax=1.1)
+        self.viewer =  Viewer(vars = self.solution_fiber, datamin=0., datamax=conc[0].max())
         self.viewer.plot()
         for time, con in zip(times[1:], conc[1:]):
             self.solution_fiber.setValue(con)
