@@ -30,7 +30,7 @@ import sys
 import const
 import numpy as np
 import scipy as sp
-from scipy.integrate import odeint, ode
+from scipy.integrate import odeint, ode, trapz
 import matplotlib.pyplot as plt
 import sets
 import time
@@ -120,7 +120,9 @@ class FiberModel(object):
         self.grid = (self.grid_edge[:-1] + self.grid_edge[1:])/2.
         self.delta_r = self.grid[1] - self.grid[0]
         if self.submethod == 'fipy':
-            self.mesh_fiber = CylindricalGrid1D(nr = self.n_point, dr = self.delta_r)
+            self.mesh_fiber = CylindricalGrid1D(nr=self.n_point, dr=self.delta_r)
+            self.mesh_fiber.periodicBC = False
+            self.mesh_fiber = self.mesh_fiber + (scale_beginning,)
 
         self.diffusion_coeff = sp.empty(self.n_point, float)
     
@@ -138,12 +140,20 @@ class FiberModel(object):
         if self.submethod == 'fipy':
             #radial symmetry, solve for w with w = r*C
             self.initial_c2 = self.initial_c1 * self.grid
-        print 'initial condition is:', self.initial_c1
+        print 'initial mass = ', self.calc_mass(self.initial_c1)
         
         #self.conc1 = CellVariable(name = "solution concentration1", 
         #            mesh = self.mesh2d, value = self.init_conc1)
         #self.viewer = None
         #self.viewer = Viewer(vars = self.conc1, datamin = 0., datamax =0.005)
+
+    def calc_mass(self, conc_r):
+        """calculate the mass of component present
+        This is given by 2 \pi int_r1^r2 C(r)r dr
+        
+        conc_r: concentration in self.grid
+        """
+        return sp.sum(conc_r * self.grid) * 2. * sp.pi * self.delta_r
 
     def _set_bound_flux(self, flux_edge, w_rep):
         """
@@ -210,21 +220,19 @@ class FiberModel(object):
         print 'length of the diffusion coefficient', len(self.diffusion_coeff)
         print len(self.grid)
         
+        
+        self.solution_fiber.getFaceGrad().constrain(self.boundary_fib_left, 
+                                                self.mesh_fiber.getFacesLeft())
         if self.boundary_fib_right:
-            self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
-                                        value = self.boundary_fib_right),
-                              FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
-                                        value = self.boundary_fib_left))
+            self.solution_fiber.getFaceGrad().constrain(
+                self.boundary_fib_right, self.mesh_fiber.getFacesRight())
         else:
-            print 'Not implemented'
-            sys.exit(0)
+            self.solution_fiber.getFaceGrad().constrain(
+                -self.boundary_transf_right * self.solution_fiber.getFaceValue(), 
+                self.mesh_fiber.getFacesRight())
+
         self.eqX_fiber = TransientTerm() == DiffusionTerm(coeff = 
                         self.diffusion_coeff * sp.exp(-self.diff_exp_fact * self.solution_fiber))
-        """
-        self.eqX_fiber = TransientTerm() == DiffusionTerm(coeff = (self.diffusion_co_l1 + (self.diffusion_co_l2 - \
-                                        self.diffusion_co_l1)/(1 + sp.exp(-100 * (self.grid - (self.beginning_point * self.grid.scaleL + \
-                                        self.grid[(self.n_point - 1)]))))) * sp.exp(-solution_fiber))
-        """
         tstep = 0
         self.conc1[tstep][:] = self.initial_c1
         for time in self.times[1:]:
@@ -233,12 +241,12 @@ class FiberModel(object):
                 self.viewer.plot()
             tstep += 1
             self.conc1[tstep][:] = self.solution_fiber.getValue()
+            print 'mass = ', self.calc_mass(self.conc1[tstep])
 
     def solve_fipy_step(self):
         res = 1e+1
         while res > 1e-8:
-            res = self.eqX_fiber.sweep(var = self.solution_fiber, 
-                                        boundaryConditions = self.BCs_fiber,
+            res = self.eqX_fiber.sweep(var = self.solution_fiber,
                                         dt = self.delta_t)
         self.solution_fiber.updateOld()
 
@@ -259,11 +267,9 @@ class FiberModel(object):
                 self.solve_odeint()
             elif  self.submethod == 'ode':
                 self.solve_ode()
-        print self.conc1
         self.fiber_surface = sp.empty(len(self.times), float)
         for i in sp.arange(1,len(self.times) + 1,1):
             self.fiber_surface[i - 1] = self.conc1[i - 1][-1]
-        print self.fiber_surface[:]
 
     def view_sol(self, times, conc):
         """
@@ -284,4 +290,6 @@ class FiberModel(object):
         self.create_mesh()
         self.initial_fiber()
         self.solve()
+        
+        print 'end mass = ', self.calc_mass(self.conc1[-1])
         
