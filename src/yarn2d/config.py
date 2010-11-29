@@ -122,6 +122,12 @@ class Yarn2dConfigManager(ConfigManager):
         
         self.register("transfer.transfer_conc1", 7.2e-11)
         
+        self.register("size_hole.net_width", 1.0e-3)
+        self.register("size_hole.net_length", 2.0e-3)
+        self.register("size_hole.leng_yarn", 2.0)
+        self.register("size_hole.domain_effect", 0.02)
+        self.register("size_hole.domain_effect", 4)
+        
         self.register("time.time_period", 20.)
         self.register("time.dt", 0.1)
         

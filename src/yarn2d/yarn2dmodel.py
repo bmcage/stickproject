@@ -87,6 +87,13 @@ class Yarn2DModel(object):
         self.diffusion_co_l2 = self.cfg.get('diffusion.diffusion_co_l2')
         self.init_conc1_fiber = eval(self.cfg.get('initial.init_conc1_fiber'))
         self.transfer_conc1 = self.cfg.get('transfer.transfer_conc1')
+        #read the parameter of bed net
+        self.net_width = self.cfg.get('size_hole.net_width')
+        self.net_length = self.cfg.get('size_hole.net_length')
+        self.length_yarn = self.cfg.get('size_hole.length_yarn')
+        self.domain_effect = self.cfg.get('size_hole.domain_effect')
+        self.dis_effect = self.cfg.get('size_hole.dis_effect')
+        
         
         self.verbose = self.cfg.get('general.verbose')
 
@@ -171,6 +178,11 @@ class Yarn2DModel(object):
         filename1 = 'concentration_out.gz'
         filepath1 = utils.OUTPUTDIR + os.sep + filename1
         conc1_out_yarn = sp.zeros(1, float)
+        #calculate the bed net part
+        n_point_net = int(self.yarn_length / self.net_width) + 1
+        delta_effect = self.domain_effect / self.dis_effect
+        self.distance_yarn = sp.empty(4 * n_point_net, float)
+        
         for i in sp.arange(0, self.steps, 1):
             determine_value = self.fiber_surface[i]
             if determine_value <= 0:
