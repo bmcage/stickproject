@@ -64,24 +64,24 @@ YARN_MAT = {
 
 class FiberfipyConfigManager(ConfigManager):
 
-    __instance = None
+    __instance = {}
     
     def get_instance(inifile):
         """ Use this function to get the instance of the ConfigManager 
         that will work on inifile
         """
-        if FiberfipyConfigManager.__instance is None:
-            FiberfipyConfigManager.__instance = 1 # Set to 1 for __init__()
-            FiberfipyConfigManager.__instance = FiberfipyConfigManager(inifile)
-        return FiberfipyConfigManager.__instance
+        if not (inifile in FiberfipyConfigManager.__instance):
+            FiberfipyConfigManager.__instance[inifile] = None # Set for __init__()
+            FiberfipyConfigManager.__instance[inifile] = FiberfipyConfigManager(inifile)
+        return FiberfipyConfigManager.__instance[inifile]
     get_instance = staticmethod(get_instance)
     
     def __init__(self, filename = INIFILE_DEFAULT):
         """ 
         A singleton implementation of config.ConfigManager
         """
-        if FiberfipyConfigManager.__instance is not 1:
-            raise Exception("This class is a singleton. "
+        if filename not in FiberfipyConfigManager.__instance:
+            raise Exception("This class is a singleton per filename. "
                             "Use the get_instance() method")
         ConfigManager.__init__(self, filename)
 

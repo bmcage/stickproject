@@ -249,20 +249,21 @@ class FiberModel(object):
         print 'the length of solution:', len(self.solution_fiber)
         print 'length of the diffusion coefficient', len(self.diffusion_coeff)
         print len(self.grid)
-        
-        
-        self.solution_fiber.getFaceGrad().constrain(self.boundary_fib_left, 
-                                                self.mesh_fiber.getFacesLeft())
-        if self.boundary_fib_right:
-            self.solution_fiber.getFaceGrad().constrain(
-                self.boundary_fib_right, self.mesh_fiber.getFacesRight())
-        else:
-            self.solution_fiber.getFaceGrad().constrain(
-                -self.boundary_transf_right * self.solution_fiber.getFaceValue(), 
-                self.mesh_fiber.getFacesRight())
 
+        if self.boundary_fib_right:
+            self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
+                                    value = self.boundary_fib_right),
+                              FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
+                                    value = -self.boundary_fib_left))
+        else:
+            self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
+                                       value = self.boundary_transf_right \
+                                            * self.solution_fiber.getFaceValue()),
+                              FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
+                                    value = -self.boundary_fib_left))
         self.eqX_fiber = TransientTerm() == DiffusionTerm(coeff = 
-                        self.diffusion_coeff * sp.exp(-self.diff_exp_fact * self.solution_fiber))
+                                self.diffusion_coeff * 
+                                sp.exp(-self.diff_exp_fact * self.solution_fiber))
         tstep = 0
         self.conc1[tstep][:] = self.initial_c1
         for time in self.times[1:]:
@@ -277,7 +278,8 @@ class FiberModel(object):
         res = 1e+1
         while res > 1e-8:
             res = self.eqX_fiber.sweep(var = self.solution_fiber,
-                                        dt = self.delta_t)
+                                        dt = self.delta_t,
+                                        boundaryConditions = self.BCs_fiber)
         self.solution_fiber.updateOld()
 
     def solve(self):
