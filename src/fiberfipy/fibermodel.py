@@ -72,7 +72,6 @@ class FiberModel(object):
         """
         self.datatime = []
         self.cfg = config
-        self.comps = self.cfg.get('general.components')
         self.method = self.cfg.get('general.method')
         if not (self.method in ['FVM']):
             print 'unkown solution method'

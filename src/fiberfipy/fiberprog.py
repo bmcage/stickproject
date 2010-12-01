@@ -94,21 +94,9 @@ def main(argv=None):
     #store the ini file in the outputdir so the experiment can be repeated
     shutil.copy(inifile, outputdir)
     
-    #determine if inverse problem must be solved
-    inverseprob = cfg.get("general.inverseproblem")
-    
-    comps = cfg.get("general.components")
-    for comp in comps:
-        if not comp in conf.COMPONENTS:
-            raise NotImplementedError, \
-                    'fiber does not understand component %s' % comp
-    
     #create the correct model, and run it
-    if inverseprob:
-        raise NotImplementedError, 'Inverse not supported'
-    else:
-        from fiberfipy.fibermodel import FiberModel
-        model = FiberModel(cfg)
+    from fiberfipy.fibermodel import FiberModel
+    model = FiberModel(cfg)
     
     #pass further execution to the model
     model.run()

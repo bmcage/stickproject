@@ -55,15 +55,6 @@ YARN_MAT = {
     'YARN_1': ([0.015], ),
     }
 
-#all components possible. Map to a unique number used in value maps, eg
-#  DEET --> 0 ==> diffusion is BINDER[key][COMPONENT['DEET'][0]
-COMPONENTS = {
-    'DEET': [0], 
-    }
-
-#binders and typical diff coef for Deet and permethrin
-
-
 #---------------------------------------------------------------
 #
 # DiffitConfigManager class
@@ -100,24 +91,23 @@ class FiberfipyConfigManager(ConfigManager):
         self.register("general.verbose", False)
         self.register("general.method", 'FVM')
         self.register("general.submethod", 'ode')
-        
-        self.register("fiber.type", 'constant')
-        self.register("fiber.radius_pure_fiber", 0.1)
-        self.register("fiber.radius_fiber", 0.117)
-        self.register("fiber.n_point", 51)
-        self.register("fiber.nrlayers", 2)
-        
-        self.register("initial.init_conc1_fiber", 'lambda x:(0.2,0.0)')
-        
-        self.register("diffusion.diffusion_conc1", 2e-5)
+
+        self.register("fiber.radius_pure_fiber", 0.01)
+        self.register("fiber.radius_fiber", 0.0117)
+        self.register("fiber.n_edge", 41)
+        self.register("fiber.nrlayers", 1)
+
+        self.register("fiberlayer_1.n_edge", 41)
+        self.register("fiberlayer_1.thickness", 0.0017)
+        self.register("fiberlayer_1.diffusion_coef", 5.2e-9)
+        self.register("fiberlayer_1.init_conc", 'lambda x: 0.70')
+
         self.register("diffusion.diffusion_polymer_exp_factor", 0.)
-        
+
         self.register("boundary.boundary_fib_left", 0.0)
-        self.register("boundary.boundary_fib_right", 1.0)
+        self.register("boundary.boundary_fib_right", 0.0)
         
-        self.register("transfer.transfer_conc1", 7.2e-11)
+        self.register("transfer.transfer_conc1", 7.2e-6)
         
-        self.register("time.time_period", 20.)
-        self.register("time.dt", 0.1)
-        
-        
+        self.register("time.time_period", 500.)
+        self.register("time.dt", 5.0)
