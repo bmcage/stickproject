@@ -40,39 +40,26 @@ from lib.config import ConfigManager
 # Constants
 #
 #---------------------------------------------------------------
-INIFILE_DEFAULTFAB = const.INI_DIR + os.sep + 'yarn2d' + os.sep + \
+INIFILE_DEFAULT = const.INI_DIR + os.sep + 'yarn2d' + os.sep + \
                      'defaultyarn.ini'
 
 LONGOPTS = ["inifile", 'outputdir']
 SHORTOPTS = "i:o" 
 
 METHOD = {
-    'FVM': ('Finite Volume Method discretization', ['cvode']),
+    'FVM': ('Finite Volume Method discretization', ['fipy']),
     }
 
 #possible fiber materials, map to diff coeff of components
-'''
-
-''' 
 YARN_MAT = {
     'YARN_1': ([0.015], ),
     }
-
-#all components possible. Map to a unique number used in value maps, eg
-#  DEET --> 0 ==> diffusion is BINDER[key][COMPONENT['DEET'][0]
-COMPONENTS = {
-    'DEET': [0], 
-    }
-
-#binders and typical diff coef for Deet and permethrin
-
 
 #---------------------------------------------------------------
 #
 # DiffitConfigManager class
 #
 #---------------------------------------------------------------
-
 
 class Yarn2dConfigManager(ConfigManager):
 
@@ -88,7 +75,7 @@ class Yarn2dConfigManager(ConfigManager):
         return Yarn2dConfigManager.__instance
     get_instance = staticmethod(get_instance)
     
-    def __init__(self, filename = INIFILE_DEFAULTFAB):
+    def __init__(self, filename = INIFILE_DEFAULT):
         """ 
         A singleton implementation of config.ConfigManager
         """
@@ -101,34 +88,32 @@ class Yarn2dConfigManager(ConfigManager):
         """default ini settings for a DiffusionIT problem"""
         self.register("general.read", False)
         self.register("general.verbose", False)
+        self.register("general.method", 'FVM')
+        self.register("general.submethod", 'fipy')
+        
         self.register("domain.cellsize_centre", 5.0e-2)
         self.register("domain.cellsize_fiber", 5.0e-2)
-        self.register("domain.radius", 1.)
+        self.register("domain.yarnradius", 1.)
+
+        self.register("fiber.number_fiber", 60)
+        self.register("fiber.blend", [100.])
+        self.register("fiber.radius_fiber", [0.0117])
+        self.register("fiber.fiber_config", ['../fiber/defaultfiber.ini'])
         
-        self.register("fiber.type", 'constant')
-        self.register("fiber.number_fiber", 20)
-        self.register("fiber.radius_fiber",0.1)
-        self.register("fiber.n_point", 51)
+        self.register("initial.init_conc", 0.)
         
-        self.register("initial.init_conc1", 0.)
-        self.register("initial.init_conc1_fiber", 'lambda x:(0.2,0.0)')
+        self.register("diffusion.diffusion_conc", 2e-5)
         
-        self.register("diffusion.diffusion_conc1", 2e-5)
-        self.register("diffusion.diffusion_co_l1", 5.0e-6)
-        self.register("diffusion.diffusion_co_l2", 5.0e-6)
-        
-        self.register("boundary.boundary_fib_left", 0.0)
-        self.register("boundary.boundary_fib_right", 1.0)
-        
-        self.register("transfer.transfer_conc1", 7.2e-11)
-        
+        self.register("boundary.boundary_exterior", 0.0)
+        self.register("boundary.boundary_interior", 1.0)
+
         self.register("size_hole.net_width", 1.0e-3)
         self.register("size_hole.net_length", 2.0e-3)
         self.register("size_hole.leng_yarn", 2.0)
         self.register("size_hole.domain_effect", 0.02)
-        self.register("size_hole.domain_effect", 4)
+        self.register("size_hole.dis_effect", 4)
         
-        self.register("time.time_period", 20.)
-        self.register("time.dt", 0.1)
+        self.register("time.time_period", 4000.)
+        self.register("time.dt", 5.0)
         
         

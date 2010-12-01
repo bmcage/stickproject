@@ -95,21 +95,15 @@ class FiberModel(object):
         
         self.verbose = self.cfg.get('general.verbose')
 
-    def create_mesh(self, scaleL=1.):
+    def create_mesh(self):
         """
         Create a mesh for use in the model.
         We use an eqiudistant mesh!
-        scaleL : scale factor to use in the length scale
         
         grid: the space position of each central point for every cell element;
         """
-        self.scaleL = scaleL
         self.beginning_point = self.cfg.get('fiber.radius_pure_fiber')
         self.end_point = self.cfg.get('fiber.radius_fiber')
-        scale_beginning = self.beginning_point * self.scaleL
-        print 'this is the scaled beginning point:',scale_beginning
-        scale_end = self.end_point * self.scaleL
-        print 'this is the scaled end point', scale_end
         self.nrlayers = self.cfg.get('fiber.nrlayers')
         n_edge = [0]
         self.surf = [self.beginning_point]
@@ -121,7 +115,7 @@ class FiberModel(object):
             self.surf += [self.surf[-1] + self.cfg.get(section + '.thickness')]
             self.diff_coef += [self.cfg.get(section + '.diffusion_coef')]
             self.init_conc += [eval(self.cfg.get(section + '.init_conc')) ]
-        if not (self.surf[-1] == self.end_point):
+        if abs((self.surf[-1] - self.end_point)/self.end_point) > 1e-8:
             print "ERROR, layers on fiber don't correspond with fiber thickness, %g, %g" % (self.surf[-1], self.end_point)
             sys.exit(0)
         #we now construct the full edge grid
@@ -159,7 +153,7 @@ class FiberModel(object):
         if self.submethod == 'fipy':
             self.mesh_fiber = CylindricalGrid1D(dr=tuple(self.delta_r))
             self.mesh_fiber.periodicBC = False
-            self.mesh_fiber = self.mesh_fiber + (scale_beginning,)
+            self.mesh_fiber = self.mesh_fiber + (self.beginning_point,)
 
         self.diffusion_coeff = sp.empty(self.tot_edges-1, float)
     

@@ -57,8 +57,8 @@ class Yarn2dGrid(object):
         self.scaleL = 1./self.Ry #get the scale factor for relative domain
         #computational radius
         self.radius_yarn = self.scaleL * self.Ry
-        self.radius_fiber =  self.scaleL * self.Rf
-        self.radius_boundlayer = self.radius_fiber/2.
+        self.radius_fiber =  [self.scaleL * rad for rad in self.Rf]
+        self.radius_boundlayer = max(self.radius_fiber)/2.
         self.radius_domain = self.radius_yarn + self.radius_boundlayer
         self.cellsize_centre = self.cfg.get('domain.cellsize_centre')
         self.cellSize = self.cfg.get('domain.cellsize_fiber')
@@ -73,8 +73,7 @@ class Yarn2dGrid(object):
         """
         filepath = utils.OUTPUTDIR + os.sep + filename
         start = time.clock()
-        if regenerate:            
-            self.type = self.cfg.get('fiber.type')
+        if regenerate:
             self.circle_file = open(filepath, "w")
             self.current_point = 0
             self.x_position = sp.empty(self.number_fiber, float)
@@ -106,7 +105,7 @@ class Yarn2dGrid(object):
                     a = np.random.uniform(-0.5, 0.5)
                     b = np.random.uniform(-0.5, 0.5)
                     distance_center = sp.sqrt((a - self.x_central)**2 + (b - self.y_central)**2)
-                    while distance_center + self.radius_fiber >= self.radius_yarn:
+                    while distance_center + self.radius_fiber[0] >= self.radius_yarn:
                         a = np.random.uniform(-1, 1)
                         b = np.random.uniform(-1, 1)
                         distance_center = sp.sqrt((a - self.x_central)**2 + (b - self.y_central)**2)
@@ -119,16 +118,16 @@ class Yarn2dGrid(object):
                                             self.x_position[i-1], self.y_position[i-1], 
                                             self.z,self.cellSize))
                         self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
-                                            self.x_position [i-1] - self.radius_fiber,
+                                            self.x_position [i-1] - self.radius_fiber[0],
                                             self.y_position[i-1], self.z, self.cellSize))
                         self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+2,
-                                            self.x_position[i-1], self.y_position[i-1] + self.radius_fiber,
+                                            self.x_position[i-1], self.y_position[i-1] + self.radius_fiber[0],
                                             self.z, self.cellSize))
                         self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+3,
-                                            self.x_position[i-1] + self.radius_fiber,
+                                            self.x_position[i-1] + self.radius_fiber[0],
                                             self.y_position[i-1], self.z, self.cellSize))
                         self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+4,
-                                            self.x_position[i-1], self.y_position[i-1] - self.radius_fiber,
+                                            self.x_position[i-1], self.y_position[i-1] - self.radius_fiber[0],
                                             self.z, self.cellSize))
                         index = index + 4
                 elif i > 1:
@@ -140,8 +139,8 @@ class Yarn2dGrid(object):
                     #distance between the current point and existing points
                     distance_each = sp.sqrt((a - self.x_position[:self.current_point])**2 + \
                                             (b - self.y_position[:self.current_point])**2)
-                    while distance_center + self.radius_fiber >= self.radius_yarn or np.min(distance_each)\
-                            <= (2*self.radius_fiber): 
+                    while distance_center + self.radius_fiber[0] >= self.radius_yarn or np.min(distance_each)\
+                            <= (2*self.radius_fiber[0]): 
                         a = np.random.uniform(-1, 1)
                         b = np.random.uniform(-1, 1)
                         distance_center = sp.sqrt((a - self.x_central)**2 + \
@@ -158,16 +157,16 @@ class Yarn2dGrid(object):
                                             self.x_position[i-1], self.y_position[i-1], 
                                             self.z,self.cellSize))
                         self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
-                                            self.x_position [i-1] - self.radius_fiber,
+                                            self.x_position [i-1] - self.radius_fiber[0],
                                             self.y_position[i-1], self.z, self.cellSize))
                         self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+2,
-                                            self.x_position[i-1], self.y_position[i-1] + self.radius_fiber,
+                                            self.x_position[i-1], self.y_position[i-1] + self.radius_fiber[0],
                                             self.z, self.cellSize))
                         self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+3,
-                                            self.x_position[i-1] + self.radius_fiber,
+                                            self.x_position[i-1] + self.radius_fiber[0],
                                             self.y_position[i-1], self.z, self.cellSize))
                         self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+4,
-                                            self.x_position[i-1], self.y_position[i-1] - self.radius_fiber,
+                                            self.x_position[i-1], self.y_position[i-1] - self.radius_fiber[0],
                                             self.z, self.cellSize))
                         index = index + 4
             #above part is for generating the points of circle in the domain

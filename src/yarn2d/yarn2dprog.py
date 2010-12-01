@@ -66,10 +66,10 @@ def main(argv=None):
         print "Error parsing the arguments: %s " % argv[1:]
         sys.exit(0)
     if leftargs:
-        print 'fabric1d.py does not understand argument %s' % leftargs
+        print 'yarn2d.py does not understand argument %s' % leftargs
         sys.exit(0)
 
-    inifile = conf.INIFILE_DEFAULTFAB
+    inifile = conf.INIFILE_DEFAULT
     outputdir = const.DATA_DIR
     for opt_ix in range(len(options)):
         option, value = options[opt_ix]
@@ -103,21 +103,10 @@ def main(argv=None):
     else:
         set_outputdir(outputdir)
         print "ready to read the old file"
-    #determine if inverse problem must be solved
-    inverseprob = cfg.get("general.inverseproblem")
-    
-    comps = cfg.get("general.components")
-    for comp in comps:
-        if not comp in conf.COMPONENTS:
-            raise NotImplementedError, \
-                    'fiber does not understand component %s' % comp
     
     #create the correct model, and run it
-    if inverseprob:
-        raise NotImplementedError, 'Inverse not supported'
-    else:
-        from yarn2d.yarn2dmodel import Yarn2DModel
-        model = Yarn2DModel(cfg)
+    from yarn2d.yarn2dmodel import Yarn2DModel
+    model = Yarn2DModel(cfg)
 
     #pass further execution to the mode
     model.run()
