@@ -243,6 +243,7 @@ class FiberModel(object):
         print 'the length of solution:', len(self.solution_fiber)
         print 'length of the diffusion coefficient', len(self.diffusion_coeff)
         print len(self.grid)
+<<<<<<< HEAD
 
         if self.boundary_fib_right:
             self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
@@ -255,6 +256,28 @@ class FiberModel(object):
                                             * self.solution_fiber.getFaceValue()),
                               FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
                                     value = -self.boundary_fib_left))
+=======
+        
+##        self.solution_fiber.getFaceGrad().constrain(self.boundary_fib_left, 
+##                                                self.mesh_fiber.getFacesLeft())
+        if self.boundary_fib_right:
+##            self.solution_fiber.getFaceGrad().constrain(
+##                self.boundary_fib_right, self.mesh_fiber.getFacesRight())
+            self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
+                                        value = self.boundary_fib_right),
+                              FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
+                                        value = -self.boundary_fib_left))
+        else:
+##            self.solution_fiber.getFaceGrad().constrain(
+##                -self.boundary_transf_right * self.solution_fiber.getFaceValue(), 
+##                self.mesh_fiber.getFacesRight())
+            self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
+                                        value = -self.boundary_transf_right * \
+                                        self.solution_fiber.getFaceValue()),
+                              FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
+                                        value = -self.boundary_fib_left))
+
+>>>>>>> Fixflux boundary
         self.eqX_fiber = TransientTerm() == DiffusionTerm(coeff = 
                                 self.diffusion_coeff * 
                                 sp.exp(-self.diff_exp_fact * self.solution_fiber))
