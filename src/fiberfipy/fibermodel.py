@@ -261,11 +261,17 @@ class FiberModel(object):
         tstep = 0
         self.conc1[tstep][:] = self.initial_c1
         for time in self.times[1:]:
+            print time
             self.solve_fipy_step()
             if self.viewer is not None:
                 self.viewer.plot()
+                #raw_input("please<return>.....")
             tstep += 1
             self.conc1[tstep][:] = self.solution_fiber.getValue()
+            if time == 100.0:
+                dump.write({'space_position': self.grid, 'conc1': self.conc1[tstep][:]},
+                        filename = utils.OUTPUTDIR + os.sep + 'fipy_t1.gz', extension = '.gz')
+                print 'finish file'
             print 'mass = ', self.calc_mass(self.conc1[tstep])
 
     def solve_fipy_step(self):
@@ -296,6 +302,7 @@ class FiberModel(object):
         self.fiber_surface = sp.empty(len(self.times), float)
         for i in sp.arange(1,len(self.times) + 1,1):
             self.fiber_surface[i - 1] = self.conc1[i - 1][-1]
+        
 
     def view_sol(self, times, conc):
         """
@@ -314,6 +321,11 @@ class FiberModel(object):
         for time, con in zip(times[1:], conc[1:]):
             self.solution_fiber.setValue(con)
             self.viewer.plot()
+            if time == 100.0:
+                dump.write({'space_position': self.grid, 'conc1': con},
+                            filename = utils.OUTPUTDIR + os.sep + 'ode_t1.gz', extension = '.gz')
+            raw_input("please<return>....")
+            
 
     def run(self):        
         self.create_mesh()
