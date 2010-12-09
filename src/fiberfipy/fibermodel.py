@@ -98,7 +98,7 @@ class FiberModel(object):
     def create_mesh(self):
         """
         Create a mesh for use in the model.
-        We use an eqiudistant mesh!
+        We use an equidistant mesh!
         
         grid: the space position of each central point for every cell element;
         """
@@ -212,7 +212,7 @@ class FiberModel(object):
         return diff_w_t
     
     def solve_odeint(self):
-        initial_w = self. initial_c1 * self.grid
+        initial_w = self.initial_c1 * self.grid
         self.solv=odeint(self.f_conc1, initial_w, self.times)
         self.conc1=self.solv/ self.grid
         self.view_sol(self.times, self.conc1)
