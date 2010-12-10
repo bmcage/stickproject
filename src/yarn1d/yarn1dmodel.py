@@ -95,6 +95,67 @@ class Yarn1DModel(object):
 
         self.verbose = self.cfg.get('general.verbose')
 
+    def create_mesh(self):
+        """
+        Create a mesh for use in the model.
+        We use an equidistant mesh!
+        
+        grid: the space position of each central point for every cell element;
+        """
+        self.beginning_point = 0 #center of the yarn, r=0, with r the distance from center yarn.
+        self.end_point = self.cfg.get('domain.yarnradius')
+        n_edge = [0]
+        self.surf = [self.beginning_point]
+        self.diff_coef = [0.]
+        self.init_conc = [lambda x: 0.0 ]
+        for i in range(self.nrlayers):
+            section = 'fiberlayer_%i' % i
+            n_edge += [self.cfg.get(section + '.n_edge')]
+            self.surf += [self.surf[-1] + self.cfg.get(section + '.thickness')]
+            self.diff_coef += [self.cfg.get(section + '.diffusion_coef')]
+            self.init_conc += [eval(self.cfg.get(section + '.init_conc')) ]
+        if abs((self.surf[-1] - self.end_point)/self.end_point) > 1e-8:
+            print "ERROR, layers on fiber don't correspond with fiber thickness, %g, %g" % (self.surf[-1], self.end_point)
+            sys.exit(0)
+        #we now construct the full edge grid
+        self.tot_edges = 0
+        first = True
+        for nr in n_edge:
+            if nr == 0 and self.tot_edges == 0 and not first:
+                print 'ERROR, no discretization points given'
+                sys.exit(0)
+            if not (nr == 0):
+                first = False
+                if self.tot_edges:
+                    self.tot_edges += nr - 1
+                else:
+                    self.tot_edges = nr
+            
+        self.grid_edge = sp.empty(self.tot_edges , float)
+        left = 0.
+        totnr = 0
+        first = True
+        for nr, right in zip(n_edge, self.surf):
+            if nr:
+                if first:
+                    self.grid_edge[totnr:totnr+nr] = sp.linspace(left, right, nr)
+                    totnr += nr
+                else:
+                    self.grid_edge[totnr:totnr+nr-1] = sp.linspace(left, right, nr)[1:]
+                    totnr += nr-1
+                first = False
+            left = right
+        #construct cell centers from this
+        self.grid = (self.grid_edge[:-1] + self.grid_edge[1:])/2.
+        #obtain cell sizes
+        self.delta_r = self.grid_edge[1:] - self.grid_edge[:-1]
+        if self.submethod == 'fipy':
+            self.mesh_fiber = CylindricalGrid1D(dr=tuple(self.delta_r))
+            self.mesh_fiber.periodicBC = False
+            self.mesh_fiber = self.mesh_fiber + (self.beginning_point,)
+
+        self.diffusion_coeff = sp.empty(self.tot_edges-1, float)
+    
     def create_grid(self):
         """
         Create a mesh for use in the model
@@ -120,6 +181,46 @@ class Yarn1DModel(object):
         """
         for model in self.fiber_models:
             model.run()
+
+    def f_conc1(self, w_rep, t):
+        grid = self.grid
+        n_cell = len(grid)
+        #Initialize the left side of ODE equations
+        diff_w_t = sp.empty(n_cell, float)
+        #initialize the flux rate on the edge with replace 'w'
+        flux_edge = sp.empty(n_cell+1, float)
+        self._set_bound_flux(flux_edge, w_rep)
+        #Diffusion coefficient changes with the concentration changing
+        #calculate flux rate in each edge of the domain
+        flux_edge[1:-1] = (self.diffusion_coeff[:-1] * sp.exp(-self.diff_exp_fact * w_rep[:-1]/self.grid[:-1]) \
+                         + self.diffusion_coeff[1:] * sp.exp(-self.diff_exp_fact * w_rep[1:]/self.grid[1:]))/2.\
+                    * self.grid_edge[1:-1] \
+                    * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
+                    / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
+        diff_w_t[:]=(flux_edge[1:]-flux_edge[:-1])/self.delta_r[:]
+        return diff_w_t
+    
+    def solve_odeint(self):
+        initial_w = self.initial_c1 * self.grid
+        self.solv=odeint(self.f_conc1, initial_w, self.times)
+        self.conc1=self.solv/ self.grid
+        self.view_sol(self.times, self.conc1)
+    
+    def solve_ode(self):
+        self.delta_t = self.times[1]-self.times[0]
+        self.initial_t = self.times[0]
+        endT = self.times[-1]
+        self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
+        r = ode(self.f_conc1_ode).set_integrator('vode', method = 'bdf')
+        initial_w1 = self.initial_c1 * self.grid
+        r.set_initial_value(initial_w1, self.initial_t)#.set_f_params(2.0)
+        tstep = 0
+        self.conc1[tstep][:] = self.initial_c1
+        while r.successful() and r.t < endT - self.delta_t /10.:
+            r.integrate(r.t + self.delta_t)
+            tstep += 1
+            self.conc1[tstep][:] = r.y / self.grid
+        self.view_sol(self.times, self.conc1)
 
     def solve_single_component(self):
         """
