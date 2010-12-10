@@ -66,15 +66,20 @@ class Yarn2dGrid(object):
         
         self.verbose = self.cfg.get('general.verbose')
 
-    def create_circle_domain_gmsh(self, filename='yarn.geo', regenerate=True):
+    def create_circle_domain_gmsh(self, filename='yarn.geo', filename1 = 'fib_centers_x.geo',
+        filename2 = 'fib_centers_y.geo' ,regenerate=True):
         """
         Create gmsh file with the circle domain of yarn and the fibers in it
         returns string with defenition, path to file
         """
         filepath = utils.OUTPUTDIR + os.sep + filename
+        filepath1 = utils.OUTPUTDIR + os.sep + filename1
+        filepath2 = utils.OUTPUTDIR + os.sep + filename2
         start = time.clock()
         if regenerate:
             self.circle_file = open(filepath, "w")
+            self.fib_centers_x = open(filepath1, "w")
+            self.fib_centers_y = open(filepath2, "w")
             self.current_point = 0
             self.x_position = sp.empty(self.number_fiber, float)
             self.y_position = sp.empty(self.number_fiber, float)
@@ -140,7 +145,7 @@ class Yarn2dGrid(object):
                     distance_each = sp.sqrt((a - self.x_position[:self.current_point])**2 + \
                                             (b - self.y_position[:self.current_point])**2)
                     while distance_center + self.radius_fiber[0] >= self.radius_yarn or np.min(distance_each)\
-                            <= (2*self.radius_fiber[0]): 
+                            <= (2*self.radius_fiber[0])+ 0.001 * self.radius_fiber[0]: 
                         a = np.random.uniform(-1, 1)
                         b = np.random.uniform(-1, 1)
                         distance_center = sp.sqrt((a - self.x_central)**2 + \
@@ -228,17 +233,37 @@ class Yarn2dGrid(object):
             index = index + 1
             self.circle_file.write("Plane Surface(%d) = {%d};\n" %(index, index_loop_in_plane))
             self.circle_file.close()
+            self.fib_centers_x.write(repr(self.x_position))
+            self.fib_centers_y.write(repr(self.y_position))
+            self.fib_centers_x.close()
+            self.fib_centers_y.close()
             circledef = open(filepath, "r").readlines()
         else:
             circledef = open(filepath, "r").readlines()
         return ''.join(circledef)
-
-    def mesh_2d_generate(self, filename='yarn.geo', regenerate=True):
+    
+    def mesh_2d_generate(self, filename='yarn.geo', filename1 = 'fib_centers_x.geo',
+        filename2 = 'fib_centers_y.geo' ,regenerate=True):
         """
         Return a Gmsh2D object from Fipy for the yarn 2D grid
         The gmsh file is written to filename.
         If regenerate is True, it is looked if the file already exists, and if
         so, the file is reused instead of generated.
         """
-        self.mesh = Gmsh2D(self.create_circle_domain_gmsh(filename, regenerate))
+        self.mesh = Gmsh2D(self.create_circle_domain_gmsh(filename, filename1, filename2,
+                            regenerate))
+        #calculate boundary
+        """
+        self.ext_bound = ((self.mesh.getExteriorFaces()) & 
+                    (sp.power(xfc,2) + sp.power(yfc,2) \
+                        < (self.grid.radius_domain - self.grid.radius_boundlayer)**2))
+        self.int_bound = []
+        for nrfib in arange(self.nrtypefiber):
+            tmp = self.mesh.getExteriorFaces() * 0
+            for fib in self.fibers[nrfib]:
+                tmp = (tmp) | (self.mesh.getExteriorFaces() &
+                    (sp.power(xfc-center_fibx[fib],2) + sp.power(yfc-center_fiby[fib],2) \
+                        <= (self.radius_fiber[nrfib] + eps)**2))
+            self.int_bound.append(tmp)
+        """
         return self.mesh

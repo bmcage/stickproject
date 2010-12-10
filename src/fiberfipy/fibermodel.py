@@ -243,7 +243,6 @@ class FiberModel(object):
         print 'the length of solution:', len(self.solution_fiber)
         print 'length of the diffusion coefficient', len(self.diffusion_coeff)
         print len(self.grid)
-<<<<<<< HEAD
 
         if self.boundary_fib_right:
             self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
@@ -256,28 +255,6 @@ class FiberModel(object):
                                             * self.solution_fiber.getFaceValue()),
                               FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
                                     value = -self.boundary_fib_left))
-=======
-        
-##        self.solution_fiber.getFaceGrad().constrain(self.boundary_fib_left, 
-##                                                self.mesh_fiber.getFacesLeft())
-        if self.boundary_fib_right:
-##            self.solution_fiber.getFaceGrad().constrain(
-##                self.boundary_fib_right, self.mesh_fiber.getFacesRight())
-            self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
-                                        value = self.boundary_fib_right),
-                              FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
-                                        value = -self.boundary_fib_left))
-        else:
-##            self.solution_fiber.getFaceGrad().constrain(
-##                -self.boundary_transf_right * self.solution_fiber.getFaceValue(), 
-##                self.mesh_fiber.getFacesRight())
-            self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
-                                        value = -self.boundary_transf_right * \
-                                        self.solution_fiber.getFaceValue()),
-                              FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
-                                        value = -self.boundary_fib_left))
-
->>>>>>> Fixflux boundary
         self.eqX_fiber = TransientTerm() == DiffusionTerm(coeff = 
                                 self.diffusion_coeff * 
                                 sp.exp(-self.diff_exp_fact * self.solution_fiber))
@@ -291,7 +268,7 @@ class FiberModel(object):
                 #raw_input("please<return>.....")
             tstep += 1
             self.conc1[tstep][:] = self.solution_fiber.getValue()
-            if time == 100.0:
+            if time == 200.0:
                 dump.write({'space_position': self.grid, 'conc1': self.conc1[tstep][:]},
                         filename = utils.OUTPUTDIR + os.sep + 'fipy_t1.gz', extension = '.gz')
                 print 'finish file'
@@ -344,10 +321,10 @@ class FiberModel(object):
         for time, con in zip(times[1:], conc[1:]):
             self.solution_fiber.setValue(con)
             self.viewer.plot()
-            if time == 100.0:
+            if time == 200.0:
                 dump.write({'space_position': self.grid, 'conc1': con},
                             filename = utils.OUTPUTDIR + os.sep + 'ode_t1.gz', extension = '.gz')
-            raw_input("please<return>....")
+##            raw_input("please<return>....")
             
 
     def run(self):        

@@ -107,7 +107,7 @@ class FiberfipyConfigManager(ConfigManager):
         self.register("boundary.boundary_fib_left", 0.0)
         self.register("boundary.boundary_fib_right", 0.0)
         
-        self.register("transfer.transfer_conc1", 7.2e-6)
+        self.register("transfer.transfer_conc1", 0.0)
         
         self.register("time.time_period", 500.)
         self.register("time.dt", 5.0)

@@ -44,6 +44,7 @@ import lib.utils.gridutils as GridUtils
 import yarn2d.config as conf
 from mycorrection import MyDiffusionTermNoCorrection
 from yarn2dgrid import Yarn2dGrid
+from yarn2dfiber import Yarn2dFiber
 from fiberfipy.config import FiberfipyConfigManager
 from fiberfipy.fibermodel import FiberModel
 
@@ -79,6 +80,16 @@ class Yarn2DModel(object):
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
         self.steps = self.time_period / self.delta_t
+        self.Ry = self.cfg.get('domain.yarnradius')
+        self.scaleL = 1./self.Ry #get the scale factor for relative domain
+        self.Rf = self.cfg.get('fiber.radius_fiber')
+        self.radius_fiber =  [self.scaleL * rad for rad in self.Rf]
+        self.eps_value = self.cfg.get('fiber.eps_value')
+        self.number_fiber = self.cfg.get('fiber.number_fiber')
+        self.blend = self.cfg.get('fiber.blend')
+        self.scaleL = 1./self.Ry #get the scale factor for relative domain
+        self.nrtypefiber = self.cfg.get('fiber.number_type')
+        #computational radius
         self.cfg_fiber = []
         for filename in self.cfg.get('fiber.fiber_config'):
             if not os.path.isabs(filename):
@@ -94,7 +105,9 @@ class Yarn2DModel(object):
             self.fiber_models.append(FiberModel(cfg))
 
         self.verbose = self.cfg.get('general.verbose')
-
+        #self.choosing_kind = []
+        #self.choosing_kind.append(Yarn2dFiber(cfg))
+    
     def create_mesh(self):
         """
         Create a mesh for use in the model
@@ -102,13 +115,30 @@ class Yarn2DModel(object):
         self.grid = Yarn2dGrid(self.cfg)
         self.mesh2d = self.grid.mesh_2d_generate(filename='yarn.geo',
                                 regenerate=not self.cfg.get('general.read'))
+                            
+    def determine_fiber(self):
+        """
+        Create a determine file for choosing fiber kinds
+        """
+        #for model in self.choosing_kind:
+        #    model.run()        
+        
+        self.determine = Yarn2dFiber(self.cfg)
+        self.choosing_kind = self.determine.create_fiber_kinds(filename = 'determine_kinds.dat', 
+                                                        regenerate = not self.cfg.get('general.read'))
+        #print 'read the value for fiber kinds', int(self.choosing_kind)
+        
     
     def initial_yarn2d(self):
         self.init_conc = self.cfg.get('initial.init_conc')
         self.conc = CellVariable(name = "solution concentration", 
                     mesh = self.mesh2d, value = self.init_conc)
+        self.conc1 = CellVariable(name = "solution concentration1",
+                    mesh = self.mesh2d, value = self.init_conc)
+        self.conc2 = CellVariable(name = "solution concentration2",
+                    mesh = self.mesh2d, value = self.init_conc)
         self.viewer = None
-        self.viewer = Viewer(vars = self.conc, datamin = 0., datamax =0.005)
+        self.viewer = Viewer(vars = self.conc, datamin = 0., datamax =0.0005)
 
     def solve_fiber(self):
         """
@@ -138,11 +168,66 @@ class Yarn2DModel(object):
         self.eq = TransientTerm() == MyDiffusionTermNoCorrection(coeff = self.diffusion_DEET)
         #get the position of the boundary faces
         xfc, yfc = self.mesh2d.getFaceCenters()
+        print 'the length of xfc', len(xfc)
         xcc, ycc = self.mesh2d.getCellCenters()
+        self.cell_volume = self.mesh2d.getCellVolumes()
         face_in = ((self.mesh2d.getExteriorFaces()) & 
                     (sp.power(xfc,2) + sp.power(yfc,2) \
                         < (self.grid.radius_domain - self.grid.radius_boundlayer)**2))
+        filepath = utils.OUTPUTDIR + os.sep + 'fib_centers_x.geo'
+        filepath1 = utils.OUTPUTDIR + os.sep + 'fib_centers_y.geo'
+        filepath2 = utils.OUTPUTDIR + os.sep + 'determine_kinds.dat'
+        self.fib_centers_x = open(filepath, 'r')
+        self.fib_centers_y = open(filepath1, 'r')
+        self.fib_x = eval(self.fib_centers_x.read())
+        self.fib_centers_x.close()
+        self.fib_y = eval(self.fib_centers_y.read())
+        self.fib_centers_y.close()
+        self.deter_file = open(filepath2, 'r')
+        self.deter_value1 = sp.empty(self.number_fiber)
+        for i in sp.arange(len(self.deter_value1)):
+            self.deter_value1[i] = eval(self.deter_file.readline())
+        print 'the length of deter_value', self.deter_value1
+        self.deter_file.close()
+        fiber_nrtype1 = sp.empty(int(self.blend[0] * self.number_fiber / 100))
+        fiber_nrtype2 = sp.empty(int(self.blend[1] * self.number_fiber / 100))
+        times_nrtype1 = 0 
+        times_nrtype2 = 0
+        index_fib = 1
+        eps_fib = sp.empty(len(self.radius_fiber))
+        for index_1 in sp.arange(len(eps_fib)):
+            eps_fib[index_1] = self.radius_fiber[index_1] * self.eps_value
+            
+        for index_nrfib in self.deter_value1:
+            if index_nrfib == 0.0:
+                fiber_nrtype1[times_nrtype1] = index_fib
+                times_nrtype1 += 1
+                index_fib += 1
+            elif index_nrfib == 1.0:
+                fiber_nrtype2[times_nrtype2] = index_fib
+                times_nrtype2 += 1
+                index_fib += 1
+        self.fibers = [fiber_nrtype1, fiber_nrtype2]
+        print 'the array self.fibers', self.fibers
+        self.ext_bound = ((self.mesh2d.getExteriorFaces()) & 
+                    (sp.power(xfc,2) + sp.power(yfc,2) \
+                        < (self.grid.radius_domain - self.grid.radius_boundlayer)**2))
+        self.int_bound = []
+        for nyfib in sp.arange(self.nrtypefiber):
+            tmp = np.empty(len(face_in), bool)
+            tmp[:] = False
+            print 'fibers', self.fibers[nyfib]
+            for fib in self.fibers[nyfib]:
+                tmp = (((self.mesh2d.getExteriorFaces()) &
+                    (sp.power(xfc - self.fib_x[fib-1], 2) + sp.power(yfc - self.fib_y[fib-1], 2)\
+                    <= (self.radius_fiber[nyfib] + eps_fib[nyfib])**2)) | (tmp))
+            self.int_bound.append(tmp)
+
+        print 'the value of int_bound', len(self.int_bound[1])
+        print 'the length of int_bound', len(self.int_bound[0])
+        print 'the length of face_in', len(face_in)
         face_ex = (~face_in) & (self.mesh2d.getExteriorFaces())
+        print 'the length of face_out', len(face_ex)
         self.initial_t = 0.
         filename1 = 'concentration_out.gz'
         filepath1 = utils.OUTPUTDIR + os.sep + filename1
@@ -153,12 +238,19 @@ class Yarn2DModel(object):
 ##        self.distance_yarn = sp.empty(4 * n_point_net, float)
         for i in sp.arange(0, self.steps, 1):
             ## TODO: take the blend into account!!
+            ## take polyester into account
             conc_on_fib = self.fiber_models[0].fiber_surface[i+1]
             flux_in_fib = self.fiber_models[0].boundary_transf_right * conc_on_fib
             #loss to outside of yarn is 0.01 conc at outside
-            BCs = (FixedFlux(face_ex, value = 0.01 * self.conc.getArithmeticFaceValue()), 
-                   FixedFlux(face_in, value = -flux_in_fib),)
-            self.eq.solve(var = self.conc, boundaryConditions = BCs, dt = self.delta_t, )
+            BCs = (FixedFlux(face_ex, value = 0.0),#0.01 * self.conc.getArithmeticFaceValue()), 
+                   FixedFlux(self.int_bound[0], value = -flux_in_fib),)
+            if i == 0:
+                self.eq.solve(var = self.conc1, boundaryConditions = BCs, dt = self.delta_t, )
+            else:
+                initial_each_st1 = self.conc.getValue()
+                self.conc1 = CellVariable(name = "solution concentration1",
+                            mesh = self.mesh2d, value = initial_each_st1)
+                self.eq.solve(var = self.conc1, boundaryConditions = BCs, dt = self.delta_t, )
             self.initial_t += self.delta_t
             print 'time = ', (i+1) * self.delta_t
 ##            value_face_out = np.empty(len(face_ex), float)#save the concentration at the face-out
@@ -169,15 +261,45 @@ class Yarn2DModel(object):
 ##            value_out_record = value_face_out[determine_out]#get the value at the face out
 ##            conc1_average_out = np.sum(value_out_record) / len(value_out_record)
 ##            conc1_out_yarn = np.append(conc1_out_yarn, conc1_average_out)
-                    
+            self.conc_void1 = self.conc1.getValue()
+            print 'the mass in the void space', self.cal_mass_void(self.conc_void1,
+                                                self.cell_volume) / self.scaleL
+            ## take cotton fiber into account
+            conc_on_fib = self.fiber_models[1].fiber_surface[i+1]
+            flux_in_fib = self.fiber_models[1].boundary_transf_right * conc_on_fib
+            BCs = (FixedFlux(face_ex, value = 0.0), 
+                    FixedFlux(self.int_bound[1], value = -flux_in_fib),)
+            if i == 0:
+                self.eq.solve(var = self.conc2, boundaryConditions = BCs, dt = self.delta_t,)
+                self.conc_void2 = self.conc2.getValue()
+            else:
+                initial_each_st2 = self.conc.getValue()
+                self.conc2 = CellVariable(name = "solution concentration2",
+                            mesh = self.mesh2d, value = initial_each_st2)
+                self.eq.solve(var = self.conc2, boundaryConditions = BCs, dt = self.delta_t)
+                self.conc_void2 = self.conc2.getValue() - initial_each_st2
+            self.conc.setValue(self.conc_void2 + self.conc_void1)
+            self.conc_tot_each = self.conc.getValue()
+            print 'mass conservative with two fiber', self.cal_mass_void(self.conc_tot_each,
+                                                self.cell_volume) / self.scaleL
             if self.viewer is not None:
                 self.viewer.plot()
 ##        dump.write({'time_step': self.times, 'conc_out': conc1_out_yarn},
 ##                                filename = filepath1, extension = '.gz')
         raw_input("Finshed <return>.....")
     
+    def cal_mass_void(self, conc_void, cell_volume):
+        """
+        calculate the mass of component in the void space 
+        conc_void: the concentration of materials in the void space
+        This is given by: total_mass = sum(conc_void[] * cell_volume[])
+        """
+        return sp.sum(conc_void * cell_volume)
+        
+    
     def run(self):        
         self.create_mesh()
+        self.determine_fiber()
         self.initial_yarn2d()
         self.solve_fiber()
         self.solve_single_component()

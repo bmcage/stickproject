@@ -95,8 +95,10 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("domain.cellsize_fiber", 5.0e-2)
         self.register("domain.yarnradius", 1.)
 
+        self.register("fiber.number_type", 2)
         self.register("fiber.number_fiber", 60)
-        self.register("fiber.blend", [100.])
+        self.register("fiber.eps_value", 0.001)
+        self.register("fiber.blend", [100.0])
         self.register("fiber.radius_fiber", [0.0117])
         self.register("fiber.fiber_config", ['../fiber/defaultfiber.ini'])
         
