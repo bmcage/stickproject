@@ -133,10 +133,10 @@ class Yarn2DModel(object):
         self.init_conc = self.cfg.get('initial.init_conc')
         self.conc = CellVariable(name = "solution concentration", 
                     mesh = self.mesh2d, value = self.init_conc)
-        self.conc1 = CellVariable(name = "solution concentration1",
-                    mesh = self.mesh2d, value = self.init_conc)
-        self.conc2 = CellVariable(name = "solution concentration2",
-                    mesh = self.mesh2d, value = self.init_conc)
+        ##self.conc1 = CellVariable(name = "solution concentration1",
+        ##            mesh = self.mesh2d, value = self.init_conc)
+        ##self.conc2 = CellVariable(name = "solution concentration2",
+        ##            mesh = self.mesh2d, value = self.init_conc)
         self.viewer = None
         self.viewer = Viewer(vars = self.conc, datamin = 0., datamax =0.0005)
 
@@ -224,7 +224,7 @@ class Yarn2DModel(object):
             self.int_bound.append(tmp)
 
         print 'the value of int_bound', len(self.int_bound[1])
-        print 'the length of int_bound', len(self.int_bound[0])
+        print 'the length of int_bound', len(self.int_bound)
         print 'the length of face_in', len(face_in)
         face_ex = (~face_in) & (self.mesh2d.getExteriorFaces())
         print 'the length of face_out', len(face_ex)
@@ -236,49 +236,23 @@ class Yarn2DModel(object):
 ##        n_point_net = int(self.yarn_length / self.net_width) + 1
 ##        delta_effect = self.domain_effect / self.dis_effect
 ##        self.distance_yarn = sp.empty(4 * n_point_net, float)
+        conc_on_fib = sp.empty(self.nrtypefiber)
+        flux_in_fib = sp.empty(self.nrtypefiber)
+        BCs=[]
         for i in sp.arange(0, self.steps, 1):
             ## TODO: take the blend into account!!
             ## take polyester into account
-            conc_on_fib = self.fiber_models[0].fiber_surface[i+1]
-            flux_in_fib = self.fiber_models[0].boundary_transf_right * conc_on_fib
+            for nyfib in sp.arange(self.nrtypefiber):
+                print 'nyfib', nyfib
+                conc_on_fib[nyfib] = self.fiber_models[nyfib].fiber_surface[i+1]
+                flux_in_fib[nyfib] = self.fiber_models[nyfib].boundary_transf_right * conc_on_fib[nyfib]
             #loss to outside of yarn is 0.01 conc at outside
-            BCs = (FixedFlux(face_ex, value = 0.0),#0.01 * self.conc.getArithmeticFaceValue()), 
-                   FixedFlux(self.int_bound[0], value = -flux_in_fib),)
-            if i == 0:
-                self.eq.solve(var = self.conc1, boundaryConditions = BCs, dt = self.delta_t, )
-            else:
-                initial_each_st1 = self.conc.getValue()
-                self.conc1 = CellVariable(name = "solution concentration1",
-                            mesh = self.mesh2d, value = initial_each_st1)
-                self.eq.solve(var = self.conc1, boundaryConditions = BCs, dt = self.delta_t, )
+            BCs  = (FixedFlux(face_ex, value = 0.0),#0.01 * self.conc.getArithmeticFaceValue()), 
+                            FixedFlux(self.int_bound[0], value = -flux_in_fib[0]),
+                            FixedFlux(self.int_bound[1], value = -flux_in_fib[1]),)
             self.initial_t += self.delta_t
+            self.eq.solve(var = self.conc, boundaryConditions = BCs, dt = self.delta_t, )
             print 'time = ', (i+1) * self.delta_t
-##            value_face_out = np.empty(len(face_ex), float)#save the concentration at the face-out
-##            determine_out = np.empty(len(face_ex), bool)#save the boolean value at the face-out
-##            for i_out in sp.arange(0, len(face_ex), 1):
-##                value_face_out[i_out] = float(self.conc_face_ex[i_out])
-##                determine_out[i_out] = face_ex[i_out]
-##            value_out_record = value_face_out[determine_out]#get the value at the face out
-##            conc1_average_out = np.sum(value_out_record) / len(value_out_record)
-##            conc1_out_yarn = np.append(conc1_out_yarn, conc1_average_out)
-            self.conc_void1 = self.conc1.getValue()
-            print 'the mass in the void space', self.cal_mass_void(self.conc_void1,
-                                                self.cell_volume) / self.scaleL
-            ## take cotton fiber into account
-            conc_on_fib = self.fiber_models[1].fiber_surface[i+1]
-            flux_in_fib = self.fiber_models[1].boundary_transf_right * conc_on_fib
-            BCs = (FixedFlux(face_ex, value = 0.0), 
-                    FixedFlux(self.int_bound[1], value = -flux_in_fib),)
-            if i == 0:
-                self.eq.solve(var = self.conc2, boundaryConditions = BCs, dt = self.delta_t,)
-                self.conc_void2 = self.conc2.getValue()
-            else:
-                initial_each_st2 = self.conc.getValue()
-                self.conc2 = CellVariable(name = "solution concentration2",
-                            mesh = self.mesh2d, value = initial_each_st2)
-                self.eq.solve(var = self.conc2, boundaryConditions = BCs, dt = self.delta_t)
-                self.conc_void2 = self.conc2.getValue() - initial_each_st2
-            self.conc.setValue(self.conc_void2 + self.conc_void1)
             self.conc_tot_each = self.conc.getValue()
             print 'mass conservative with two fiber', self.cal_mass_void(self.conc_tot_each,
                                                 self.cell_volume) / self.scaleL
