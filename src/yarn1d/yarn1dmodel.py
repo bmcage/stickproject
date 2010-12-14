@@ -100,88 +100,45 @@ class Yarn1DModel(object):
         Create a mesh for use in the model.
         We use an equidistant mesh!
         
-        grid: the space position of each central point for every cell element;
+        grid: the space position of each central point for every cell element (r-coordinate);
         """
         self.beginning_point = 0 #center of the yarn, r=0, with r the distance from center yarn.
         self.end_point = self.cfg.get('domain.yarnradius')
-        n_edge = [0]
-        self.surf = [self.beginning_point]
-        self.diff_coef = [0.]
-        self.init_conc = [lambda x: 0.0 ]
-        for i in range(self.nrlayers):
-            section = 'fiberlayer_%i' % i
-            n_edge += [self.cfg.get(section + '.n_edge')]
-            self.surf += [self.surf[-1] + self.cfg.get(section + '.thickness')]
-            self.diff_coef += [self.cfg.get(section + '.diffusion_coef')]
-            self.init_conc += [eval(self.cfg.get(section + '.init_conc')) ]
-        if abs((self.surf[-1] - self.end_point)/self.end_point) > 1e-8:
-            print "ERROR, layers on fiber don't correspond with fiber thickness, %g, %g" % (self.surf[-1], self.end_point)
-            sys.exit(0)
+        self.nr_edge = 10
+        self.diff_coef = 0.
+        self.init_conc = lambda x: 0.0
         #we now construct the full edge grid
-        self.tot_edges = 0
-        first = True
-        for nr in n_edge:
-            if nr == 0 and self.tot_edges == 0 and not first:
-                print 'ERROR, no discretization points given'
-                sys.exit(0)
-            if not (nr == 0):
-                first = False
-                if self.tot_edges:
-                    self.tot_edges += nr - 1
-                else:
-                    self.tot_edges = nr
-            
-        self.grid_edge = sp.empty(self.tot_edges , float)
-        left = 0.
-        totnr = 0
-        first = True
-        for nr, right in zip(n_edge, self.surf):
-            if nr:
-                if first:
-                    self.grid_edge[totnr:totnr+nr] = sp.linspace(left, right, nr)
-                    totnr += nr
-                else:
-                    self.grid_edge[totnr:totnr+nr-1] = sp.linspace(left, right, nr)[1:]
-                    totnr += nr-1
-                first = False
-            left = right
+        self.grid_edge = sp.linspace(self.beginning_point, self.end_point, self.nr_edge)
         #construct cell centers from this
         self.grid = (self.grid_edge[:-1] + self.grid_edge[1:])/2.
         #obtain cell sizes
         self.delta_r = self.grid_edge[1:] - self.grid_edge[:-1]
-        if self.submethod == 'fipy':
-            self.mesh_fiber = CylindricalGrid1D(dr=tuple(self.delta_r))
-            self.mesh_fiber.periodicBC = False
-            self.mesh_fiber = self.mesh_fiber + (self.beginning_point,)
-
-        self.diffusion_coeff = sp.empty(self.tot_edges-1, float)
-    
-    def create_grid(self):
-        """
-        Create a mesh for use in the model
-        """
-        self.grid = Yarn1dGrid(self.cfg)
-        self.mesh1d = self.grid.mesh_1d_generate(filename='yarn1d.geo',
-                                regenerate=not self.cfg.get('general.read'))
-    
+        #create cylindrical 1D grid over domain.
+        self.mesh_yarn = CylindricalGrid1D(dr=tuple(self.delta_r))
+        self.mesh_yarn.periodicBC = False
+        self.mesh_yarn = self.mesh_yarn + (self.beginning_point,)
+                     
     def initial_yarn1d(self):
+        """ initial concentration over the domain"""
         self.init_conc = self.cfg.get('initial.init_conc')
         self.conc = CellVariable(name = "solution concentration", 
-                    mesh = self.mesh1d, value = self.init_conc)
-        self.viewer = None
-        self.viewer = Viewer(vars = self.conc, datamin = 0., datamax =0.005)
+                    mesh = self.mesh_yarn, value = self.init_conc)
+        #self.viewer = None
+        self.viewer = Viewer(vars = self.conc, datamin = 0., datamax = none)
+#Viewer(vars = self.conc, datamin = 0., datamax =0.005)
 
-    def solve_fiber(self):
+   def solve_fiber(self):
         """
         Solve the diffusion process on the fiber. 
         &C/&t = 1/r * &(Dr&C/&r) / &r
         The diffusion coefficient is constant. The finite volume method is used to
         discretize the right side of equation. The mesh in this 1-D condition is 
-        uniform
+        uniform.
+        
         """
         for model in self.fiber_models:
             model.run()
-
+        
     def f_conc1(self, w_rep, t):
         grid = self.grid
         n_cell = len(grid)
