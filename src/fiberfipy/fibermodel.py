@@ -189,7 +189,19 @@ class FiberModel(object):
         else:
             # a transfer coeff to the right
             flux_edge[-1] = -self.boundary_transf_right * w_rep[-1]
-        
+            
+    def _set_bound_fluxu(self, flux_edge, conc_r):
+        """
+        Method that takes BC into account to set flux on edge
+        Data is written to flux_edge, w_rep contains solution in the cell centers
+        """
+        flux_edge[0] = -self.boundary_fib_left
+        if self.boundary_fib_right:
+            flux_edge[-1] = self.boundary_fib_right
+        else:
+            # a transfer coeff to the right
+            flux_edge[-1] = -self.boundary_transf_right * conc_r
+            
     def f_conc1_ode(self, t, w_rep):
         return self.f_conc1(w_rep, t)
 
@@ -211,10 +223,36 @@ class FiberModel(object):
         diff_w_t[:]=(flux_edge[1:]-flux_edge[:-1])/self.delta_r[:]
         return diff_w_t
     
+    def f_conc1_odeu(self, t, conc_r):
+        return self.f_conc1u(conc_r, t)
+    
+    def f_conc1u(self, conc_r, t):
+        grid = self.grid
+        n_cell = len(grid)
+        #Initialize the left side of ODE equations
+        diff_u_t = sp.empty(n_cell, float)
+        #initialize the flux rate on the edge with replace 'w'
+        flux_edge = sp.empty(n_cell+1, float)
+        self._set_bound_fluxu(flux_edge, conc_r)
+        #Diffusion coefficient changes with the concentration changing
+        #calculate flux rate in each edge of the domain
+        flux_edge[1:-1] = (self.diffusion_coeff[:-1] * sp.exp(-self.diff_exp_fact * conc_r[:-1]) \
+                         + self.diffusion_coeff[1:] * sp.exp(-self.diff_exp_fact * conc_r[1:]))/2.\
+                    * self.grid_edge[1:-1] \
+                    * (conc_r[1:] - conc_r[:-1])\
+                    / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
+        diff_u_t[:]=2*(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[:]*self.delta_r[:]+self.delta_r[:]**2)
+        return diff_u_t
+    
     def solve_odeint(self):
         initial_w = self.initial_c1 * self.grid
         self.solv=odeint(self.f_conc1, initial_w, self.times)
         self.conc1=self.solv/ self.grid
+        self.view_sol(self.times, self.conc1)
+        
+    def solve_odeintu(self):
+        self.solv=odeint(self.f_conc1u, initial_c1, self.times)
+        self.conc1=self.solv
         self.view_sol(self.times, self.conc1)
     
     def solve_ode(self):
@@ -232,7 +270,22 @@ class FiberModel(object):
             tstep += 1
             self.conc1[tstep][:] = r.y / self.grid
         self.view_sol(self.times, self.conc1)
-
+        
+    def solve_odeu(self):
+        self.delta_t = self.times[1]-self.times[0]
+        self.initial_t = self.times[0]
+        endT = self.times[-1]
+        self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
+        r = ode(self.f_conc1_odeu).set_integrator('vode', method = 'bdf')
+        r.set_initial_value(initial_c1, self.initial_t)#.set_f_params(2.0)
+        tstep = 0
+        self.conc1[tstep][:] = self.initial_c1
+        while r.successful() and r.t < endT - self.delta_t /10.:
+            r.integrate(r.t + self.delta_t)
+            tstep += 1
+            self.conc1[tstep][:] = r.y 
+            self.view_sol(self.times, self.conc1)
+        
     def solve_fipy(self):
         #using fipy to solve 1D problem in fiber
         self.solution_fiber = CellVariable(name = "fiber concentration", 
@@ -295,10 +348,14 @@ class FiberModel(object):
         if self.submethod == 'fipy':
             self.solve_fipy()
         else:            
-            if self.submethod == 'odeint':
+            if self.submethod == 'odeintw':
                 self.solve_odeint()
-            elif  self.submethod == 'ode':
+            elif  self.submethod == 'odew':
                 self.solve_ode()
+            elif self.submethod == 'odeintu':
+                self.solve_odeintu()
+            elif self.submethod == 'odeu':
+                self.solve_odu()
         self.fiber_surface = sp.empty(len(self.times), float)
         for i in sp.arange(1,len(self.times) + 1,1):
             self.fiber_surface[i - 1] = self.conc1[i - 1][-1]
