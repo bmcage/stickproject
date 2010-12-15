@@ -168,7 +168,6 @@ class Yarn2DModel(object):
         self.eq = TransientTerm() == MyDiffusionTermNoCorrection(coeff = self.diffusion_DEET)
         #get the position of the boundary faces
         xfc, yfc = self.mesh2d.getFaceCenters()
-        print 'the length of xfc', len(xfc)
         xcc, ycc = self.mesh2d.getCellCenters()
         self.cell_volume = self.mesh2d.getCellVolumes()
         face_in = ((self.mesh2d.getExteriorFaces()) & 
@@ -177,6 +176,7 @@ class Yarn2DModel(object):
         filepath = utils.OUTPUTDIR + os.sep + 'fib_centers_x.geo'
         filepath1 = utils.OUTPUTDIR + os.sep + 'fib_centers_y.geo'
         filepath2 = utils.OUTPUTDIR + os.sep + 'determine_kinds.dat'
+        filepath3 = utils.OUTPUTDIR + os.sep + 'index_fiber.dat'
         self.fib_centers_x = open(filepath, 'r')
         self.fib_centers_y = open(filepath1, 'r')
         self.fib_x = eval(self.fib_centers_x.read())
@@ -187,28 +187,29 @@ class Yarn2DModel(object):
         self.deter_value1 = sp.empty(self.number_fiber)
         for i in sp.arange(len(self.deter_value1)):
             self.deter_value1[i] = eval(self.deter_file.readline())
-        print 'the length of deter_value', self.deter_value1
+        self.index_fiber = open(filepath3, 'r')
+        self.index_value = sp.empty(self.number_fiber, int)
+        for i in sp.arange(len(self.index_value)):
+            self.index_value[i] = eval(self.index_fiber.readline())
         self.deter_file.close()
-        fiber_nrtype1 = sp.empty(int(self.blend[0] * self.number_fiber / 100))
-        fiber_nrtype2 = sp.empty(int(self.blend[1] * self.number_fiber / 100))
-        times_nrtype1 = 0 
-        times_nrtype2 = 0
-        index_fib = 1
+        self.index_fiber.close()
+        type_determine = sp.empty(self.number_fiber, bool)
+        i_type = 0
+        self.fibers = []
+        while i_type < self.nrtypefiber:
+            for i_index in sp.arange(self.number_fiber):
+                if self.deter_value1[i_index] == i_type:
+                    type_determine[i_index] = True
+                else:
+                    type_determine[i_index] = False
+            print 'each time for determine', type_determine
+            fiber_nrtype = self.index_value[type_determine]
+            print 'the position of each kind fiber', fiber_nrtype
+            self.fibers.append(fiber_nrtype)
+            i_type += 1 
         eps_fib = sp.empty(len(self.radius_fiber))
         for index_1 in sp.arange(len(eps_fib)):
             eps_fib[index_1] = self.radius_fiber[index_1] * self.eps_value
-            
-        for index_nrfib in self.deter_value1:
-            if index_nrfib == 0.0:
-                fiber_nrtype1[times_nrtype1] = index_fib
-                times_nrtype1 += 1
-                index_fib += 1
-            elif index_nrfib == 1.0:
-                fiber_nrtype2[times_nrtype2] = index_fib
-                times_nrtype2 += 1
-                index_fib += 1
-        self.fibers = [fiber_nrtype1, fiber_nrtype2]
-        print 'the array self.fibers', self.fibers
         self.ext_bound = ((self.mesh2d.getExteriorFaces()) & 
                     (sp.power(xfc,2) + sp.power(yfc,2) \
                         < (self.grid.radius_domain - self.grid.radius_boundlayer)**2))
@@ -216,18 +217,12 @@ class Yarn2DModel(object):
         for nyfib in sp.arange(self.nrtypefiber):
             tmp = np.empty(len(face_in), bool)
             tmp[:] = False
-            print 'fibers', self.fibers[nyfib]
             for fib in self.fibers[nyfib]:
                 tmp = (((self.mesh2d.getExteriorFaces()) &
                     (sp.power(xfc - self.fib_x[fib-1], 2) + sp.power(yfc - self.fib_y[fib-1], 2)\
                     <= (self.radius_fiber[nyfib] + eps_fib[nyfib])**2)) | (tmp))
             self.int_bound.append(tmp)
-
-        print 'the value of int_bound', len(self.int_bound[1])
-        print 'the length of int_bound', len(self.int_bound)
-        print 'the length of face_in', len(face_in)
         face_ex = (~face_in) & (self.mesh2d.getExteriorFaces())
-        print 'the length of face_out', len(face_ex)
         self.initial_t = 0.
         filename1 = 'concentration_out.gz'
         filepath1 = utils.OUTPUTDIR + os.sep + filename1
@@ -238,23 +233,21 @@ class Yarn2DModel(object):
 ##        self.distance_yarn = sp.empty(4 * n_point_net, float)
         conc_on_fib = sp.empty(self.nrtypefiber)
         flux_in_fib = sp.empty(self.nrtypefiber)
-        BCs=[]
+        #* None
+        #loss to outside of yarn is 0.01 conc at outside
+        ## TODO: IMPROVE THIS BC
         for i in sp.arange(0, self.steps, 1):
-            ## TODO: take the blend into account!!
-            ## take polyester into account
+            BCs = []
+            BCs.append(FixedFlux(face_ex, value = 0.0))
             for nyfib in sp.arange(self.nrtypefiber):
-                print 'nyfib', nyfib
                 conc_on_fib[nyfib] = self.fiber_models[nyfib].fiber_surface[i+1]
                 flux_in_fib[nyfib] = self.fiber_models[nyfib].boundary_transf_right * conc_on_fib[nyfib]
-            #loss to outside of yarn is 0.01 conc at outside
-            BCs  = (FixedFlux(face_ex, value = 0.0),#0.01 * self.conc.getArithmeticFaceValue()), 
-                            FixedFlux(self.int_bound[0], value = -flux_in_fib[0]),
-                            FixedFlux(self.int_bound[1], value = -flux_in_fib[1]),)
+                BCs.append(FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib]))#[nyfib + 1] = FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib])
             self.initial_t += self.delta_t
-            self.eq.solve(var = self.conc, boundaryConditions = BCs, dt = self.delta_t, )
+            self.eq.solve(var = self.conc, boundaryConditions = tuple(BCs), dt = self.delta_t, )
             print 'time = ', (i+1) * self.delta_t
             self.conc_tot_each = self.conc.getValue()
-            print 'mass conservative with two fiber', self.cal_mass_void(self.conc_tot_each,
+            print 'mass conservative with two fibers', self.cal_mass_void(self.conc_tot_each,
                                                 self.cell_volume) / self.scaleL
             if self.viewer is not None:
                 self.viewer.plot()
