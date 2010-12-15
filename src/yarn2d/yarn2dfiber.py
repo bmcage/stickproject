@@ -92,24 +92,8 @@ class Yarn2dFiber(object):
                     determine_index = (int(init_index) == index_fiber)
                     if determine_index.any() != True:
                         index_fiber[index_i] = int(init_index)
-                        print 'this is index number', index_fiber[index_i]
                         self.index_file.write("%s\n" %(repr(index_fiber[index_i])))
                         index_i += 1
-                
-                #fiber_kind1 = self.blend[0] * self.number_fiber / 100.
-                #fiber_kind2 = self.blend[1] * self.number_fiber / 100.
-                #while index_2 < fiber_kind1 or index_3 < fiber_kind2:
-                #determine_a = np.random.uniform(0, 1)
-                #if determine_a <= 0.5 and index_2 < fiber_kind1:
-                    #self.kind1 = 0.0
-                    #index_2 += 1.0
-                    #self.determine_file.write(self.kind1)
-                    #self.determine_file.write("%s\n" %(repr(self.kind1)))
-                #elif determine_a > 0.5 and index_3 < fiber_kind2:
-                    #self.kind2 = 1.0
-                    #index_3 += 1.0
-                    #self.determine_file.write(self.kind2)
-                    #self.determine_file.write("%s\n" %(repr(self.kind2)))
             self.determine_file.close()
             self.index_file.close()
         else:
