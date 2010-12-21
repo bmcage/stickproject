@@ -65,8 +65,6 @@ class Yarn2dFiber(object):
         if regenerate:
             self.determine_file = open(filepath, 'w')
             index_1 = 0.0
-            index_2 = 0.0 
-            index_3 = 0.0
             
             for type_fiber_i in sp.arange(self.type_fiber):
                 fiber_kind = self.blend[type_fiber_i] * self.number_fiber / 100.
@@ -97,6 +95,9 @@ class Yarn2dFiber(object):
             self.determine_file.close()
             self.index_file.close()
         else:
+            """
             deterfile = open(filepath, 'r')
             #self.deterfile_value = eval(deterfile.read())
             deterfile.close()
+            """
+            print 'read the previous file'
