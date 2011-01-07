@@ -367,11 +367,12 @@ class FiberModel(object):
             tstep = 0
             self.conc1[tstep][:] = self.initial_c1
             self.diffusion_coef_tstep[tstep][:] = self.diffusion_coeff
-            print 'this is diffusion_coef_tstep', self.diffusion_coef_tstep[tstep][:]
-            
+            self.diffusion_exp_fact = sp.empty(len(self.diffusion_coeff), float)
+            self.diffusion_exp_fact[:self.n_edges_fiber - 1] = 0.0
+            self.diffusion_exp_fact[self.n_edges_fiber - 1:] = self.diff_exp_fact
             self.eqX_fiber = TransientTerm() == DiffusionTerm(coeff = 
                                     self.diffusion_coeff* 
-                                    sp.exp(-self.diff_exp_fact * self.solution_fiber))
+                                    sp.exp(-self.diffusion_exp_fact * self.solution_fiber))
             
             if self.boundary_fib_right:
                 self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
