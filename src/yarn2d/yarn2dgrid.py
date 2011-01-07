@@ -252,18 +252,4 @@ class Yarn2dGrid(object):
         """
         self.mesh = Gmsh2D(self.create_circle_domain_gmsh(filename, filename1, filename2,
                             regenerate))
-        #calculate boundary
-        """
-        self.ext_bound = ((self.mesh.getExteriorFaces()) & 
-                    (sp.power(xfc,2) + sp.power(yfc,2) \
-                        < (self.grid.radius_domain - self.grid.radius_boundlayer)**2))
-        self.int_bound = []
-        for nrfib in arange(self.nrtypefiber):
-            tmp = self.mesh.getExteriorFaces() * 0
-            for fib in self.fibers[nrfib]:
-                tmp = (tmp) | (self.mesh.getExteriorFaces() &
-                    (sp.power(xfc-center_fibx[fib],2) + sp.power(yfc-center_fiby[fib],2) \
-                        <= (self.radius_fiber[nrfib] + eps)**2))
-            self.int_bound.append(tmp)
-        """
         return self.mesh

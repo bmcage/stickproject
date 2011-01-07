@@ -121,7 +121,7 @@ class Yarn1DModel(object):
     def initial_yarn1d(self):
         """ initial concentration over the domain"""
         self.init_conc = self.cfg.get('initial.init_conc')
-        self.conc = CellVariable(name = "solution concentration", 
+        self.conc = CellVariable(name = "", 
                     mesh = self.mesh_yarn, value = self.init_conc)
         #self.viewer = None
         self.viewer = Viewer(vars = self.conc, datamin = 0., datamax = none)
@@ -229,7 +229,7 @@ class Yarn1DModel(object):
 ##            conc1_out_yarn = np.append(conc1_out_yarn, conc1_average_out)
                     
             if self.viewer is not None:
-                self.viewer.plot()
+                self.viewer.plot(title = "")
 ##        dump.write({'time_step': self.times, 'conc_out': conc1_out_yarn},
 ##                                filename = filepath1, extension = '.gz')
         raw_input("Finshed <return>.....")

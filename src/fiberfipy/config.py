@@ -91,11 +91,15 @@ class FiberfipyConfigManager(ConfigManager):
         self.register("general.verbose", False)
         self.register("general.method", 'FVM')
         self.register("general.submethod", 'ode')
+        self.register("general.fiber_kind", 'polyester')
 
-        self.register("fiber.radius_pure_fiber", 0.01)
+        self.register("fiber.beginning_point", 0.0)
         self.register("fiber.radius_fiber", 0.0117)
         self.register("fiber.n_edge", 41)
         self.register("fiber.nrlayers", 1)
+        
+        self.register("fiberlayer_0.porosity_in", 20.)
+        self.register("fiberlayer_0.percentage_active", 2.2)
 
         self.register("fiberlayer_1.n_edge", 41)
         self.register("fiberlayer_1.thickness", 0.0017)

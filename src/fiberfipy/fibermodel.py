@@ -80,6 +80,7 @@ class FiberModel(object):
         if not (self.submethod in ['ode', 'odeint', 'fipy']):
             print 'unkown solution submethod'
             sys.exit(0)
+        self.fiber_kind = self.cfg.get('general.fiber_kind') 
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
         self.steps = self.time_period / self.delta_t
@@ -98,11 +99,13 @@ class FiberModel(object):
     def create_mesh(self):
         """
         Create a mesh for use in the model.
-        We use an equidistant mesh!
-        
+        We use an equidistant mesh
         grid: the space position of each central point for every cell element;
         """
-        self.beginning_point = self.cfg.get('fiber.radius_pure_fiber')
+        if self.fiber_kind == 'polyester':
+            self.beginning_point = self.cfg.get('fiber.radius_pure_fiber')
+        elif self.fiber_kind == 'cotton':
+            self.beginning_point = self.cfg.get('fiber.beginning_point')
         self.end_point = self.cfg.get('fiber.radius_fiber')
         self.nrlayers = self.cfg.get('fiber.nrlayers')
         n_edge = [0]
@@ -131,7 +134,6 @@ class FiberModel(object):
                     self.tot_edges += nr - 1
                 else:
                     self.tot_edges = nr
-            
         self.grid_edge = sp.empty(self.tot_edges , float)
         left = 0.
         totnr = 0
@@ -148,8 +150,10 @@ class FiberModel(object):
             left = right
         #construct cell centers from this
         self.grid = (self.grid_edge[:-1] + self.grid_edge[1:])/2.
+        print 'the length of grid in layer', len(self.grid)
         #obtain cell sizes
         self.delta_r = self.grid_edge[1:] - self.grid_edge[:-1]
+        print 'the length of delta_r in layer', len(self.delta_r)
         if self.submethod == 'fipy':
             self.mesh_fiber = CylindricalGrid1D(dr=tuple(self.delta_r))
             self.mesh_fiber.periodicBC = False
@@ -159,15 +163,33 @@ class FiberModel(object):
     
     def initial_fiber(self):
         """ initial concentration over the domain"""
-        self.initial_c1 = sp.empty(self.tot_edges-1, float)
-        st = 0
-        surf = self.surf[st]
-        for i, pos in enumerate(self.grid):
-            while pos > surf:
-                st += 1
-                surf = self.surf[st]
-            self.initial_c1[i] = self.init_conc[st](pos)
-            self.diffusion_coeff[i] = self.diff_coef[st]
+        if self.fiber_kind == 'polyester':
+            self.initial_c1 = sp.empty(self.tot_edges-1, float)
+            st = 0
+            surf = self.surf[st]
+            for i, pos in enumerate(self.grid):
+                while pos > surf:
+                    st += 1
+                    surf = self.surf[st]
+                self.initial_c1[i] = self.init_conc[st](pos)
+                self.diffusion_coeff[i] = self.diff_coef[st]
+        elif self.fiber_kind == 'cotton':
+            self.n_edges_fiber = self.cfg.get('fiberlayer_0.n_edge')
+            self.porosity_in = self.cfg.get('fiberlayer_0.porosity_in') #porosity value of cotton fiber
+            self.percentage_active = self.cfg.get('fiberlayer_0.percentage_active') #percentage of active component
+            self.initial_c1 = sp.empty(self.tot_edges - 1, float)
+            st = 0
+            surf = self.surf[st]
+            for i, pos in enumerate(self.grid):
+                while pos > surf:
+                    st += 1
+                    surf = self.surf[st]
+                self.initial_c1[i] = self.init_conc[st](pos)
+                self.diffusion_coeff[i] = self.diff_coef[st]
+            self.initial_c1[:self.n_edges_fiber - 1] = self.initial_c1[self.n_edges_fiber] * \
+                                                    (self.porosity_in / 100.) * \
+                                                    (self.percentage_active / 100.)
+            
         print 'initial mass = ', self.calc_mass(self.initial_c1)
 
     def calc_mass(self, conc_r):
@@ -285,55 +307,123 @@ class FiberModel(object):
             tstep += 1
             self.conc1[tstep][:] = r.y 
             self.view_sol(self.times, self.conc1)
+    """        
+    def initial_fiber_in(self):
+        #Initial concentration over the domain
+        self.initial_c_in = sp.empty(self.n_edge_in - 1, float)
+        self.initial_c_in[:] = self.cfg.get('fiberin.initial_in')
+        print 'length of initial condition array in fiber', len(self.initial_c_in)
+        print 'initial concentration value in fiber', self.initial_c_in
+    """    
         
     def solve_fipy(self):
         #using fipy to solve 1D problem in fiber
-        self.solution_fiber = CellVariable(name = "fiber concentration", 
-                            mesh = self.mesh_fiber,
-                            value = self.initial_c1, hasOld = 1)
-        self.viewer =  Viewer(vars = self.solution_fiber, datamin=0., datamax=1.1)
-        self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
-        print 'the length of solution:', len(self.solution_fiber)
-        print 'length of the diffusion coefficient', len(self.diffusion_coeff)
-        print len(self.grid)
+        if self.fiber_kind == 'polyester':
+            self.solution_fiber = CellVariable(name = "fiber concentration", 
+                                mesh = self.mesh_fiber,
+                                value = self.initial_c1, hasOld = 1)
+            self.viewer =  Viewer(vars = self.solution_fiber, datamin=0., datamax= 1.1)
+            self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
+            print 'the length of solution:', len(self.solution_fiber)
+            print 'length of the diffusion coefficient', len(self.diffusion_coeff)
+            print len(self.grid)
 
-        if self.boundary_fib_right:
-            self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
-                                    value = self.boundary_fib_right),
-                              FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
-                                    value = -self.boundary_fib_left))
-        else:
-            self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
-                                       value = self.boundary_transf_right \
-                                            * self.solution_fiber.getFaceValue()),
-                              FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
-                                    value = -self.boundary_fib_left))
-        self.eqX_fiber = TransientTerm() == DiffusionTerm(coeff = 
-                                self.diffusion_coeff * 
-                                sp.exp(-self.diff_exp_fact * self.solution_fiber))
-        tstep = 0
-        self.conc1[tstep][:] = self.initial_c1
-        for time in self.times[1:]:
-            print time
-            self.solve_fipy_step()
-            if self.viewer is not None:
-                self.viewer.plot()
-                #raw_input("please<return>.....")
-            tstep += 1
-            self.conc1[tstep][:] = self.solution_fiber.getValue()
-            if time == 200.0:
-                dump.write({'space_position': self.grid, 'conc1': self.conc1[tstep][:]},
-                        filename = utils.OUTPUTDIR + os.sep + 'fipy_t1.gz', extension = '.gz')
-                print 'finish file'
-            print 'mass = ', self.calc_mass(self.conc1[tstep])
+            if self.boundary_fib_right:
+                self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
+                                        value = self.boundary_fib_right),
+                                  FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
+                                        value = -self.boundary_fib_left))
+            else:
+                self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
+                                           value = self.boundary_transf_right \
+                                                * self.solution_fiber.getFaceValue()),
+                                  FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
+                                        value = -self.boundary_fib_left))
+            self.eqX_fiber = TransientTerm() == DiffusionTerm(coeff = 
+                                    self.diffusion_coeff * 
+                                    sp.exp(-self.diff_exp_fact * self.solution_fiber))
+            tstep = 0
+            self.conc1[tstep][:] = self.initial_c1[:]
+            for time in self.times[1:]:
+                print time
+                self.solve_fipy_step()
+                if self.viewer is not None:
+                    self.viewer.plot()
+                    #raw_input("please<return>.....")
+                tstep += 1
+                self.conc1[tstep][:] = self.solution_fiber.getValue()
+                if time == 200.0:
+                    dump.write({'space_position': self.grid, 'conc1': self.conc1[tstep][:]},
+                            filename = utils.OUTPUTDIR + os.sep + 'fipy_t1.gz', extension = '.gz')
+                    print 'finish file'
+                print 'mass = ', self.calc_mass(self.conc1[tstep])
+        elif self.fiber_kind == 'cotton':
+            self.solution_fiber = CellVariable(name = "fiber concentration", 
+                                mesh = self.mesh_fiber,
+                                value = self.initial_c1, hasOld = 1)
+            self.viewer =  Viewer(vars = self.solution_fiber, datamin=0., datamax = 0.8)
+            self.conc1 = sp.empty((len(self.times), len(self.initial_c1)), float)
+            self.diffusion_coef_tstep = sp.empty((len(self.times), len(self.diffusion_coeff)),float)
+            tstep = 0
+            self.conc1[tstep][:] = self.initial_c1
+            self.diffusion_coef_tstep[tstep][:] = self.diffusion_coeff
+            print 'this is diffusion_coef_tstep', self.diffusion_coef_tstep[tstep][:]
+            
+            self.eqX_fiber = TransientTerm() == DiffusionTerm(coeff = 
+                                    self.diffusion_coeff* 
+                                    sp.exp(-self.diff_exp_fact * self.solution_fiber))
+            
+            if self.boundary_fib_right:
+                self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
+                                        value = self.boundary_fib_right),
+                                  FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
+                                        value = -self.boundary_fib_left))
+            else:
+                self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
+                                           value = self.boundary_transf_right \
+                                                * self.solution_fiber.getFaceValue()),
+                                  FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
+                                        value = -self.boundary_fib_left))
+            
+            #the discretization for fiber inside
+            discretization_t = self.steps + 1
+            self.times = sp.linspace(0, self.time_period, discretization_t)
+            self.diff_coef_cal = sp.empty(len(self.diffusion_coeff), float)
+            self.conc1_cal = sp.empty(len(self.initial_c1),float)
+            for time in self.times[1:]:
+                print time
+                self.diff_coef_cal[:] = self.diffusion_coef_tstep[tstep][:]
+                #self.eqX_fiber = TransientTerm() == DiffusionTerm(coeff = self.diffusion_coeff)
+                self.solve_fipy_step()
+                if self.viewer is not None:
+                    self.viewer.plot()
+                    #raw_input("please<return>.....")
+                tstep += 1
+                self.conc1[tstep][:] = self.solution_fiber.getValue()
+                self.conc1_cal[:] = self.conc1[tstep][:]
+                self.diffusion_coef_tstep[tstep][:] = self.diffusion_coeff
+                self.diffusion_coef_tstep[tstep][self.n_edges_fiber - 1:] = self.diffusion_coeff[self.n_edges_fiber - 1:] * sp.exp(-self.diff_exp_fact *\
+                                                        self.conc1[tstep][self.n_edges_fiber - 1:])
+                print 'mass = ', self.calc_mass(self.conc1[tstep])
 
     def solve_fipy_step(self):
+        
         res = 1e+1
         while res > 1e-8:
             res = self.eqX_fiber.sweep(var = self.solution_fiber,
                                         dt = self.delta_t,
                                         boundaryConditions = self.BCs_fiber)
         self.solution_fiber.updateOld()
+
+    """
+    def solve_fipy_in_step(self):
+        res = 1e+1
+        while res > 1.0e-8:
+            res = self.eqX_fiber_in.sweep(var = self.solution_in_fiber,
+                                        dt = self.delta_t,
+                                        boundaryConditions = self.BCs_fiber_in)
+        self.solution_fiber.updateOld()
+    """
 
     def solve(self):
         """
@@ -384,9 +474,10 @@ class FiberModel(object):
 ##            raw_input("please<return>....")
             
 
-    def run(self):        
+    def run(self):
         self.create_mesh()
         self.initial_fiber()
         self.solve()
+
         
         print 'end mass = ', self.calc_mass(self.conc1[-1])

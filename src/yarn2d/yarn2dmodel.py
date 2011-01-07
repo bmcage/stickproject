@@ -131,7 +131,7 @@ class Yarn2DModel(object):
     
     def initial_yarn2d(self):
         self.init_conc = self.cfg.get('initial.init_conc')
-        self.conc = CellVariable(name = "solution concentration", 
+        self.conc = CellVariable(name = "Conc. Active Component", 
                     mesh = self.mesh2d, value = self.init_conc)
         ##self.conc1 = CellVariable(name = "solution concentration1",
         ##            mesh = self.mesh2d, value = self.init_conc)
@@ -253,7 +253,8 @@ class Yarn2DModel(object):
                 self.viewer.plot()
 ##        dump.write({'time_step': self.times, 'conc_out': conc1_out_yarn},
 ##                                filename = filepath1, extension = '.gz')
-        raw_input("Finshed <return>.....")
+            raw_input("next time step<return>....")
+        #raw_input("Finshed <return>.....")
     
     def cal_mass_void(self, conc_void, cell_volume):
         """
