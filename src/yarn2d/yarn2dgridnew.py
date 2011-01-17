@@ -99,7 +99,6 @@ class Yarn2dNewGrid(object):
         if self.number_fiber > total_number_vl:
             print 'the number of fiber is more than the virtual locations'
             sys.exit(0)
-            
         print 'the total number of virtual location is', total_number_vl
         #calculate the postion of each virtual location
         self.x_position_vl = []
@@ -118,8 +117,6 @@ class Yarn2dNewGrid(object):
                     self.x_position_vl.append(x_position)
                     self.y_position_vl.append(y_position)
         #calculate the distribution value in each circle zone
-        print 'the position_x', self.x_position_vl
-        print 'the position_y', self.y_position_vl
         self.probability_value = sp.empty(self.total_circles, float)
         for i_num_fiber in sp.arange(self.total_circles):
             self.probability_value[i_num_fiber] = 0.8 #(1 - 2 * self.theta_value) * sp.power((sp.exp(1) - \
@@ -242,13 +239,10 @@ class Yarn2dNewGrid(object):
                             location_number[i_index] = random_position#.append(random_position)
                             a = random_position - 1 
                             b = random_position - 1
-                            print 'each time virtual location', a
                             self.x_central = self.x_position_vl[a]#index_position + random_position]
                             self.y_central = self.y_position_vl[b]#index_position + random_position]
                             self.x_position[determine_generate] = self.x_central
                             self.y_position[determine_generate] = self.y_central
-                            print 'center point x', self.x_central
-                            print 'center point y', self.y_central
                             self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
                                             self.x_central , self.y_central, self.z, 
                                             self.cellsize_centre))
@@ -280,12 +274,10 @@ class Yarn2dNewGrid(object):
                                 determine_value = (random_position == location_number)
                             else:
                                 location_number[i_index] = random_position#.append(random_position)
-                                print 'the random position value', random_position
                                 self.x_central = self.x_position_vl[random_position - 1]
                                 self.y_central = self.y_position_vl[random_position - 1]
                                 self.x_position[determine_generate] = self.x_central
                                 self.y_position[determine_generate] = self.y_central
-                                print 'the position value', random_position
                                 self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
                                                 self.x_central , self.y_central, self.z, 
                                                 self.cellsize_centre))
@@ -305,13 +297,11 @@ class Yarn2dNewGrid(object):
                                 determine_generate += 1
                     index_position += self.number_circle[i_circle_number]
                     number_fiber_in_loop = number_fiber_in_loop - self.each_circle_zone_num[i_circle_number]
-                    print 'number is left', number_fiber_in_loop
                     i_circle_number += 1
                 elif i_circle_number == self.circle_loop - 1:
                     #index_location = number_fiber_in_loop
                     location_number = sp.empty(number_fiber_in_loop, int)
                     print 'left number fiber', number_fiber_in_loop
-                    #sys.exit(0)
                     for i_index in sp.arange(number_fiber_in_loop):
                         if i_index == 0:
                             a_position = np.random.uniform(index_position, 
@@ -320,13 +310,10 @@ class Yarn2dNewGrid(object):
                             location_number[i_index] = random_position#.append(random_position)
                             a = random_position - 1 
                             b = random_position - 1
-                            print 'each time virtual location', a
                             self.x_central = self.x_position_vl[a]#index_position + random_position]
                             self.y_central = self.y_position_vl[b]#index_position + random_position]
                             self.x_position[determine_generate] = self.x_central
                             self.y_position[determine_generate] = self.y_central
-                            print 'center point x', self.x_central
-                            print 'center point y', self.y_central
                             self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
                                             self.x_central , self.y_central, self.z, 
                                             self.cellsize_centre))
@@ -342,7 +329,6 @@ class Yarn2dNewGrid(object):
                             self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+4,
                                             self.x_central, self.y_central - self.radius_fiber[0],
                                             self.z, self.cellsize_centre))
-                            
                             determine_generate += 1
                             index += 5
                         else:
@@ -358,12 +344,10 @@ class Yarn2dNewGrid(object):
                                 determine_value = (random_position == location_number)
                             else:
                                 location_number[i_index] = random_position#.append(random_position)
-                                print 'the random position value', random_position
                                 self.x_central = self.x_position_vl[random_position - 1]
                                 self.y_central = self.y_position_vl[random_position - 1]
                                 self.x_position[determine_generate] = self.x_central
                                 self.y_position[determine_generate] = self.y_central
-                                print 'the position value', random_position
                                 self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
                                                 self.x_central , self.y_central, self.z, 
                                                 self.cellsize_centre))
