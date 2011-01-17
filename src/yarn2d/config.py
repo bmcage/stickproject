@@ -94,6 +94,8 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("domain.cellsize_centre", 5.0e-2)
         self.register("domain.cellsize_fiber", 5.0e-2)
         self.register("domain.yarnradius", 1.)
+        self.register("domain.theta_value", 0.05)
+        self.register("domain.beta_value", 1.2)
 
         self.register("fiber.number_type", 2)
         self.register("fiber.number_fiber", 60)

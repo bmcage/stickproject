@@ -44,6 +44,7 @@ import lib.utils.gridutils as GridUtils
 import yarn2d.config as conf
 from mycorrection import MyDiffusionTermNoCorrection
 from yarn2dgrid import Yarn2dGrid
+from yarn2dgridnew import Yarn2dNewGrid
 from yarn2dfiber import Yarn2dFiber
 from fiberfipy.config import FiberfipyConfigManager
 from fiberfipy.fibermodel import FiberModel
@@ -115,6 +116,12 @@ class Yarn2DModel(object):
         self.grid = Yarn2dGrid(self.cfg)
         self.mesh2d = self.grid.mesh_2d_generate(filename='yarn.geo',
                                 regenerate=not self.cfg.get('general.read'))
+        """
+        Create a mesh with the concept of virtual location
+        """
+        #self.grid1 = Yarn2dNewGrid(self.cfg)
+        #self.mesh2d_1 = self.grid1.mesh_new_generate(filename = 'yarn_new.geo',
+                                #regenerate = not self.cfg.get('general.read'))
                             
     def determine_fiber(self):
         """
