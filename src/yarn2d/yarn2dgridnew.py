@@ -299,7 +299,6 @@ class Yarn2dNewGrid(object):
                     number_fiber_in_loop = number_fiber_in_loop - self.each_circle_zone_num[i_circle_number]
                     i_circle_number += 1
                 elif i_circle_number == self.circle_loop - 1:
-                    #index_location = number_fiber_in_loop
                     location_number = sp.empty(number_fiber_in_loop, int)
                     for i_index in sp.arange(number_fiber_in_loop):
                         if i_index == 0:
