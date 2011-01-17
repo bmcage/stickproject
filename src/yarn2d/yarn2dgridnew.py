@@ -301,7 +301,6 @@ class Yarn2dNewGrid(object):
                 elif i_circle_number == self.circle_loop - 1:
                     #index_location = number_fiber_in_loop
                     location_number = sp.empty(number_fiber_in_loop, int)
-                    print 'left number fiber', number_fiber_in_loop
                     for i_index in sp.arange(number_fiber_in_loop):
                         if i_index == 0:
                             a_position = np.random.uniform(index_position, 
