@@ -62,7 +62,7 @@ from fipy import *
 #-------------------------------------------------------------------------
 class Yarn2DModel(object):
     """
-    Yarn2DNodel is a special diffusion model for a single yarn which is composed 
+    Yarn2DModel is a special diffusion model for a single yarn which is composed 
     by a certain amount of fibers. Firstly, one cross-section of fiber is 
     generated. Then the uniform distribution function is used to generated the 
     postions of fibers in the yarn until the number reaches our requirement.
@@ -260,8 +260,8 @@ class Yarn2DModel(object):
                 self.viewer.plot()
 ##        dump.write({'time_step': self.times, 'conc_out': conc1_out_yarn},
 ##                                filename = filepath1, extension = '.gz')
-            raw_input("next time step<return>....")
-        #raw_input("Finshed <return>.....")
+           # raw_input("next time step <return>....")
+        raw_input("Finished <press return>.....")
     
     def cal_mass_void(self, conc_void, cell_volume):
         """
