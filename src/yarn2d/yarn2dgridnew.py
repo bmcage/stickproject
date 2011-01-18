@@ -73,15 +73,20 @@ class Yarn2dNewGrid(object):
                                     self.radius_fiber[0]))
         self.total_circles = self.number_for_circles + 1
         self.radius_circle = sp.empty(self.total_circles, float)
+        self.radius_circle_1 = sp.empty(self.total_circles, float)
         self.theta_value = self.cfg.get('domain.theta_value')
         self.beta_value = self.cfg.get('domain.beta_value')
         self.x_position = sp.empty(self.number_fiber, float)
         self.y_position = sp.empty(self.number_fiber, float)
         for i_circle in sp.arange(self.total_circles):
             if i_circle == 0:
-                self.radius_circle[i_circle] = (i_circle + 1) * self.radius_fiber[0]
+                self.radius_circle[i_circle] = (i_circle + 1) * (self.radius_fiber[0] + 0.1 * \
+                                self.radius_fiber[0])
+                self.radius_circle_1[i_circle] = (i_circle + 1) * self.radius_fiber[0]
             elif i_circle > 0:
-                self.radius_circle[i_circle] = i_circle * 2. * self.radius_fiber[0]
+                self.radius_circle[i_circle] = i_circle * 2. * (self.radius_fiber[0] + 0.1 * \
+                                self.radius_fiber[0])
+                self.radius_circle_1[i_circle] = i_circle * 2. * self.radius_fiber[0]
         """
         Generate virtual location part
         """
@@ -92,7 +97,7 @@ class Yarn2dNewGrid(object):
                 self.number_circle[i_circle] = 1
             else:
                 self.number_circle[i_circle] = int(sp.pi / (self.radius_fiber[0] \
-                                                / self.radius_circle[i_circle]))
+                                                / self.radius_circle_1[i_circle]))
                 print 'the value', self.radius_fiber[0] /self.radius_circle[i_circle]
                 print 'the number in each circle', self.number_circle[i_circle]
         total_number_vl = sum(self.number_circle[:])
@@ -111,17 +116,17 @@ class Yarn2dNewGrid(object):
                 each_circle = self.number_circle[i_circle]
                 for i_position in sp.arange(each_circle):
                     x_position = self.radius_circle[i_circle] * sp.cos(2 * i_position * sp.arcsin(self.radius_fiber[0] \
-                                / self.radius_circle[i_circle]))
+                                / self.radius_circle_1[i_circle]))
                     y_position = self.radius_circle[i_circle] * sp.sin(2 * i_position * sp.arcsin(self.radius_fiber[0] \
-                                /self.radius_circle[i_circle]))
+                                /self.radius_circle_1[i_circle]))
                     self.x_position_vl.append(x_position)
                     self.y_position_vl.append(y_position)
         #calculate the distribution value in each circle zone
         self.probability_value = sp.empty(self.total_circles, float)
         for i_num_fiber in sp.arange(self.total_circles):
-            self.probability_value[i_num_fiber] = 0.8 #(1 - 2 * self.theta_value) * sp.power((sp.exp(1) - \
-                                                #sp.exp(self.radius_circle[i_num_fiber] / self.radius_yarn))\
-                                               #/(sp.exp(1) - 1), self.beta_value) + self.theta_value
+            self.probability_value[i_num_fiber] = (1 - 2 * self.theta_value) * sp.power((sp.exp(1) - \
+                                                sp.exp(self.radius_circle[i_num_fiber] / self.radius_yarn))\
+                                               /(sp.exp(1) - 1), self.beta_value) + self.theta_value
         print 'the value of probability', self.probability_value
         #calculate how many fibers can be in each circle zone
         self.each_circle_zone_num = sp.empty(self.total_circles, int)
@@ -237,8 +242,8 @@ class Yarn2dNewGrid(object):
                                         index_position + self.number_circle[i_circle_number] )
                             random_position = int(a_position)
                             location_number[i_index] = random_position#.append(random_position)
-                            a = random_position - 1 
-                            b = random_position - 1
+                            a = random_position 
+                            b = random_position
                             self.x_central = self.x_position_vl[a]#index_position + random_position]
                             self.y_central = self.y_position_vl[b]#index_position + random_position]
                             self.x_position[determine_generate] = self.x_central
@@ -266,7 +271,6 @@ class Yarn2dNewGrid(object):
                                         index_position + self.number_circle[i_circle_number])
                             random_position = int(a_position)
                             determine_value = (random_position == location_number)
-                            print determine_value
                             while determine_value.any() == True:
                                 a_position = np.random.uniform(index_position, 
                                             index_position + self.number_circle[i_circle_number] + 1)
@@ -274,8 +278,8 @@ class Yarn2dNewGrid(object):
                                 determine_value = (random_position == location_number)
                             else:
                                 location_number[i_index] = random_position#.append(random_position)
-                                self.x_central = self.x_position_vl[random_position - 1]
-                                self.y_central = self.y_position_vl[random_position - 1]
+                                self.x_central = self.x_position_vl[random_position]
+                                self.y_central = self.y_position_vl[random_position]
                                 self.x_position[determine_generate] = self.x_central
                                 self.y_position[determine_generate] = self.y_central
                                 self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
@@ -306,8 +310,8 @@ class Yarn2dNewGrid(object):
                                         index_position + self.number_circle[i_circle_number] )
                             random_position = int(a_position)
                             location_number[i_index] = random_position#.append(random_position)
-                            a = random_position - 1 
-                            b = random_position - 1
+                            a = random_position
+                            b = random_position
                             self.x_central = self.x_position_vl[a]#index_position + random_position]
                             self.y_central = self.y_position_vl[b]#index_position + random_position]
                             self.x_position[determine_generate] = self.x_central
@@ -334,7 +338,6 @@ class Yarn2dNewGrid(object):
                                         index_position + self.number_circle[i_circle_number])
                             random_position = int(a_position)
                             determine_value = (random_position == location_number)
-                            print determine_value
                             while determine_value.any() == True:
                                 a_position = np.random.uniform(index_position, 
                                             index_position + self.number_circle[i_circle_number] + 1)
@@ -342,8 +345,8 @@ class Yarn2dNewGrid(object):
                                 determine_value = (random_position == location_number)
                             else:
                                 location_number[i_index] = random_position#.append(random_position)
-                                self.x_central = self.x_position_vl[random_position - 1]
-                                self.y_central = self.y_position_vl[random_position - 1]
+                                self.x_central = self.x_position_vl[random_position]
+                                self.y_central = self.y_position_vl[random_position]
                                 self.x_position[determine_generate] = self.x_central
                                 self.y_position[determine_generate] = self.y_central
                                 self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,

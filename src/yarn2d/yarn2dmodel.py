@@ -119,16 +119,16 @@ class Yarn2DModel(object):
         """
         Create a mesh with the concept of virtual location
         """
-        #self.grid1 = Yarn2dNewGrid(self.cfg)
-        #self.mesh2d_1 = self.grid1.mesh_new_generate(filename = 'yarn_new.geo',
-                                #regenerate = not self.cfg.get('general.read'))
+        self.grid1 = Yarn2dNewGrid(self.cfg)
+        self.mesh2d_1 = self.grid1.mesh_new_generate(filename = 'yarn_new.geo',
+                                regenerate = not self.cfg.get('general.read'))
                             
     def determine_fiber(self):
         """
         Create a determine file for choosing fiber kinds
         """
         #for model in self.choosing_kind:
-        #    model.run()        
+        #model.run()        
         
         self.determine = Yarn2dFiber(self.cfg)
         self.choosing_kind = self.determine.create_fiber_kinds(filename = 'determine_kinds.dat', 
