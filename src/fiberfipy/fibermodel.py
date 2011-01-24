@@ -222,7 +222,7 @@ class FiberModel(object):
             flux_edge[-1] = self.boundary_fib_right
         else:
             # a transfer coeff to the right
-            flux_edge[-1] = -self.boundary_transf_right * conc_r
+            flux_edge[-1] = -self.boundary_transf_right * conc_r[-1]
             
     def f_conc1_ode(self, t, w_rep):
         return self.f_conc1(w_rep, t)
