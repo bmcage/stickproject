@@ -92,8 +92,8 @@ class Yarn1DModel(object):
         self.fiber_models = []
         for cfg in self.cfg_fiber:
             self.fiber_models.append(FiberModel(cfg))
-
         self.verbose = self.cfg.get('general.verbose')
+        self.diffusion_coeff = sp.empty(self.tot_edges-1, float)
 
     def create_mesh(self):
         """
@@ -105,7 +105,7 @@ class Yarn1DModel(object):
         self.beginning_point = 0 #center of the yarn, r=0, with r the distance from center yarn.
         self.end_point = self.cfg.get('domain.yarnradius')
         self.nr_edge = 10
-        self.diff_coef = 0.
+        self.diff_coef = [0.]
         self.init_conc = lambda x: 0.0
         #we now construct the full edge grid
         self.grid_edge = sp.linspace(self.beginning_point, self.end_point, self.nr_edge)
@@ -126,10 +126,19 @@ class Yarn1DModel(object):
         #self.viewer = None
         self.viewer = Viewer(vars = self.conc, datamin = 0., datamax = none)
 #Viewer(vars = self.conc, datamin = 0., datamax =0.005)
+        self.initial_c1 = sp.empty(self.tot_edges-1, float)
+        st = 0
+        surf = self.surf[st]
+        for i, pos in enumerate(self.grid):
+                while pos > surf:
+                    st += 1
+                    surf = self.surf[st]
+                self.initial_c1[i] = self.init_conc[st](pos)
+                self.diffusion_coeff[i] = self.diff_coef[st]
 
-   def solve_fiber(self):
+    def solve_fiber(self):
         """
-        Solve the diffusion process on the fiber. 
+        Solve the diffusion process for a repellent on the fiber at radial position r in the yarn.
         &C/&t = 1/r * &(Dr&C/&r) / &r
         The diffusion coefficient is constant. The finite volume method is used to
         discretize the right side of equation. The mesh in this 1-D condition is 
@@ -138,30 +147,55 @@ class Yarn1DModel(object):
         """
         for model in self.fiber_models:
             model.run()
-        
-    def f_conc1(self, w_rep, t):
+            
+   
+    def _set_bound_flux(self, flux_edge, conc_r):
+        """
+        Method that takes BC into account to set flux on edge
+        Data is written to flux_edge, conc_r contains solution in the cell centers
+        """
+        self.boundary_transf_right = self.cfg.get('boundary.transfer_conc1')
+        flux_edge[-1] = -self.boundary_transf_right * conc_r[-1]
+            
+            
+    def f_conc1(self, conc_r):
         grid = self.grid
-        n_cell = len(grid)
+        n_cellcenters = len(grid)
         #Initialize the left side of ODE equations
-        diff_w_t = sp.empty(n_cell, float)
-        #initialize the flux rate on the edge with replace 'w'
-        flux_edge = sp.empty(n_cell+1, float)
-        self._set_bound_flux(flux_edge, w_rep)
+        diff_u_t = sp.empty(n_cellcenters, float)
+        #solve a fiber model on radial position r in the yarn
+## TODO: update initial concentration for the fiber model on position r in yarn as the result of the last yarnsolution.
+## for now: 1 fibermodel is solved. The same fibersurface result is used in every cell.        
+        self.solve_fiber()
+        self.endconc=sp.empty((self.steps,n_cellcenters),float)
+        for i in grid:
+                self.endconc[i][:]=self.fiber_surface[:]
+                
+        #Initialize the flux rate on the edges
+        flux_edge = sp.empty(n_cellcenters+1, float)
+        source=sp.empty(self.steps,float)
+        self._set_bound_flux(flux_edge, conc_r)
+        #Initialize the tortuosity
+        self.tortuosity= self.cfg.get('tortuosity')
         #Diffusion coefficient changes with the concentration changing
         #calculate flux rate in each edge of the domain
-        flux_edge[1:-1] = (self.diffusion_coeff[:-1] * sp.exp(-self.diff_exp_fact * w_rep[:-1]/self.grid[:-1]) \
-                         + self.diffusion_coeff[1:] * sp.exp(-self.diff_exp_fact * w_rep[1:]/self.grid[1:]))/2.\
-                    * self.grid_edge[1:-1] \
-                    * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
-                    / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
-        diff_w_t[:]=(flux_edge[1:]-flux_edge[:-1])/self.delta_r[:]
-        return diff_w_t
+        flux_edge[1:-1] = (self.diffusion_coeff[:-1] * sp.exp(-self.diff_exp_fact * conc_r[:-1]) \
+                         + self.diffusion_coeff[1:] * sp.exp(-self.diff_exp_fact * conc_r[1:]))\
+                    * (self.grid_edge[1:-1]/self.tortuosity) \
+                    * (conc_r[1:] - conc_r[:-1])\
+                    / ((self.delta_r[:-1] + self.delta_r[1:]))
+        for i in grid:
+            source[:]=self.endconc[i][:-1]+self.endconc[i][1:]/(4*math.pi)
+        diff_u_t[:]=(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[:]*self.delta_r[:]+self.delta_r[:]**2)+source[:]
+        return diff_u_t
+    
+    def f_conc1_ode(self, conc_r):
+        return self.f_conc1(conc_r)
     
     def solve_odeint(self):
-        initial_w = self.initial_c1 * self.grid
-        self.solv=odeint(self.f_conc1, initial_w, self.times)
-        self.conc1=self.solv/ self.grid
+        self.conc1=odeint(self.f_conc1, initial_c1, self.times)
         self.view_sol(self.times, self.conc1)
+    
     
     def solve_ode(self):
         self.delta_t = self.times[1]-self.times[0]
@@ -169,74 +203,18 @@ class Yarn1DModel(object):
         endT = self.times[-1]
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
         r = ode(self.f_conc1_ode).set_integrator('vode', method = 'bdf')
-        initial_w1 = self.initial_c1 * self.grid
-        r.set_initial_value(initial_w1, self.initial_t)#.set_f_params(2.0)
+        r.set_initial_value(initial_c1, self.initial_t)#.set_f_params(2.0)
         tstep = 0
         self.conc1[tstep][:] = self.initial_c1
         while r.successful() and r.t < endT - self.delta_t /10.:
             r.integrate(r.t + self.delta_t)
             tstep += 1
-            self.conc1[tstep][:] = r.y / self.grid
-        self.view_sol(self.times, self.conc1)
-
-    def solve_single_component(self):
-        """
-        The DEET diffusion process is divided into two parts:
-        (1) DEET diffuses through the layer containing permithrine on the fiber 
-        and reaches the surface;
-        (2) DEET begins to diffuse in the void space of  yarn
-        So it means that the boundary condition of fiber has two steps:
-        (1) When the DEET does not reach the surface of fiber, the inner and out
-        boundaries are no flux boundary condition;
-        (2) When the DEET reaches surface, the evaporation happens. So the boundaries 
-        of fiber and yarn are changed to constant flux (Neumann boundary condition)
-        """
-        self.diffusion_DEET = self.cfg.get('diffusion.diffusion_conc')
-        #input the trsient equation of diffusion        
-        self.eq = TransientTerm() == MyDiffusionTermNoCorrection(coeff = self.diffusion_DEET)
-        #get the position of the boundary faces
-        xfc, yfc = self.mesh2d.getFaceCenters()
-        xcc, ycc = self.mesh2d.getCellCenters()
-        face_in = ((self.mesh2d.getExteriorFaces()) & 
-                    (sp.power(xfc,2) + sp.power(yfc,2) \
-                        < (self.grid.radius_domain - self.grid.radius_boundlayer)**2))
-        face_ex = (~face_in) & (self.mesh2d.getExteriorFaces())
-        self.initial_t = 0.
-        filename1 = 'concentration_out.gz'
-        filepath1 = utils.OUTPUTDIR + os.sep + filename1
-        conc1_out_yarn = sp.zeros(1, float)
-##        #calculate the bed net part
-##        n_point_net = int(self.yarn_length / self.net_width) + 1
-##        delta_effect = self.domain_effect / self.dis_effect
-##        self.distance_yarn = sp.empty(4 * n_point_net, float)
-        for i in sp.arange(0, self.steps, 1):
-            ## TODO: take the blend into account!!
-            conc_on_fib = self.fiber_models[0].fiber_surface[i+1]
-            flux_in_fib = self.fiber_models[0].boundary_transf_right * conc_on_fib
-            #loss to outside of yarn is 0.01 conc at outside
-            BCs = (FixedFlux(face_ex, value = 0.01 * self.conc.getArithmeticFaceValue()), 
-                   FixedFlux(face_in, value = -flux_in_fib),)
-            self.eq.solve(var = self.conc, boundaryConditions = BCs, dt = self.delta_t, )
-            self.initial_t += self.delta_t
-            print 'time = ', (i+1) * self.delta_t
-##            value_face_out = np.empty(len(face_ex), float)#save the concentration at the face-out
-##            determine_out = np.empty(len(face_ex), bool)#save the boolean value at the face-out
-##            for i_out in sp.arange(0, len(face_ex), 1):
-##                value_face_out[i_out] = float(self.conc_face_ex[i_out])
-##                determine_out[i_out] = face_ex[i_out]
-##            value_out_record = value_face_out[determine_out]#get the value at the face out
-##            conc1_average_out = np.sum(value_out_record) / len(value_out_record)
-##            conc1_out_yarn = np.append(conc1_out_yarn, conc1_average_out)
-                    
-            if self.viewer is not None:
-                self.viewer.plot(title = "")
-##        dump.write({'time_step': self.times, 'conc_out': conc1_out_yarn},
-##                                filename = filepath1, extension = '.gz')
-        raw_input("Finshed <return>.....")
-    
+            self.conc1[tstep][:] = r.y 
+            self.view_sol(self.times, self.conc1)
+  
     def run(self):        
         self.create_mesh()
         self.initial_yarn2d()
         self.solve_fiber()
-        self.solve_single_component()
+        self.solve_ode()
         
