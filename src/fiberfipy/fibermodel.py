@@ -482,3 +482,4 @@ class FiberModel(object):
 
         
         print 'end mass = ', self.calc_mass(self.conc1[-1])
+        
