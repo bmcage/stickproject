@@ -109,6 +109,7 @@ class Yarn1dConfigManager(ConfigManager):
         
         self.register("boundary.boundary_exterior", 0.0)
         self.register("boundary.boundary_interior", 1.0)
+        self.register("boundary.transfer_conc1",7.2e-6)
         
         self.register("size_hole.net_width", 1.0e-3)
         self.register("size_hole.net_length", 2.0e-3)
