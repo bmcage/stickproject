@@ -31,6 +31,7 @@ import sys
 import const
 import numpy as np
 import scipy as sp
+from scipy.integrate import ode
 import matplotlib.pyplot as plt
 import sets
 import time
@@ -43,8 +44,6 @@ import time
 import lib.utils.utils as utils
 import lib.utils.gridutils as GridUtils
 import yarn2d.config as conf
-from mycorrection import MyDiffusionTermNoCorrection
-from yarn2dgrid import Yarn2dGrid
 from fiberfipy.config import FiberfipyConfigManager
 from fiberfipy.fibermodel import FiberModel
 
@@ -93,7 +92,9 @@ class Yarn1DModel(object):
         for cfg in self.cfg_fiber:
             self.fiber_models.append(FiberModel(cfg))
         self.verbose = self.cfg.get('general.verbose')
-        self.diffusion_coeff = sp.empty(self.tot_edges-1, float)
+        
+        
+        
 
     def create_mesh(self):
         """
@@ -124,17 +125,17 @@ class Yarn1DModel(object):
         self.conc = CellVariable(name = "", 
                     mesh = self.mesh_yarn, value = self.init_conc)
         #self.viewer = None
-        self.viewer = Viewer(vars = self.conc, datamin = 0., datamax = none)
+        self.viewer = Viewer(vars = self.conc, datamin = 0., datamax = None)
 #Viewer(vars = self.conc, datamin = 0., datamax =0.005)
-        self.initial_c1 = sp.empty(self.tot_edges-1, float)
-        st = 0
-        surf = self.surf[st]
-        for i, pos in enumerate(self.grid):
-                while pos > surf:
-                    st += 1
-                    surf = self.surf[st]
-                self.initial_c1[i] = self.init_conc[st](pos)
-                self.diffusion_coeff[i] = self.diff_coef[st]
+        #self.initial_c1 = sp.empty(self.tot_edges-1, float)
+        #st = 0
+        #surf = self.surf[st]
+        #for i, pos in enumerate(self.grid):
+         #       while pos > surf:
+          #          st += 1
+           #         surf = self.surf[st]
+            #    self.initial_c1[i] = self.init_conc[st](pos)
+             #   self.diffusion_coeff[i] = self.diff_coef[st]
 
     def solve_fiber(self):
         """
@@ -147,7 +148,7 @@ class Yarn1DModel(object):
         """
         for model in self.fiber_models:
             model.run()
-            
+            self.fiber_surface = model.fiber_surface
    
     def _set_bound_flux(self, flux_edge, conc_r):
         """
@@ -158,7 +159,7 @@ class Yarn1DModel(object):
         flux_edge[-1] = -self.boundary_transf_right * conc_r[-1]
             
             
-    def f_conc1(self, conc_r):
+    def f_conc1(self, conc_r,t):
         grid = self.grid
         n_cellcenters = len(grid)
         #Initialize the left side of ODE equations
@@ -167,45 +168,48 @@ class Yarn1DModel(object):
 ## TODO: update initial concentration for the fiber model on position r in yarn as the result of the last yarnsolution.
 ## for now: 1 fibermodel is solved. The same fibersurface result is used in every cell.        
         self.solve_fiber()
-        self.endconc=sp.empty((self.steps,n_cellcenters),float)
-        for i in grid:
-                self.endconc[i][:]=self.fiber_surface[:]
-                
+        #self.endconc=sp.empty((self.steps,n_cellcenters),float)
+        #for i in grid:
+                #self.endconc[i][:]=self.fiber_surface[:]            
         #Initialize the flux rate on the edges
-        flux_edge = sp.empty(n_cellcenters+1, float)
+        flux_edge = sp.empty(n_cellcenters+1,float)
         source=sp.empty(self.steps,float)
         self._set_bound_flux(flux_edge, conc_r)
         #Initialize the tortuosity
-        self.tortuosity= self.cfg.get('tortuosity')
-        #Diffusion coefficient changes with the concentration changing
+        self.tortuosity= self.cfg.get('yarn.tortuosity')
+        #constant diffusion coefficient
+        self.diffusioncoeff = self.cfg.get('diffusion.diffusion_conc')
+        #source term is n*Cf(R,r_i+,t)/2pi=(m*delta(r**2)_i/Ry)*Cf(R,r_i+,t)/2pi with n the number of fibers in a shell,
+        #m the number of fibers per yarn.
+        self.nr_fibers = self.cfg.get('fiber.number_fiber')
+        grid_square=self.grid_edge**2
+        self.delta_r_square=grid_square[1:]-grid_square[:-1]
+        n = self.nr_fibers*self.delta_r_square/(self.end_point**2)
         #calculate flux rate in each edge of the domain
-        flux_edge[1:-1] = (self.diffusion_coeff[:-1] * sp.exp(-self.diff_exp_fact * conc_r[:-1]) \
-                         + self.diffusion_coeff[1:] * sp.exp(-self.diff_exp_fact * conc_r[1:]))\
-                    * (self.grid_edge[1:-1]/self.tortuosity) \
-                    * (conc_r[1:] - conc_r[:-1])\
-                    / ((self.delta_r[:-1] + self.delta_r[1:]))
-        for i in grid:
-            source[:]=self.endconc[i][:-1]+self.endconc[i][1:]/(4*math.pi)
+        flux_edge[1:-1] = (2*self.diffusioncoeff*self.grid_edge[1:-1])/self.tortuosity\
+                    *(conc_r[1:] - conc_r[:-1])\
+                    /(self.delta_r[:-1] + self.delta_r[1:])
+        #for i in grid:
+        source=n*self.fiber_surface/(2*math.pi)
         diff_u_t[:]=(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[:]*self.delta_r[:]+self.delta_r[:]**2)+source[:]
         return diff_u_t
     
-    def f_conc1_ode(self, conc_r):
-        return self.f_conc1(conc_r)
+    def f_conc1_ode(self, t,conc_r):
+        return self.f_conc1(conc_r,t)
     
-    def solve_odeint(self):
-        self.conc1=odeint(self.f_conc1, initial_c1, self.times)
-        self.view_sol(self.times, self.conc1)
+    #def solve_odeint(self):
+        #self.conc1=odeint(self.f_conc1, initial_c1, self.times)
+        #self.view_sol(self.times, self.conc1)
     
     
     def solve_ode(self):
-        self.delta_t = self.times[1]-self.times[0]
-        self.initial_t = self.times[0]
-        endT = self.times[-1]
-        self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
+        self.initial_t = 0
+        endT = self.time_period
+        self.conc1 = np.empty((self.steps, self.nr_edge), float)
         r = ode(self.f_conc1_ode).set_integrator('vode', method = 'bdf')
-        r.set_initial_value(initial_c1, self.initial_t)#.set_f_params(2.0)
+        r.set_initial_value(self.init_conc, self.initial_t)#.set_f_params(2.0)
         tstep = 0
-        self.conc1[tstep][:] = self.initial_c1
+        self.conc1[tstep][:] = self.init_conc
         while r.successful() and r.t < endT - self.delta_t /10.:
             r.integrate(r.t + self.delta_t)
             tstep += 1
@@ -214,7 +218,7 @@ class Yarn1DModel(object):
   
     def run(self):        
         self.create_mesh()
-        self.initial_yarn2d()
+        self.initial_yarn1d()
         self.solve_fiber()
         self.solve_ode()
         
