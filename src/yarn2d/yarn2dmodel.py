@@ -184,6 +184,7 @@ class Yarn2DModel(object):
         filepath1 = utils.OUTPUTDIR + os.sep + 'fib_centers_y.geo'
         filepath2 = utils.OUTPUTDIR + os.sep + 'determine_kinds.dat'
         filepath3 = utils.OUTPUTDIR + os.sep + 'index_fiber.dat'
+        filepath4 = utils.OUTPUTDIR + os.sep + 'yarn_out.gz'
         self.fib_centers_x = open(filepath, 'r')
         self.fib_centers_y = open(filepath1, 'r')
         self.fib_x = eval(self.fib_centers_x.read())
@@ -233,7 +234,7 @@ class Yarn2DModel(object):
         self.initial_t = 0.
         filename1 = 'concentration_out.gz'
         filepath1 = utils.OUTPUTDIR + os.sep + filename1
-        conc1_out_yarn = sp.zeros(1, float)
+        conc1_out_yarn = sp.zeros(self.steps, float)
 ##        #calculate the bed net part
 ##        n_point_net = int(self.yarn_length / self.net_width) + 1
 ##        delta_effect = self.domain_effect / self.dis_effect
@@ -243,6 +244,10 @@ class Yarn2DModel(object):
         #* None
         #loss to outside of yarn is 0.01 conc at outside
         ## TODO: IMPROVE THIS BC
+        self.times = sp.empty(self.steps, float)
+        conc1_out_yarn = []
+        value_face_out = np.empty(len(face_ex), float)
+        determine_out = np.empty(len(face_ex), bool)
         for i in sp.arange(0, self.steps, 1):
             BCs = []
             BCs.append(FixedFlux(face_ex, value = 0.0))
@@ -253,13 +258,22 @@ class Yarn2DModel(object):
             self.initial_t += self.delta_t
             self.eq.solve(var = self.conc, boundaryConditions = tuple(BCs), dt = self.delta_t, )
             print 'time = ', (i+1) * self.delta_t
+            self.times[i] = (i + 1) * self.delta_t
             self.conc_tot_each = self.conc.getValue()
+            self.conc_face_ex = self.conc.getArithmeticFaceValue()
+            for i_out in sp.arange(len(face_ex)):
+                value_face_out[i_out] = float(self.conc_face_ex[i_out])
+                determine_out[i_out] = face_ex[i_out]
+            value_out_record = value_face_out[determine_out]
+            conc1_average_out = np.sum(value_out_record) / len(value_out_record)
+            print 'average conccentration out', conc1_average_out
+            conc1_out_yarn = np.append(conc1_out_yarn, conc1_average_out)
             print 'mass conservative with two fibers', self.cal_mass_void(self.conc_tot_each,
                                                 self.cell_volume) / self.scaleL
             if self.viewer is not None:
                 self.viewer.plot()
-##        dump.write({'time_step': self.times, 'conc_out': conc1_out_yarn},
-##                                filename = filepath1, extension = '.gz')
+        dump.write({'time_step': self.times, 'conc_out': conc1_out_yarn},
+                               filename = filepath4, extension = '.gz')
            # raw_input("next time step <return>....")
         raw_input("Finished <press return>.....")
     

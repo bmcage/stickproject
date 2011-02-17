@@ -52,7 +52,7 @@ METHOD = {
 #
 #---------------------------------------------------------------
 
-class Fabric1DConfigManager(ConfigManager):
+class Fabric2DConfigManager(ConfigManager):
 
     __instance = None
     
@@ -77,6 +77,35 @@ class Fabric1DConfigManager(ConfigManager):
 
     def register_defaults(self):
         """default ini settings for a DiffusionIT problem"""
+        self.register("general.read", False)
+        self.register("general.verbose", False)
+        self.register("general.method", 'FVM')
+        self.register("general.submethod", 'fipy')
+        
+        self.register("domain.domain_size", [5.0e-2, 1.5e-1])
+        self.register("domain.dx", 2.5e-3)
+        self.register("domain.dy", 2.5e-3)
+        
+        self.register("sample.size_sample", [2e-2, 4.92e-3])
+        self.register("sample.yarn_config", ['../yarn2d/defaultyarn.ini'])
+        
+        self.register("diffusion_DEET", 5.0e-8)
+        self.register("domain.tortuosity_fab", 2.)
+        self.register("domain.diff_DEET_void", 7.0e-8)
+        
+        self.register("initial.initial_conc_DEET", 0.0)
+        self.register("initial.initial_DEET_void", 0.0)
+        
+        self.register("boundary.boundary_up", 0.0)
+        self.register("boundary.boundary_bottom", 0.0)
+        self.register("boundary_left", 0.0)
+        self.register("boundary_right", 0.0)
+        
+        self.register("time.time_period", 5000)
+        self.register("time.dt", 100.0)
+        
+        
+        """
         self.register("general.method", 'FVM')
         self.register("general.submethod", METHOD['FVM'][1][0])
         self.register("general.components", ['DEET'])
@@ -117,3 +146,4 @@ class Fabric1DConfigManager(ConfigManager):
         self.register("diffusion.par", [[0.1,0.6,0.1]])
 
         self.register("experiments.nrexp", 0)
+        """

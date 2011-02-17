@@ -340,7 +340,7 @@ class Yarn2dNewGrid(object):
                             determine_value = (random_position == location_number)
                             while determine_value.any() == True:
                                 a_position = np.random.uniform(index_position, 
-                                            index_position + self.number_circle[i_circle_number] + 1)
+                                            index_position + self.number_circle[i_circle_number])
                                 random_position = int(a_position)
                                 determine_value = (random_position == location_number)
                             else:
