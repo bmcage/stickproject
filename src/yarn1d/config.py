@@ -105,7 +105,7 @@ class Yarn1dConfigManager(ConfigManager):
         
         self.register("diffusion.diffusion_conc", 2e-5)
         
-        self.register("yarn.tortuosity", 1)
+        self.register("yarn.tortuosity", 1.0)
         
         self.register("boundary.boundary_exterior", 0.0)
         self.register("boundary.boundary_interior", 1.0)

@@ -118,6 +118,9 @@ class Yarn1DModel(object):
         self.mesh_yarn = CylindricalGrid1D(dr=tuple(self.delta_r))
         self.mesh_yarn.periodicBC = False
         self.mesh_yarn = self.mesh_yarn + (self.beginning_point,)
+        #print 'delta_r[:-1]', self.delta_r[:-1].shape
+        #print 'delta_r[1:]', self.delta_r[1:].shape
+        #print 'som van delta_r', self.delta_r[1:]+self.delta_r[:-1]
                      
     def initial_yarn1d(self):
         """ initial concentration over the domain"""
@@ -186,9 +189,11 @@ class Yarn1DModel(object):
         self.delta_r_square=grid_square[1:]-grid_square[:-1]
         n = self.nr_fibers*self.delta_r_square/(self.end_point**2)
         #calculate flux rate in each edge of the domain
-        flux_edge[1:-1] = (2*self.diffusioncoeff*self.grid_edge[1:-1])/self.tortuosity\
-                    *(conc_r[1:] - conc_r[:-1])\
-                    /(self.delta_r[:-1] + self.delta_r[1:])
+        flux_edge[0]=0
+        
+        flux_edge[1:-1] = (2*self.diffusioncoeff*self.grid_edge[1:-1])\
+        *(conc_r[1:] - conc_r[:-1])\
+        /((self.delta_r[1:]+self.delta_r[:-1])*self.tortuosity)
         #for i in grid:
         source=n*self.fiber_surface/(2*math.pi)
         diff_u_t[:]=(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[:]*self.delta_r[:]+self.delta_r[:]**2)+source[:]
