@@ -38,7 +38,7 @@ import scipy as S
 #-------------------------------------------------------------------------
 from lib.utils.utils import set_outputdir
 import const
-import fiberfipy.config as conf
+import yarn1d.config as conf
 
 #-------------------------------------------------------------------------
 #
@@ -78,7 +78,7 @@ def main(argv=None):
             outputdir = value
     
     #Parse ini file to obtain parameters.
-    cfg = conf.yarn1dConfigManager.get_instance(inifile)
+    cfg = conf.Yarn1dConfigManager.get_instance(inifile)
     
     #create outputdir if not existing
     if not os.path.isdir(outputdir):
@@ -95,8 +95,8 @@ def main(argv=None):
     shutil.copy(inifile, outputdir)
     
     #create the correct model, and run it
-    from yarn1d.yarn1dmodel import Yarn1dModel
-    model = Yarn1dModel(cfg)
+    from yarn1d.yarn1dmodel import Yarn1DModel
+    model = Yarn1DModel(cfg)
     
     #pass further execution to the model
     model.run()

@@ -41,7 +41,7 @@ from lib.config import ConfigManager
 # Constants
 #
 #---------------------------------------------------------------
-INIFILE_DEFAULT = const.INI_DIR + os.sep + 'yarn1d' + os.sep + \
+INIFILE_DEFAULT = const.INI_DIR + os.sep + 'yarn2d' + os.sep + \
                      'defaultyarn.ini'
 
 LONGOPTS = ["inifile", 'outputdir']
@@ -105,11 +105,12 @@ class Yarn1dConfigManager(ConfigManager):
         
         self.register("diffusion.diffusion_conc", 2e-5)
         
-        self.register("toruosity", 1)
+        self.register("yarn.tortuosity", 1)
         
         self.register("boundary.boundary_exterior", 0.0)
         self.register("boundary.boundary_interior", 1.0)
-
+        self.register("boundary.transfer_conc1",7.2e-6)
+        
         self.register("size_hole.net_width", 1.0e-3)
         self.register("size_hole.net_length", 2.0e-3)
         self.register("size_hole.leng_yarn", 2.0)

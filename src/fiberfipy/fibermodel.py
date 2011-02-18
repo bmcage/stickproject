@@ -222,7 +222,7 @@ class FiberModel(object):
             flux_edge[-1] = self.boundary_fib_right
         else:
             # a transfer coeff to the right
-            flux_edge[-1] = -self.boundary_transf_right * conc_r
+            flux_edge[-1] = -self.boundary_transf_right * conc_r[-1]
             
     def f_conc1_ode(self, t, w_rep):
         return self.f_conc1(w_rep, t)
@@ -446,7 +446,7 @@ class FiberModel(object):
             elif self.submethod == 'odeintu':
                 self.solve_odeintu()
             elif self.submethod == 'odeu':
-                self.solve_odu()
+                self.solve_odeu()
         self.fiber_surface = sp.empty(len(self.times), float)
         for i in sp.arange(1,len(self.times) + 1,1):
             self.fiber_surface[i - 1] = self.conc1[i - 1][-1]
@@ -482,3 +482,4 @@ class FiberModel(object):
 
         
         print 'end mass = ', self.calc_mass(self.conc1[-1])
+        
