@@ -92,9 +92,6 @@ class Yarn1DModel(object):
         for cfg in self.cfg_fiber:
             self.fiber_models.append(FiberModel(cfg))
         self.verbose = self.cfg.get('general.verbose')
-        
-        
-        
 
     def create_mesh(self):
         """
@@ -124,7 +121,9 @@ class Yarn1DModel(object):
                      
     def initial_yarn1d(self):
         """ initial concentration over the domain"""
-        self.init_conc = self.cfg.get('initial.init_conc')
+        init_conc = self.cfg.get('initial.init_conc')
+        self.init_conc = sp.ones(self.nr_edge-1, float)
+        self.init_conc *= init_conc
         self.conc = CellVariable(name = "", 
                     mesh = self.mesh_yarn, value = self.init_conc)
         #self.viewer = None
@@ -149,10 +148,15 @@ class Yarn1DModel(object):
         uniform.
         
         """
-        for model in self.fiber_models:
+        for ind,model in enumerate(self.fiber_models):
             model.run()
-            self.fiber_surface = model.fiber_surface
-   
+            self.nr_models = len(self.fiber_models)
+            self.nr_timesteps = len(model.times)
+            self.timesteps= sp.empty((self.nr_models,self.nr_timesteps),float)
+            self.timesteps[ind][:]=model.times            
+            self.fiber_surface=sp.empty((self.nr_models,self.nr_times),float)
+            self.fiber_surface[ind][:] = model.fiber_surface          
+
     def _set_bound_flux(self, flux_edge, conc_r):
         """
         Method that takes BC into account to set flux on edge
@@ -160,13 +164,38 @@ class Yarn1DModel(object):
         """
         self.boundary_transf_right = self.cfg.get('boundary.transfer_conc1')
         flux_edge[-1] = -self.boundary_transf_right * conc_r[-1]
+    
+    def get_source(self,t):
+        #find right index of t in model.times and in self.steps.
+        while i <= len(self.steps):
+            if self.steps[i] == t:
+                index_t_yarn=i
+                
+        while nr <= self.nr_models:       
+            while i <= len(self.timesteps[nr][:]):
+                if self.timesteps[nr][i] == t:
+                    index_t_fiber=i
             
-            
-    def f_conc1(self, conc_r,t):
+        source=sp.empty(self.steps,float)        
+        #source term is n*Cf(R,r_i+,t)/2pi=(m*delta(r**2)_i/Ry)*Cf(R,r_i+,t)/2pi with n the number of fibers in a shell,
+        #m the number of fibers per yarn.
+        self.nr_fibers = self.cfg.get('fiber.number_fiber')
+        grid_square=self.grid_edge**2
+        self.delta_rsquare=grid_square[1:]-grid_square[:-1]
+        n = self.nr_fibers*self.delta_rsquare/(self.end_point**2)
+        self.blend=self.cfg.get('fiber.blend')
+        self.interpolated_fibersurf=sp.empty(self.steps,float)
+        for i in enumerate(self.blend):
+            self.interpolated_fibersurf[index_t_yarn]+=self.fiber_surface[i][index_t_fiber]*self.blend[i]/100
+        source[index_t_yarn]=n*self.interpolated_fibersurf[index_t_yarn]/(2*math.pi)
+        
+        
+    def f_conc1(self, conc_r, t):
+        print 'concr', t, conc_r
         grid = self.grid
         n_cellcenters = len(grid)
-        #Initialize the left side of ODE equations
-        diff_u_t = sp.empty(n_cellcenters, float)
+        #get the sourceterm on time t
+        source=self.get_source(t);
         #solve a fiber model on radial position r in the yarn
 ## TODO: update initial concentration for the fiber model on position r in yarn as the result of the last yarnsolution.
 ## for now: 1 fibermodel is solved. The same fibersurface result is used in every cell.        
@@ -176,27 +205,19 @@ class Yarn1DModel(object):
                 #self.endconc[i][:]=self.fiber_surface[:]            
         #Initialize the flux rate on the edges
         flux_edge = sp.empty(n_cellcenters+1,float)
-        source=sp.empty(self.steps,float)
         self._set_bound_flux(flux_edge, conc_r)
         #Initialize the tortuosity
         self.tortuosity= self.cfg.get('yarn.tortuosity')
         #constant diffusion coefficient
         self.diffusioncoeff = self.cfg.get('diffusion.diffusion_conc')
-        #source term is n*Cf(R,r_i+,t)/2pi=(m*delta(r**2)_i/Ry)*Cf(R,r_i+,t)/2pi with n the number of fibers in a shell,
-        #m the number of fibers per yarn.
-        self.nr_fibers = self.cfg.get('fiber.number_fiber')
-        grid_square=self.grid_edge**2
-        self.delta_rsquare=grid_square[1:]-grid_square[:-1]
-        n = self.nr_fibers*self.delta_rsquare/(self.end_point**2)
+        
         #calculate flux rate in each edge of the domain
         flux_edge[0]=0
         concdiff=conc_r[1:]-conc_r[:-1]
         deel1=self.grid_edge[1:-1]*concdiff
         flux_edge[1:-1] = (2*self.diffusioncoeff*deel1)\
                           /((self.delta_r[:-1]+self.delta_r[1:])*self.tortuosity)
-                         
-        source=n*self.fiber_surface/(2*math.pi)
-        diff_u_t[:]=(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[:]*self.delta_r[:]+self.delta_r[:]**2)+source[:]
+        diff_u_t=(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[:]*self.delta_r[:]+self.delta_r[:]**2)+source
         return diff_u_t
     
     def f_conc1_ode(self, t,conc_r):
@@ -210,11 +231,11 @@ class Yarn1DModel(object):
     def solve_ode(self):
         self.initial_t = 0
         endT = self.time_period
-        self.conc1 = np.empty((self.steps, self.nr_edge), float)
+        self.conc1 = np.empty((self.steps, self.nr_edge-1), float)
         r = ode(self.f_conc1_ode).set_integrator('vode', method = 'bdf')
         r.set_initial_value(self.init_conc, self.initial_t)#.set_f_params(2.0)
         tstep = 0
-        self.conc1[tstep][:] = self.init_conc
+        self.conc1[tstep][:] = self.init_conc[:]
         while r.successful() and r.t < endT - self.delta_t /10.:
             r.integrate(r.t + self.delta_t)
             tstep += 1
