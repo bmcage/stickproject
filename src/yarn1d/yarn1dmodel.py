@@ -78,10 +78,12 @@ class Yarn1DModel(object):
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
         self.steps = self.time_period / self.delta_t
-        self.times=empty(self.steps,float)
-        i=0
-        while i<=self.steps:
-            self.times[i]+=self.delta_t
+        self.times = empty(self.steps, float)
+        i=1
+        self.times[0] = 0.
+        while i < self.steps:
+            self.times[i] = self.times[i-1] + self.delta_t
+            i += 1
             
         self.cfg_fiber = []
         for filename in self.cfg.get('fiber.fiber_config'):
@@ -96,7 +98,13 @@ class Yarn1DModel(object):
         self.fiber_models = []
         for cfg in self.cfg_fiber:
             self.fiber_models.append(FiberModel(cfg))
+        self.nr_models = len(self.fiber_models)
+        
         self.verbose = self.cfg.get('general.verbose')
+        
+        #some memory
+        self.cache_index_t_yarn = 0
+        self.cache_index_t_fiber = [0] * self.nr_models
 
     def create_mesh(self):
         """
@@ -133,7 +141,7 @@ class Yarn1DModel(object):
                     mesh = self.mesh_yarn, value = self.init_conc)
         #self.viewer = None
         self.viewer = Viewer(vars = self.conc, datamin = 0., datamax = None)
-#Viewer(vars = self.conc, datamin = 0., datamax =0.005)
+        #Viewer(vars = self.conc, datamin = 0., datamax =0.005)
         #self.initial_c1 = sp.empty(self.tot_edges-1, float)
         #st = 0
         #surf = self.surf[st]
@@ -155,7 +163,6 @@ class Yarn1DModel(object):
         """
         for ind,model in enumerate(self.fiber_models):
             model.run()
-            self.nr_models = len(self.fiber_models)
             self.nr_timesteps = len(model.times)
             self.timesteps= sp.empty((self.nr_models,self.nr_timesteps),float)
             self.timesteps[ind][:]=model.times            
@@ -172,19 +179,44 @@ class Yarn1DModel(object):
     
     def get_source(self,t):
         #find right index of t in model.times and in self.times
-        i=0
-        while i <= self.steps:
-            if self.times[i] <= t and t< self.times[i+1] :
-               self.index_t_yarn=i
-            print i
-            i+=1
-            
-        nr=0           
-        j=0  
-        while nr <= self.nr_models:       
-            while j <= len(self.timesteps[nr][:]):
+        if self.times[self.cache_index_t_yarn] <= t and \
+                t< self.times[self.cache_index_t_yarn+1] :
+            self.index_t_yarn = self.cache_index_t_yarn
+        else:
+            self.index_t_yarn = None
+            i = max([self.cache_index_t_yarn - 1,0])
+            while i < self.steps-1:
+                if self.times[i] <= t and t< self.times[i+1] :
+                    self.index_t_yarn = i
+                    break
+                i += 1
+            if self.index_t_yarn is None:
+                #backward in time, so reducing timestep it seems
+                i = self.cache_index_t_yarn-1
+                while i > 0:
+                    if self.times[i] <= t and t< self.times[i+1] :
+                        self.index_t_yarn = i
+                        break
+                    i -= 1
+            if self.index_t_yarn is None:
+                #no interval found
+                if t > self.times[-1]:
+                    print 'time over endtime', t, '>', self.times[-1]
+                    self.index_t_yarn = self.steps-1
+                else:
+                    print t, self.times
+                    raise Exception, 'something wrong'
+
+            self.cache_index_t_yarn = self.index_t_yarn
+        
+        #the same now for the time of the fiber models
+        nr=0
+        j=0
+        while nr < self.nr_models:
+            while j < len(self.timesteps[nr][:]):
                 if self.timesteps[nr][j] <= t and t < self.timesteps[nr][j+1]:
                     self.index_t_fiber=j
+                    break
                 print j
                 j+=1
             print nr
@@ -202,8 +234,7 @@ class Yarn1DModel(object):
         for i in enumerate(self.blend):
             self.interpolated_fibersurf[self.index_t_yarn]+=self.fiber_surface[i][self.index_t_fiber]*self.blend[i]/100
         source[self.index_t_yarn]=n*self.interpolated_fibersurf[self.index_t_yarn]/(2*math.pi)
-        
-        
+
     def f_conc1(self, conc_r, t):
         print 'concr', t, conc_r
         grid = self.grid
