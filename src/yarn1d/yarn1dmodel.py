@@ -78,6 +78,11 @@ class Yarn1DModel(object):
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
         self.steps = self.time_period / self.delta_t
+        self.times=empty(self.steps,float)
+        i=0
+        while i<=self.steps:
+            self.times[i]+=self.delta_t
+            
         self.cfg_fiber = []
         for filename in self.cfg.get('fiber.fiber_config'):
             if not os.path.isabs(filename):
@@ -154,7 +159,7 @@ class Yarn1DModel(object):
             self.nr_timesteps = len(model.times)
             self.timesteps= sp.empty((self.nr_models,self.nr_timesteps),float)
             self.timesteps[ind][:]=model.times            
-            self.fiber_surface=sp.empty((self.nr_models,self.nr_times),float)
+            self.fiber_surface=sp.empty((self.nr_models,self.nr_timesteps),float)
             self.fiber_surface[ind][:] = model.fiber_surface          
 
     def _set_bound_flux(self, flux_edge, conc_r):
@@ -166,15 +171,24 @@ class Yarn1DModel(object):
         flux_edge[-1] = -self.boundary_transf_right * conc_r[-1]
     
     def get_source(self,t):
-        #find right index of t in model.times and in self.steps.
-        while i <= len(self.steps):
-            if self.steps[i] == t:
-                index_t_yarn=i
-                
+        #find right index of t in model.times and in self.times
+        i=0
+        while i <= self.steps:
+            if self.times[i] <= t and t< self.times[i+1] :
+               self.index_t_yarn=i
+            print i
+            i+=1
+            
+        nr=0           
+        j=0  
         while nr <= self.nr_models:       
-            while i <= len(self.timesteps[nr][:]):
-                if self.timesteps[nr][i] == t:
-                    index_t_fiber=i
+            while j <= len(self.timesteps[nr][:]):
+                if self.timesteps[nr][j] <= t and t < self.timesteps[nr][j+1]:
+                    self.index_t_fiber=j
+                print j
+                j+=1
+            print nr
+            nr+=1
             
         source=sp.empty(self.steps,float)        
         #source term is n*Cf(R,r_i+,t)/2pi=(m*delta(r**2)_i/Ry)*Cf(R,r_i+,t)/2pi with n the number of fibers in a shell,
@@ -186,8 +200,8 @@ class Yarn1DModel(object):
         self.blend=self.cfg.get('fiber.blend')
         self.interpolated_fibersurf=sp.empty(self.steps,float)
         for i in enumerate(self.blend):
-            self.interpolated_fibersurf[index_t_yarn]+=self.fiber_surface[i][index_t_fiber]*self.blend[i]/100
-        source[index_t_yarn]=n*self.interpolated_fibersurf[index_t_yarn]/(2*math.pi)
+            self.interpolated_fibersurf[self.index_t_yarn]+=self.fiber_surface[i][self.index_t_fiber]*self.blend[i]/100
+        source[self.index_t_yarn]=n*self.interpolated_fibersurf[self.index_t_yarn]/(2*math.pi)
         
         
     def f_conc1(self, conc_r, t):
