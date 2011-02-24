@@ -78,10 +78,10 @@ class Yarn1DModel(object):
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
         self.steps = self.time_period / self.delta_t
-        self.times = empty(self.steps, float)
+        self.times = empty(self.steps+1, float)
         i=1
         self.times[0] = 0.
-        while i < self.steps:
+        while i <= self.steps:
             self.times[i] = self.times[i-1] + self.delta_t
             i += 1
             
@@ -167,7 +167,8 @@ class Yarn1DModel(object):
             self.timesteps= sp.empty((self.nr_models,self.nr_timesteps),float)
             self.timesteps[ind][:]=model.times            
             self.fiber_surface=sp.empty((self.nr_models,self.nr_timesteps),float)
-            self.fiber_surface[ind][:] = model.fiber_surface          
+            self.fiber_surface[ind][:] = model.fiber_surface 
+            #print 'self.timesteps,','modelnr,',self.timesteps[ind][:],ind      
 
     def _set_bound_flux(self, flux_edge, conc_r):
         """
@@ -178,7 +179,7 @@ class Yarn1DModel(object):
         flux_edge[-1] = -self.boundary_transf_right * conc_r[-1]
     
     def get_source(self,t):
-        #find right index of t in model.times and in self.times
+        #find right index of interval for t in model.times and in self.times
         if self.times[self.cache_index_t_yarn] <= t and \
                 t< self.times[self.cache_index_t_yarn+1] :
             self.index_t_yarn = self.cache_index_t_yarn
@@ -210,19 +211,41 @@ class Yarn1DModel(object):
             self.cache_index_t_yarn = self.index_t_yarn
         
         #the same now for the time of the fiber models
-        nr=0
-        j=0
+        nr = 0
+        self.index_t_fiber=sp.empty(self.nr_models,float)
         while nr < self.nr_models:
-            while j < len(self.timesteps[nr][:]):
-                if self.timesteps[nr][j] <= t and t < self.timesteps[nr][j+1]:
-                    self.index_t_fiber=j
-                    break
-                print j
-                j+=1
-            print nr
+            #print 'timesteps[nr],', self.timesteps[nr][:], 'nr,', nr
+            if self.timesteps[nr][self.cache_index_t_fiber[nr]] <= t and \
+                t< self.timesteps[nr][self.cache_index_t_fiber[nr]+1] :
+                self.index_t_fiber[nr] = self.cache_index_t_fiber[nr]
+            else:
+                #self.index_t_fiber[nr] = None
+                i = max([self.cache_index_t_fiber[nr] - 1,0])
+                while i < self.nr_timesteps-1:
+                        if self.timesteps[nr][i] <= t and t< self.timesteps[nr][i+1] :
+                            self.index_t_fiber[nr] = i
+                            break
+                        i += 1                                    
+            if self.index_t_fiber[nr] is None:
+                #backward in time, so reducing timestep it seems
+                i = self.cache_index_t_fiber[nr]-1
+                while i > 0:
+                    if self.timesteps[nr][i] <= t and t< self.timesteps[nr][i+1] :
+                        self.index_t_fiber[nr] = i
+                        break
+                    i -= 1                    
+            if self.index_t_fiber[nr] is None:
+                #no interval found
+                if t > self.timesteps[nr][-1]:
+                    print 'time over endtime', t, '>', self.timesteps[nr][-1]
+                    self.index_t_fiber[nr] = self.nr_timesteps-1
+                else:
+                    print nr, t, self.timesteps
+                    raise Exception, 'something wrong'
+            self.cache_index_t_fiber[nr] = self.index_t_fiber[nr]
             nr+=1
             
-        source=sp.empty(self.steps,float)        
+        self.source=sp.empty((self.steps,self.nr_edge-1),float) 
         #source term is n*Cf(R,r_i+,t)/2pi=(m*delta(r**2)_i/Ry)*Cf(R,r_i+,t)/2pi with n the number of fibers in a shell,
         #m the number of fibers per yarn.
         self.nr_fibers = self.cfg.get('fiber.number_fiber')
@@ -230,17 +253,22 @@ class Yarn1DModel(object):
         self.delta_rsquare=grid_square[1:]-grid_square[:-1]
         n = self.nr_fibers*self.delta_rsquare/(self.end_point**2)
         self.blend=self.cfg.get('fiber.blend')
-        self.interpolated_fibersurf=sp.empty(self.steps,float)
-        for i in enumerate(self.blend):
-            self.interpolated_fibersurf[self.index_t_yarn]+=self.fiber_surface[i][self.index_t_fiber]*self.blend[i]/100
-        source[self.index_t_yarn]=n*self.interpolated_fibersurf[self.index_t_yarn]/(2*math.pi)
-
+        fibersurf=0.
+        for i,blend in enumerate(self.blend):
+            fiber_surf_t = self.fiber_surface[i][self.index_t_fiber[i]]  +\
+                    (self.fiber_surface[i][self.index_t_fiber[i]+1] - self.fiber_surface[i][self.index_t_fiber[i]])\
+                    /(self.timesteps[i][self.index_t_fiber[i]+1]-self.timesteps[i][self.index_t_fiber[i]])\
+                    *(t-self.timesteps[i][self.index_t_fiber[i]+1])
+            fibersurf=fibersurf+fiber_surf_t*blend/100
+        #print 'fibersurf', fibersurf 
+        self.source[self.index_t_yarn,:]=n[:]*fibersurf/(2*math.pi)
+        
     def f_conc1(self, conc_r, t):
         print 'concr', t, conc_r
         grid = self.grid
         n_cellcenters = len(grid)
         #get the sourceterm on time t
-        source=self.get_source(t);
+        self.get_source(t);
         #solve a fiber model on radial position r in the yarn
 ## TODO: update initial concentration for the fiber model on position r in yarn as the result of the last yarnsolution.
 ## for now: 1 fibermodel is solved. The same fibersurface result is used in every cell.        
@@ -257,12 +285,13 @@ class Yarn1DModel(object):
         self.diffusioncoeff = self.cfg.get('diffusion.diffusion_conc')
         
         #calculate flux rate in each edge of the domain
+        #diff_u_t = sp.empty(n_cell, float)
         flux_edge[0]=0
         concdiff=conc_r[1:]-conc_r[:-1]
         deel1=self.grid_edge[1:-1]*concdiff
         flux_edge[1:-1] = (2*self.diffusioncoeff*deel1)\
                           /((self.delta_r[:-1]+self.delta_r[1:])*self.tortuosity)
-        diff_u_t=(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[:]*self.delta_r[:]+self.delta_r[:]**2)+source
+        diff_u_t=(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[:-1]*self.delta_r[:]+self.delta_r[:]**2)+self.source[self.index_t_yarn][:]
         return diff_u_t
     
     def f_conc1_ode(self, t,conc_r):
