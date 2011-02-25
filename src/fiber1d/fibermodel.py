@@ -32,7 +32,6 @@ import numpy as np
 import scipy as sp
 from scipy.integrate import odeint, ode, trapz
 import matplotlib.pyplot as plt
-import sets
 import time
 
 #-------------------------------------------------------------------------
@@ -42,6 +41,7 @@ import time
 #-------------------------------------------------------------------------
 import lib.utils.utils as utils
 import lib.utils.gridutils as GridUtils
+from fiber1d.config import METHOD
 
 #-------------------------------------------------------------------------
 #
@@ -73,14 +73,14 @@ class FiberModel(object):
         self.datatime = []
         self.cfg = config
         self.method = self.cfg.get('general.method')
-        if not (self.method in ['FVM']):
+        if not (self.method in METHOD):
             print 'unkown solution method'
             sys.exit(0)
         self.submethod = self.cfg.get('general.submethod')
-        if not (self.submethod in ['odew', 'odeintw', 'odeu', 'odeintu', 'fipy']):
+        if not (self.submethod in METHOD[self.method][1]):
             print 'unkown solution submethod'
             sys.exit(0)
-        self.fiber_kind = self.cfg.get('general.fiber_kind') 
+        self.fiber_kind = self.cfg.get('general.fiber_kind')
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
         self.steps = self.time_period / self.delta_t
@@ -449,7 +449,6 @@ class FiberModel(object):
         self.fiber_surface = sp.empty(len(self.times), float)
         for i in sp.arange(1,len(self.times) + 1,1):
             self.fiber_surface[i - 1] = self.conc1[i - 1][-1]
-        
 
     def view_sol(self, times, conc):
         """
@@ -472,13 +471,10 @@ class FiberModel(object):
                 dump.write({'space_position': self.grid, 'conc1': con},
                             filename = utils.OUTPUTDIR + os.sep + 'ode_t1.gz', extension = '.gz')
 ##            raw_input("please<return>....")
-            
 
     def run(self):
         self.create_mesh()
         self.initial_fiber()
         self.solve()
 
-        
         print 'end mass = ', self.calc_mass(self.conc1[-1])
-        

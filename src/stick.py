@@ -54,7 +54,7 @@ PROGS = {
 #-------------------------------------------------------------------------
 
 def main():
-    if not ARGS[1] in PROGS:
+    if len(ARGS) < 2 or not ARGS[1] in PROGS:
         print "ERROR: first argument must be the program to run."
         print " possibilities: " + ' '.join(PROGS)
         sys.exit()

@@ -45,9 +45,17 @@ INIFILE_DEFAULT = const.INI_DIR + os.sep + 'fiber' + os.sep + \
 LONGOPTS = ["inifile", 'outputdir']
 SHORTOPTS = "i:o" 
 
-#METHOD = {
-#    'FVM': ('Finite Volume Method discretization', ['odeint', 'ode', 'fipy']),
-#    }
+#solution methods and the possible submethods
+METHOD = {
+    'FVM': ('Finite Volume Method discretization', 
+            ['odew', 'odeintw', 'odeu', 'odeintu', 'fipy']),
+    }
+
+#possible fibers kinds, this drives some specifics
+FIBER_KIND = {
+    'polyester': (False, ),
+    'cotton': (True, ),
+    }
 
 #---------------------------------------------------------------
 #
@@ -91,6 +99,7 @@ class Fiber1dConfigManager(ConfigManager):
         self.register("fiber.radius_fiber", 0.0117)
         self.register("fiber.n_edge", 41)
         self.register("fiber.nrlayers", 1)
+        self.register("fiber.internaldiff", False)
 
         self.register("fiberlayer_0.n_edge", 41)
         self.register("fiberlayer_0.thickness", 0.0017)
