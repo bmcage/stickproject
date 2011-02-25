@@ -17,6 +17,6 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 """
-The fiberfipy module provides packages that are common to fiber modelling with
+The fiber1d module provides packages that are common to fiber modelling with
 FiPy
 """

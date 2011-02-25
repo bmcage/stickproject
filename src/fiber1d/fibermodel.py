@@ -57,7 +57,7 @@ from fipy import *
 #-------------------------------------------------------------------------
 class FiberModel(object):
     """
-    fiberfipy.FiberModel is a special diffusion model for a single radial 
+    fiber1d.FiberModel is a special diffusion model for a single radial 
     symmetric fiber which is composed of a specific material (cotton, polyester,...)
     and has a number of coatings.
     """

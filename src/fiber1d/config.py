@@ -22,7 +22,7 @@
 
 
 """
-This package implements config defaults for Diffusion in yarn
+This package implements config defaults for diffusion in textile fibers
 """
 #---------------------------------------------------------------
 #
@@ -33,7 +33,6 @@ from __future__ import division
 import os
 import const
 from lib.config import ConfigManager
-
 
 #---------------------------------------------------------------
 #
@@ -50,11 +49,6 @@ SHORTOPTS = "i:o"
 #    'FVM': ('Finite Volume Method discretization', ['odeint', 'ode', 'fipy']),
 #    }
 
-#possible fiber materials, map to diff coeff of components
-YARN_MAT = {
-    'YARN_1': ([0.015], ),
-    }
-
 #---------------------------------------------------------------
 #
 # DiffitConfigManager class
@@ -62,7 +56,7 @@ YARN_MAT = {
 #---------------------------------------------------------------
 
 
-class FiberfipyConfigManager(ConfigManager):
+class Fiber1dConfigManager(ConfigManager):
 
     __instance = {}
     
@@ -70,17 +64,17 @@ class FiberfipyConfigManager(ConfigManager):
         """ Use this function to get the instance of the ConfigManager 
         that will work on inifile
         """
-        if not (inifile in FiberfipyConfigManager.__instance):
-            FiberfipyConfigManager.__instance[inifile] = None # Set for __init__()
-            FiberfipyConfigManager.__instance[inifile] = FiberfipyConfigManager(inifile)
-        return FiberfipyConfigManager.__instance[inifile]
+        if not (inifile in Fiber1dConfigManager.__instance):
+            Fiber1dConfigManager.__instance[inifile] = None # Set for __init__()
+            Fiber1dConfigManager.__instance[inifile] = Fiber1dConfigManager(inifile)
+        return Fiber1dConfigManager.__instance[inifile]
     get_instance = staticmethod(get_instance)
     
     def __init__(self, filename = INIFILE_DEFAULT):
         """ 
         A singleton implementation of config.ConfigManager
         """
-        if filename not in FiberfipyConfigManager.__instance:
+        if filename not in Fiber1dConfigManager.__instance:
             raise Exception("This class is a singleton per filename. "
                             "Use the get_instance() method")
         ConfigManager.__init__(self, filename)
@@ -93,18 +87,15 @@ class FiberfipyConfigManager(ConfigManager):
         self.register("general.submethod", 'odew')
         self.register("general.fiber_kind", 'polyester')
 
-        self.register("fiber.beginning_point", 0.0)
+        self.register("fiber.radius_pure_fiber", 0.01)
         self.register("fiber.radius_fiber", 0.0117)
         self.register("fiber.n_edge", 41)
         self.register("fiber.nrlayers", 1)
-        
-        self.register("fiberlayer_0.porosity_in", 20.)
-        self.register("fiberlayer_0.percentage_active", 2.2)
 
-        self.register("fiberlayer_1.n_edge", 41)
-        self.register("fiberlayer_1.thickness", 0.0017)
-        self.register("fiberlayer_1.diffusion_coef", 5.2e-9)
-        self.register("fiberlayer_1.init_conc", 'lambda x: 0.70')
+        self.register("fiberlayer_0.n_edge", 41)
+        self.register("fiberlayer_0.thickness", 0.0017)
+        self.register("fiberlayer_0.diffusion_coef", 5.2e-9)
+        self.register("fiberlayer_0.init_conc", 'lambda x: 0.70')
 
         self.register("diffusion.diffusion_polymer_exp_factor", 0.)
 

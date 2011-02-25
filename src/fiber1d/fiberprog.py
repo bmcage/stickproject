@@ -38,7 +38,7 @@ import scipy as S
 #-------------------------------------------------------------------------
 from lib.utils.utils import set_outputdir
 import const
-import fiberfipy.config as conf
+import fiber1d.config as conf
 
 #-------------------------------------------------------------------------
 #
@@ -78,7 +78,7 @@ def main(argv=None):
             outputdir = value
     
     #Parse ini file to obtain parameters.
-    cfg = conf.FiberfipyConfigManager.get_instance(inifile)
+    cfg = conf.Fiber1dConfigManager.get_instance(inifile)
     
     #create outputdir if not existing
     if not os.path.isdir(outputdir):
@@ -95,7 +95,7 @@ def main(argv=None):
     shutil.copy(inifile, outputdir)
     
     #create the correct model, and run it
-    from fiberfipy.fibermodel import FiberModel
+    from fiber1d.fibermodel import FiberModel
     model = FiberModel(cfg)
     
     #pass further execution to the model
@@ -103,4 +103,3 @@ def main(argv=None):
 
 if __name__ == "__main__":
     main()
-
