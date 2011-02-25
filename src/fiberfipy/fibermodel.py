@@ -77,7 +77,7 @@ class FiberModel(object):
             print 'unkown solution method'
             sys.exit(0)
         self.submethod = self.cfg.get('general.submethod')
-        if not (self.submethod in ['ode', 'odeint', 'fipy']):
+        if not (self.submethod in ['odew', 'odeintw', 'odeu', 'odeintu', 'fipy']):
             print 'unkown solution submethod'
             sys.exit(0)
         self.fiber_kind = self.cfg.get('general.fiber_kind') 
@@ -263,7 +263,7 @@ class FiberModel(object):
                     * self.grid_edge[1:-1] \
                     * (conc_r[1:] - conc_r[:-1])\
                     / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
-        diff_u_t[:]=2*(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[:]*self.delta_r[:]+self.delta_r[:]**2)
+        diff_u_t[:]=2*(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[:-1]*self.delta_r[:]+self.delta_r[:]**2)
         return diff_u_t
     
     def solve_odeint(self):
@@ -299,14 +299,14 @@ class FiberModel(object):
         endT = self.times[-1]
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
         r = ode(self.f_conc1_odeu).set_integrator('vode', method = 'bdf')
-        r.set_initial_value(initial_c1, self.initial_t)#.set_f_params(2.0)
+        r.set_initial_value(self.initial_c1, self.initial_t)#.set_f_params(2.0)
         tstep = 0
         self.conc1[tstep][:] = self.initial_c1
         while r.successful() and r.t < endT - self.delta_t /10.:
             r.integrate(r.t + self.delta_t)
             tstep += 1
             self.conc1[tstep][:] = r.y 
-            self.view_sol(self.times, self.conc1)
+        self.view_sol(self.times, self.conc1)
     """        
     def initial_fiber_in(self):
         #Initial concentration over the domain
@@ -345,7 +345,6 @@ class FiberModel(object):
             tstep = 0
             self.conc1[tstep][:] = self.initial_c1[:]
             for time in self.times[1:]:
-                print time
                 self.solve_fipy_step()
                 if self.viewer is not None:
                     self.viewer.plot()

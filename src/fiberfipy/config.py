@@ -46,9 +46,9 @@ INIFILE_DEFAULT = const.INI_DIR + os.sep + 'fiber' + os.sep + \
 LONGOPTS = ["inifile", 'outputdir']
 SHORTOPTS = "i:o" 
 
-METHOD = {
-    'FVM': ('Finite Volume Method discretization', ['odeint', 'ode', 'fipy']),
-    }
+#METHOD = {
+#    'FVM': ('Finite Volume Method discretization', ['odeint', 'ode', 'fipy']),
+#    }
 
 #possible fiber materials, map to diff coeff of components
 YARN_MAT = {
@@ -90,7 +90,7 @@ class FiberfipyConfigManager(ConfigManager):
         self.register("general.read", False)
         self.register("general.verbose", False)
         self.register("general.method", 'FVM')
-        self.register("general.submethod", 'ode')
+        self.register("general.submethod", 'odew')
         self.register("general.fiber_kind", 'polyester')
 
         self.register("fiber.beginning_point", 0.0)
