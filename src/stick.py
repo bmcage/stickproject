@@ -45,6 +45,7 @@ PROGS = {
     'fiberode': 'fiberode.fiberprog',
     'fiberfipy': 'fiberfipy.fiberprog',
     'yarn1d': 'yarn1d.yarn1dprog',
+    'yarn2d': 'yarn2d.yarn2dprog',
     }
 
 #-------------------------------------------------------------------------

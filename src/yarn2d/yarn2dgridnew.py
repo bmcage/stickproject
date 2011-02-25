@@ -178,6 +178,7 @@ class Yarn2dNewGrid(object):
             index_position = 0
             i_circle_number = 0
             number_fiber_in_loop = self.number_fiber
+            
             while i_circle_number < self.circle_loop: #and determine_generate < self.number_fiber:
                 #for i_circle_number in sp.arange(self.total_circles):
                 if i_circle_number == 0:
@@ -298,7 +299,7 @@ class Yarn2dNewGrid(object):
                                                 self.x_central, self.y_central - self.radius_fiber[0],
                                                 self.z, self.cellsize_centre))
                                 index += 5
-                                determine_generate += 1
+                                de termine_generate += 1
                     index_position += self.number_circle[i_circle_number]
                     number_fiber_in_loop = number_fiber_in_loop - self.each_circle_zone_num[i_circle_number]
                     i_circle_number += 1
