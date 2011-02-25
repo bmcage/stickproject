@@ -128,29 +128,18 @@ class Yarn1DModel(object):
         self.mesh_yarn = CylindricalGrid1D(dr=tuple(self.delta_r))
         self.mesh_yarn.periodicBC = False
         self.mesh_yarn = self.mesh_yarn + (self.beginning_point,)
-        #print 'delta_r[:-1]', self.delta_r[:-1].shape
-        #print 'delta_r[1:]', self.delta_r[1:].shape
-        #print 'som van delta_r', self.delta_r[1:]+self.delta_r[:-1]
-                     
+                             
     def initial_yarn1d(self):
         """ initial concentration over the domain"""
-        init_conc = self.cfg.get('initial.init_conc')
         self.init_conc = sp.ones(self.nr_edge-1, float)
+        init_conc = self.cfg.get('initial.init_conc')
         self.init_conc *= init_conc
         self.conc = CellVariable(name = "", 
-                    mesh = self.mesh_yarn, value = self.init_conc)
+                   mesh = self.mesh_yarn, value = self.init_conc)
         #self.viewer = None
         self.viewer = Viewer(vars = self.conc, datamin = 0., datamax = None)
-        #Viewer(vars = self.conc, datamin = 0., datamax =0.005)
-        #self.initial_c1 = sp.empty(self.tot_edges-1, float)
-        #st = 0
-        #surf = self.surf[st]
-        #for i, pos in enumerate(self.grid):
-         #       while pos > surf:
-          #          st += 1
-           #         surf = self.surf[st]
-            #    self.initial_c1[i] = self.init_conc[st](pos)
-             #   self.diffusion_coeff[i] = self.diff_coef[st]
+          
+                
 
     def solve_fiber(self):
         """
@@ -161,21 +150,22 @@ class Yarn1DModel(object):
         uniform.
         
         """
-        for ind,model in enumerate(self.fiber_models):
+        for ind, model in enumerate(self.fiber_models):
+            print 'solving fibermodel', ind
             model.run()
             self.nr_timesteps = len(model.times)
             self.timesteps= sp.empty((self.nr_models,self.nr_timesteps),float)
             self.timesteps[ind][:]=model.times            
             self.fiber_surface=sp.empty((self.nr_models,self.nr_timesteps),float)
             self.fiber_surface[ind][:] = model.fiber_surface 
-            #print 'self.timesteps,','modelnr,',self.timesteps[ind][:],ind      
-
+            
     def _set_bound_flux(self, flux_edge, conc_r):
         """
         Method that takes BC into account to set flux on edge
         Data is written to flux_edge, conc_r contains solution in the cell centers
         """
         self.boundary_transf_right = self.cfg.get('boundary.transfer_conc1')
+        flux_edge[0]=0.
         flux_edge[-1] = -self.boundary_transf_right * conc_r[-1]
     
     def get_source(self,t):
@@ -206,7 +196,7 @@ class Yarn1DModel(object):
                     self.index_t_yarn = self.steps-1
                 else:
                     print t, self.times
-                    raise Exception, 'something wrong'
+                    #raise exception, 'something wrong'
 
             self.cache_index_t_yarn = self.index_t_yarn
         
@@ -214,7 +204,6 @@ class Yarn1DModel(object):
         nr = 0
         self.index_t_fiber=sp.empty(self.nr_models,float)
         while nr < self.nr_models:
-            #print 'timesteps[nr],', self.timesteps[nr][:], 'nr,', nr
             if self.timesteps[nr][self.cache_index_t_fiber[nr]] <= t and \
                 t< self.timesteps[nr][self.cache_index_t_fiber[nr]+1] :
                 self.index_t_fiber[nr] = self.cache_index_t_fiber[nr]
@@ -241,7 +230,7 @@ class Yarn1DModel(object):
                     self.index_t_fiber[nr] = self.nr_timesteps-1
                 else:
                     print nr, t, self.timesteps
-                    raise Exception, 'something wrong'
+                    #raise Exception, 'something wrong'
             self.cache_index_t_fiber[nr] = self.index_t_fiber[nr]
             nr+=1
             
@@ -254,14 +243,17 @@ class Yarn1DModel(object):
         n = self.nr_fibers*self.delta_rsquare/(self.end_point**2)
         self.blend=self.cfg.get('fiber.blend')
         fibersurf=0.
+        
         for i,blend in enumerate(self.blend):
             fiber_surf_t = self.fiber_surface[i][self.index_t_fiber[i]]  +\
                     (self.fiber_surface[i][self.index_t_fiber[i]+1] - self.fiber_surface[i][self.index_t_fiber[i]])\
                     /(self.timesteps[i][self.index_t_fiber[i]+1]-self.timesteps[i][self.index_t_fiber[i]])\
                     *(t-self.timesteps[i][self.index_t_fiber[i]+1])
             fibersurf=fibersurf+fiber_surf_t*blend/100
-        #print 'fibersurf', fibersurf 
         self.source[self.index_t_yarn,:]=n[:]*fibersurf/(2*math.pi)
+        
+    def f_conc1_ode(self, t,conc_r):
+        return self.f_conc1(conc_r,t)
         
     def f_conc1(self, conc_r, t):
         print 'concr', t, conc_r
@@ -272,7 +264,7 @@ class Yarn1DModel(object):
         #solve a fiber model on radial position r in the yarn
 ## TODO: update initial concentration for the fiber model on position r in yarn as the result of the last yarnsolution.
 ## for now: 1 fibermodel is solved. The same fibersurface result is used in every cell.        
-        self.solve_fiber()
+        #self.solve_fiber()
         #self.endconc=sp.empty((self.steps,n_cellcenters),float)
         #for i in grid:
                 #self.endconc[i][:]=self.fiber_surface[:]            
@@ -285,37 +277,53 @@ class Yarn1DModel(object):
         self.diffusioncoeff = self.cfg.get('diffusion.diffusion_conc')
         
         #calculate flux rate in each edge of the domain
-        #diff_u_t = sp.empty(n_cell, float)
-        flux_edge[0]=0
+        diff_u_t = sp.empty(n_cellcenters, float)
         concdiff=conc_r[1:]-conc_r[:-1]
         deel1=self.grid_edge[1:-1]*concdiff
         flux_edge[1:-1] = (2*self.diffusioncoeff*deel1)\
                           /((self.delta_r[:-1]+self.delta_r[1:])*self.tortuosity)
-        diff_u_t=(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[:-1]*self.delta_r[:]+self.delta_r[:]**2)+self.source[self.index_t_yarn][:]
-        return diff_u_t
-    
-    def f_conc1_ode(self, t,conc_r):
-        return self.f_conc1(conc_r,t)
-    
+        diff_u_t=(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[:-1]*self.delta_r[:]+self.delta_r[:]**2)+self.source[self.index_t_yarn,:]
+        return diff_u_t    
     #def solve_odeint(self):
         #self.conc1=odeint(self.f_conc1, initial_c1, self.times)
         #self.view_sol(self.times, self.conc1)
-    
-    
+
     def solve_ode(self):
-        self.initial_t = 0
+        self.initial_t = 0.
         endT = self.time_period
         self.conc1 = np.empty((self.steps, self.nr_edge-1), float)
-        r = ode(self.f_conc1_ode).set_integrator('vode', method = 'bdf')
-        r.set_initial_value(self.init_conc, self.initial_t)#.set_f_params(2.0)
+        r = ode(self.f_conc1_ode).set_integrator('dvode', method = 'bdf')
+        r.set_initial_value(self.init_conc, self.initial_t)
         tstep = 0
         self.conc1[tstep][:] = self.init_conc[:]
         while r.successful() and r.t < endT - self.delta_t /10.:
             r.integrate(r.t + self.delta_t)
             tstep += 1
             self.conc1[tstep][:] = r.y 
-            self.view_sol(self.times, self.conc1)
-  
+            print r.t
+        self.view_sol(self.times, self.conc1)
+        
+    def view_sol(self, times, conc):
+        """
+        Show the solution in conc with times.
+        conc[i][:] contains solution at time times[i]
+        """
+        #self.conc = CellVariable(name = "", 
+                    #mesh = self.mesh_yarn, value = self.init_conc)
+        #self.mesh_fiber = CylindricalGrid1D(dr=tuple(self.delta_r))
+        #self.mesh_fiber.periodicBC = False
+        #self.mesh_fiber = self.mesh_fiber + (self.beginning_point,)
+        #self.solution_fiber = CellVariable(name = "fiber concentration", 
+                            #mesh = self.mesh_fiber,
+                            #value = conc[0])
+        self.viewer =  Viewer(vars = self.conc, datamin=0., datamax=conc[0].max())
+        self.viewer.plot()
+        for time, con in zip(times[1:], conc[1:]):
+            self.conc.setValue(con)
+            self.viewer.plot()
+            if time == 200.0:
+                dump.write({'space_position': self.grid, 'conc1': con},
+                            filename = utils.OUTPUTDIR + os.sep + 'ode_t2.gz', extension = '.gz')
     def run(self):        
         self.create_mesh()
         self.initial_yarn1d()
