@@ -51,10 +51,11 @@ METHOD = {
             ['odew', 'odeintw', 'odeu', 'odeintu', 'fipy']),
     }
 
-#possible fibers kinds, this drives some specifics
-FIBER_KIND = {
-    'polyester': (False, ),
-    'cotton': (True, ),
+FLUX = 0
+TRANSFER = 1
+BOUND_TYPE = {
+    'flux': FLUX,
+    'transfer': TRANSFER,
     }
 
 #---------------------------------------------------------------
@@ -62,7 +63,6 @@ FIBER_KIND = {
 # DiffitConfigManager class
 #
 #---------------------------------------------------------------
-
 
 class Fiber1dConfigManager(ConfigManager):
 
@@ -96,22 +96,26 @@ class Fiber1dConfigManager(ConfigManager):
         self.register("general.fiber_kind", 'polyester')
 
         self.register("fiber.radius_pure_fiber", 0.01)
-        self.register("fiber.radius_fiber", 0.0117)
-        self.register("fiber.n_edge", 41)
         self.register("fiber.nrlayers", 1)
-        self.register("fiber.internaldiff", False)
+        self.register("fiber.internal_diffusion", False)
+        self.register("fiber.diffusion_coef", 0.)
+        self.register("fiber.diffusion_polymer_exp_factor", 0.)
+        self.register("fiber.n_edge", 41)
+        self.register("fiber.init_conc", 'lambda x: 0.')
+        self.register("fiber.porosity_in", 20.)
+        self.register("fiber.percentage_active", 2.2)
 
         self.register("fiberlayer_0.n_edge", 41)
         self.register("fiberlayer_0.thickness", 0.0017)
         self.register("fiberlayer_0.diffusion_coef", 5.2e-9)
         self.register("fiberlayer_0.init_conc", 'lambda x: 0.70')
 
-        self.register("diffusion.diffusion_polymer_exp_factor", 0.)
 
+        self.register("boundary.type_left", 'flux')
+        self.register("boundary.type_right", 'flux')
         self.register("boundary.boundary_fib_left", 0.0)
         self.register("boundary.boundary_fib_right", 0.0)
-        
-        self.register("transfer.transfer_conc1", 0.0)
+        self.register("boundary.transfer_right", 0.0)
         
         self.register("time.time_period", 500.)
         self.register("time.dt", 5.0)
