@@ -44,11 +44,11 @@ import lib.utils.gridutils as GridUtils
 import yarn2d.config as conf
 from mycorrection import MyDiffusionTermNoCorrection
 from yarn2dgrid import Yarn2dGrid
-from yarn2dgridnew import Yarn2dNewGrid
-from yarn2d_overlap import Yarn2DOverlapping
+#from yarn2dgridnew import Yarn2dNewGrid
+#from yarn2d_overlap import Yarn2DOverlapping
 from yarn2dfiber import Yarn2dFiber
-from fiberfipy.config import FiberfipyConfigManager
-from fiberfipy.fibermodel import FiberModel
+from fiber1d.config import Fiber1dConfigManager
+from fiber1d.fibermodel import FiberModel
 
 #-------------------------------------------------------------------------
 #
@@ -97,9 +97,11 @@ class Yarn2DModel(object):
             if not os.path.isabs(filename):
                 filename = os.path.normpath(os.path.join(
                             os.path.dirname(self.cfg.filename), filename))
-            self.cfg_fiber.append(FiberfipyConfigManager.get_instance(filename))
+            self.cfg_fiber.append(Fiber1dConfigManager.get_instance(filename))
             #set values from the yarn on this inifile
             self.cfg_fiber[-1].set("time.time_period", self.cfg.get("time.time_period"))
+            if self.cfg_fiber[-1].get("time.dt") > self.cfg.get("time.time_period"):
+                self.cfg_fiber[-1].set("time.dt", self.cfg.get("time.time_period"))
         
         #create fiber models
         self.fiber_models = []
@@ -124,8 +126,8 @@ class Yarn2DModel(object):
         #self.mesh2d_1 = self.grid1.mesh_new_generate(filename = 'yarn_new.geo',
                                 #regenerate = not self.cfg.get('general.read'))
         
-        self.center = Yarn2DOverlapping(self.cfg)
-        self.virtual_location_center = self.center.determine_centers()
+        #self.center = Yarn2DOverlapping(self.cfg)
+        #self.virtual_location_center = self.center.determine_centers()
                             
     def determine_fiber(self):
         """
@@ -138,7 +140,6 @@ class Yarn2DModel(object):
         self.choosing_kind = self.determine.create_fiber_kinds(filename = 'determine_kinds.dat', 
                                                         regenerate = not self.cfg.get('general.read'))
         #print 'read the value for fiber kinds', int(self.choosing_kind)
-        
     
     def initial_yarn2d(self):
         self.init_conc = self.cfg.get('initial.init_conc')
