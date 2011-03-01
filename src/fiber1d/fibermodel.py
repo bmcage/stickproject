@@ -195,8 +195,8 @@ class FiberModel(object):
         
         conc_r: concentration in self.grid
         """
-        return sp.sum(conc_r * self.grid * self.delta_r) * 2. * sp.pi 
-
+        return sp.sum(conc_r *  self.grid* self.delta_r) * 2. * sp.pi 
+        
     def _set_bound_flux(self, flux_edge, w_rep):
         """
         Method that takes BC into account to set flux on edge
@@ -211,7 +211,8 @@ class FiberModel(object):
             flux_edge[-1] = self.boundary_fib_right *  self.grid_edge[-1]
         else:
             # a transfer coeff to the right
-            flux_edge[-1] = -self.boundary_transf_right * w_rep[-1]
+            flux_edge[-1] = -self.boundary_transf_right * w_rep[-1] + self.diffusion_coeff[-1] * \
+                            sp.exp(-self.diffusion_exp_fact[-1] * w_rep[-1]/self.grid[-1])*w_rep[-1]/self.grid[-1]
 
     def _set_bound_fluxu(self, flux_edge, conc_r):
         """
@@ -228,7 +229,7 @@ class FiberModel(object):
         else:
             # a transfer coeff to the right
             flux_edge[-1] = -self.boundary_transf_right * conc_r[-1] 
-            print 'flux', flux_edge[-1]
+            #print 'flux', flux_edge[-1]
 
     def f_conc1_ode(self, t, w_rep):
         return self.f_conc1(w_rep, t)
@@ -243,9 +244,9 @@ class FiberModel(object):
         self._set_bound_flux(flux_edge, w_rep)
         #Diffusion coefficient changes with the concentration changing
         #calculate flux rate in each edge of the domain
-        flux_edge[1:-1] = (self.diffusion_coeff[:-1] * 
+        flux_edge[1:-1] = (self.diffusion_coeff[:-1] * \
                             sp.exp(-self.diffusion_exp_fact[:-1] * w_rep[:-1]/self.grid[:-1]) \
-                         + self.diffusion_coeff[1:] * 
+                         + self.diffusion_coeff[1:] * \
                             sp.exp(-self.diffusion_exp_fact[1:] * w_rep[1:]/self.grid[1:]))/2.\
                     * self.grid_edge[1:-1] \
                     * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
@@ -266,14 +267,15 @@ class FiberModel(object):
         self._set_bound_fluxu(flux_edge, conc_r)
         #Diffusion coefficient changes with the concentration changing
         #calculate flux rate in each edge of the domain
-        flux_edge[1:-1] = (self.diffusion_coeff[:-1] * 
+        flux_edge[1:-1] = (self.diffusion_coeff[:-1] * \
                             sp.exp(-self.diffusion_exp_fact[:-1] * conc_r[:-1]) \
-                         + self.diffusion_coeff[1:] * 
+                         + self.diffusion_coeff[1:] * \
                             sp.exp(-self.diffusion_exp_fact[1:] * conc_r[1:]))/2.\
                     * self.grid_edge[1:-1] \
                     * (conc_r[1:] - conc_r[:-1])\
                     / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
-        diff_u_t[:]=2*(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[:-1]*self.delta_r[:]+self.delta_r[:]**2)
+        #diff_u_t[:]=2*(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[1:]*self.delta_r[:]+self.delta_r[:]**2)
+        diff_u_t[:]=(flux_edge[1:]-flux_edge[:-1])/(self.grid_edge[1:]**22-self.grid_edge[:-1]**2/2)
         return diff_u_t
     
     def solve_odeint(self):
@@ -301,6 +303,8 @@ class FiberModel(object):
             r.integrate(r.t + self.delta_t)
             tstep += 1
             self.conc1[tstep][:] = r.y / self.grid
+            #print 'mass = ', self.calc_mass(self.conc1[tstep])
+            print self.conc1[tstep][-1]
         self.view_sol(self.times, self.conc1)
         
     def solve_odeu(self):
@@ -316,7 +320,10 @@ class FiberModel(object):
             r.integrate(r.t + self.delta_t)
             tstep += 1
             self.conc1[tstep][:] = r.y 
+            #print 'mass = ', self.calc_mass(self.conc1[tstep])
+            print self.conc1[tstep][-1]
         self.view_sol(self.times, self.conc1)
+       
 
     def solve_fipy(self):
         #using fipy to solve 1D problem in fiber
@@ -358,7 +365,8 @@ class FiberModel(object):
             #    dump.write({'space_position': self.grid, 'conc1': self.conc1[tstep][:]},
             #            filename = utils.OUTPUTDIR + os.sep + 'fipy_t1.gz', extension = '.gz')
             #    print 'finish file'
-            print 'mass = ', self.calc_mass(self.conc1[tstep])
+            #print 'mass = ', self.calc_mass(self.conc1[tstep])
+            print self.conc1[tstep][-1]
 
     def solve_fipy_step(self):
         res = 1e+1
