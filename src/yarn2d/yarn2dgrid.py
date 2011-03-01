@@ -51,6 +51,7 @@ from fipy import Gmsh2D
 class Yarn2dGrid(object):
     def __init__(self, cfg):
         self.cfg = cfg
+        self.fiberlayout = self.cfg.get('domain.fiberlayout_method')
         
         self.Ry = self.cfg.get('domain.yarnradius')
         self.Rf = self.cfg.get('fiber.radius_fiber')
@@ -76,16 +77,25 @@ class Yarn2dGrid(object):
         filepath1 = utils.OUTPUTDIR + os.sep + filename1
         filepath2 = utils.OUTPUTDIR + os.sep + filename2
         start = time.clock()
-        if regenerate:
+        self.x_central = 0.
+        self.y_central = 0.
+        self.z = 0.
+        
+        if not regenerate:
+            circledef = open(filepath, "r").readlines()
+        else:
+            #first determine the different centerpoints of the fibers
+            if self.fiberlayout == 'random':
+                self.x_position, self.y_position, self.all_radius_fibers = \
+                    randomfiberlayout(self)
+            else:
+                print 'ERROR: not implemented fiberlayout %s' % self.fiberlayout
+                sys.exit(0)
+            
+            #write data to files
             self.circle_file = open(filepath, "w")
             self.fib_centers_x = open(filepath1, "w")
             self.fib_centers_y = open(filepath2, "w")
-            self.current_point = 0
-            self.x_position = sp.empty(self.number_fiber, float)
-            self.y_position = sp.empty(self.number_fiber, float)
-            self.x_central = 0.
-            self.y_central = 0.
-            self.z = 0.
             index = 1
             self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
                                     self.x_central, self.y_central, self.z, 
@@ -105,124 +115,58 @@ class Yarn2dGrid(object):
             index = index + 4
             print self.cellsize_centre, self.cellSize
             for i in sp.arange(1, self.number_fiber + 1, 1):
-                if i == 1:
-                    #generate the position of fiber
-                    a = np.random.uniform(-0.5, 0.5)
-                    b = np.random.uniform(-0.5, 0.5)
-                    distance_center = sp.sqrt((a - self.x_central)**2 + (b - self.y_central)**2)
-                    while distance_center + self.radius_fiber[0] >= self.radius_yarn:
-                        a = np.random.uniform(-1, 1)
-                        b = np.random.uniform(-1, 1)
-                        distance_center = sp.sqrt((a - self.x_central)**2 + (b - self.y_central)**2)
-                    else:
-                        self.x_position[i-1] = a
-                        self.y_position[i-1] = b
-                        self.current_point = self.current_point + 1
-                        index = index + 1
-                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
-                                            self.x_position[i-1], self.y_position[i-1], 
-                                            self.z,self.cellSize))
-                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
-                                            self.x_position [i-1] - self.radius_fiber[0],
-                                            self.y_position[i-1], self.z, self.cellSize))
-                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+2,
-                                            self.x_position[i-1], self.y_position[i-1] + self.radius_fiber[0],
-                                            self.z, self.cellSize))
-                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+3,
-                                            self.x_position[i-1] + self.radius_fiber[0],
-                                            self.y_position[i-1], self.z, self.cellSize))
-                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+4,
-                                            self.x_position[i-1], self.y_position[i-1] - self.radius_fiber[0],
-                                            self.z, self.cellSize))
-                        index = index + 4
-                elif i > 1:
-                    #generate the position of fiber
-                    a = np.random.uniform(-1, 1)
-                    b = np.random.uniform(-1, 1)
-                    #distance between the current point and center
-                    distance_center = sp.sqrt((a - self.x_central)**2 + (b - self.y_central)**2)
-                    #distance between the current point and existing points
-                    distance_each = sp.sqrt((a - self.x_position[:self.current_point])**2 + \
-                                            (b - self.y_position[:self.current_point])**2)
-                    while distance_center + self.radius_fiber[0] >= self.radius_yarn or np.min(distance_each)\
-                            <= (2*self.radius_fiber[0])+ 0.001 * self.radius_fiber[0]: 
-                        a = np.random.uniform(-1, 1)
-                        b = np.random.uniform(-1, 1)
-                        distance_center = sp.sqrt((a - self.x_central)**2 + \
-                        (b - self.y_central)**2)
-                        #distance between the current point and existing points
-                        distance_each = sp.sqrt((a - self.x_position[:self.current_point])**2 + \
-                                            (b - self.y_position[:self.current_point])**2)
-                    else:
-                        self.x_position[i-1] = a
-                        self.y_position[i-1] = b
-                        self.current_point = self.current_point + 1
-                        index = index + 1
-                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
-                                            self.x_position[i-1], self.y_position[i-1], 
-                                            self.z,self.cellSize))
-                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
-                                            self.x_position [i-1] - self.radius_fiber[0],
-                                            self.y_position[i-1], self.z, self.cellSize))
-                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+2,
-                                            self.x_position[i-1], self.y_position[i-1] + self.radius_fiber[0],
-                                            self.z, self.cellSize))
-                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+3,
-                                            self.x_position[i-1] + self.radius_fiber[0],
-                                            self.y_position[i-1], self.z, self.cellSize))
-                        self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+4,
-                                            self.x_position[i-1], self.y_position[i-1] - self.radius_fiber[0],
-                                            self.z, self.cellSize))
-                        index = index + 4
+                index = index + 1
+                self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
+                                    self.x_position[i-1], self.y_position[i-1], 
+                                    self.z,self.cellSize))
+                self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
+                        self.x_position[i-1] - self.all_radius_fibers[i-1],
+                        self.y_position[i-1], self.z, self.cellSize))
+                self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+2,
+                        self.x_position[i-1], 
+                        self.y_position[i-1] + self.all_radius_fibers[i-1],
+                        self.z, self.cellSize))
+                self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+3,
+                        self.x_position[i-1] + self.all_radius_fibers[i-1],
+                        self.y_position[i-1], self.z, self.cellSize))
+                self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+4,
+                        self.x_position[i-1], 
+                        self.y_position[i-1] - self.all_radius_fibers[i-1],
+                        self.z, self.cellSize))
+                index = index + 4
             #above part is for generating the points of circle in the domain
             if self.verbose:
                 print "all the points have been generated"
             index_point_in_circle = 0 #the number of each point in Circle part
             for i1 in sp.arange(0, self.number_fiber + 1, 1):
+                index = index + 1
                 if i1 == 0:
-                    index = index + 1
                     index_point_in_circle = index_point_in_circle + 1
-                    t1 = index_point_in_circle + 1
-                    t2 = index_point_in_circle + 2
-                    t3 = index_point_in_circle + 3
-                    t4 = index_point_in_circle + 4
-                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index,
-                                                        t1, index_point_in_circle, t2))
-                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 1,
-                                                        t2, index_point_in_circle, t3))
-                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 2,
-                                                        t3, index_point_in_circle, t4))
-                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 3, 
-                                                        t4, index_point_in_circle, t1))
-                    index = index + 3
-                elif i1 > 0:
-                    index = index + 1
+                else:
                     index_point_in_circle = index_point_in_circle + 5
-                    t1 = index_point_in_circle + 1
-                    t2 = index_point_in_circle + 2
-                    t3 = index_point_in_circle + 3
-                    t4 = index_point_in_circle + 4
-                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index,
-                                                        t1, index_point_in_circle, t2))
-                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 1,
-                                                        t2, index_point_in_circle, t3))
-                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 2,
-                                                        t3, index_point_in_circle, t4))
-                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 3, 
-                                                        t4, index_point_in_circle, t1))
-                    index = index + 3
+                t1 = index_point_in_circle + 1
+                t2 = index_point_in_circle + 2
+                t3 = index_point_in_circle + 3
+                t4 = index_point_in_circle + 4
+                self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index,
+                                    t1, index_point_in_circle, t2))
+                self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 1,
+                                    t2, index_point_in_circle, t3))
+                self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 2,
+                                    t3, index_point_in_circle, t4))
+                self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 3,
+                                    t4, index_point_in_circle, t1))
+                index = index + 3
             #above part is for generating the circle part of the domain
             index_circle_for_loop = index - 4* (self.number_fiber + 1) 
             index = index + 1
             self.circle_file.write("Line Loop(%d)= {" %(index))
-            for i2 in sp.arange(0, 4*(self.number_fiber + 1), 1):
-                if i2 < 4*(self.number_fiber + 1) -1:
-                    index_circle_for_loop = index_circle_for_loop + 1
-                    self.circle_file.write("%d," %(index_circle_for_loop))
-                elif i2 == 4*(self.number_fiber + 1) -1:
-                    index_circle_for_loop = index_circle_for_loop +1
-                    self.circle_file.write("%d" %(index_circle_for_loop))
-            self.circle_file.write("};\n")
+            for i2 in sp.arange(0, 4*(self.number_fiber + 1)-1, 1):
+                index_circle_for_loop +=  1
+                self.circle_file.write("%d," %(index_circle_for_loop))
+            index_circle_for_loop += 1
+            self.circle_file.write("%d};\n" %(index_circle_for_loop))
+            
             elapsed = (time.clock() - start)
             if self.verbose:
                 print "Time to generate the mesh file: %.3f" %(elapsed)
@@ -232,15 +176,16 @@ class Yarn2dGrid(object):
             index_loop_in_plane = index
             index = index + 1
             self.circle_file.write("Plane Surface(%d) = {%d};\n" %(index, index_loop_in_plane))
+            #flush to disk - slow!
+            self.circle_file.flush()
+            os.fsync(self.circle_file)
             self.circle_file.close()
             self.fib_centers_x.write(repr(self.x_position))
             self.fib_centers_y.write(repr(self.y_position))
             self.fib_centers_x.close()
             self.fib_centers_y.close()
             circledef = open(filepath, "r").readlines()
-        else:
-            circledef = open(filepath, "r").readlines()
-        return ''.join(circledef)
+        return '\n'.join(circledef)
     
     def mesh_2d_generate(self, filename='yarn.geo', filename1 = 'fib_centers_x.geo',
         filename2 = 'fib_centers_y.geo' ,regenerate=True):
@@ -253,3 +198,56 @@ class Yarn2dGrid(object):
         self.mesh = Gmsh2D(self.create_circle_domain_gmsh(filename, filename1, filename2,
                             regenerate))
         return self.mesh
+
+def randomfiberlayout(options):
+    """ Generate list of center points of the fibers in random fashion
+    Options should contain attributes:
+        number_fiber : amount of fibers to generate
+        x_central: central point, 0. otherwise
+        y_central: central point, 0. otherwise
+        radius_yarn
+        radius_fiber: array of length 1 with radius of the fiber
+    """
+    #check options
+    if hasattr(options, 'x_central'):
+        x_central = options.x_central
+    else:
+        x_central = 0.
+    if hasattr(options, 'y_central'):
+        y_central = options.y_central
+    else:
+        y_central = 0.
+
+    if len(options.radius_fiber) > 1:
+        print 'ERROR: randomfiberlayout can only handle one type of fiber'
+        sys.exit()
+
+    #allocate space
+    x_position = sp.empty(options.number_fiber, float)
+    y_position = sp.empty(options.number_fiber, float)
+    radius_fiber = sp.empty(options.number_fiber, float)
+
+    for i in sp.arange(0, options.number_fiber, 1):
+        #generate the position of fiber
+        a = np.random.uniform(-1, 1)
+        b = np.random.uniform(-1, 1)
+        #distance between the current point and center
+        distance_center = sp.sqrt((a - x_central)**2 + (b - y_central)**2)
+        #distance between the current point and existing points
+        distance_each = sp.sqrt((a - x_position[:i])**2 + \
+                                (b - y_position[:i])**2)
+        while (distance_center + options.radius_fiber[0] >= options.radius_yarn or 
+               (i>0 and (np.min(distance_each)\
+                <= (2*options.radius_fiber[0])+ 0.001 * options.radius_fiber[0]))): 
+            a = np.random.uniform(-1, 1)
+            b = np.random.uniform(-1, 1)
+            distance_center = sp.sqrt((a - x_central)**2 + \
+                                      (b - y_central)**2)
+            #distance between the current point and existing points
+            distance_each = sp.sqrt((a - x_position[:i])**2 + \
+                                (b - y_position[:i])**2)
+        else:
+            x_position[i] = a
+            y_position[i] = b
+            radius_fiber[i] = options.radius_fiber[0]
+    return (x_position, y_position, radius_fiber)

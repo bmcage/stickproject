@@ -96,7 +96,7 @@ def main(argv=None):
     model = FiberModel(cfg)
     
     #pass further execution to the model
-    model.run()
+    model.run(wait=True, output=True)
 
 if __name__ == "__main__":
     main()

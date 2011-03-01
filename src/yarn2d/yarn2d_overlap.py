@@ -258,34 +258,279 @@ class Yarn2DOverlapping(object):
         """
         #distribute the fibers in the virtual locations
         number_fiber_in_loop = self.number_fiber_type[:]
-        self.circle_loop = sp.empty(sefl.type_fiber)
-        i_determine = 0
+        self.circle_loop = sp.zeros(self.type_fiber)
+        
         self.x_position = [0] * self.type_fiber
         self.y_position = [0] * self.type_fiber
+        location_number = [0] * self.type_fiber
+        #location_number_
         for ind in sp.arange(self.type_fiber):
+            i_determine = 0
+            print 'the number_fiber_in_loop', number_fiber_in_loop[ind]
             while number_fiber_in_loop[ind] > 0:
                 number_fiber_in_loop[ind] = number_fiber_in_loop[ind] - \
                                             self.each_circle_zone_num[ind][i_determine]
                 i_determine += 1
                 self.circle_loop[ind] += 1
+                print 'the length of the each zone', len(self.each_circle_zone_num[ind])
+                print 'i_determine', i_determine
             print 'the number of loop for distributing fibers', self.circle_loop[ind]
+        for ind in sp.arange(len(self.blend)):
+            self.number_fiber_type[ind] = int(self.blend[ind] / 100. * self.number_fiber)
+        print self.number_fiber_type
+        number_fiber_in_loop = self.number_fiber_type[:]
         for ind in sp.arange(self.type_fiber):
             determine_generate = 0 #the number of generated fiber
             index_position = 0
             i_circle_number = 0
-            self.x_position[ind] = self.empty(self.number_fiber_type[ind])
-            self.y_position[ind] = self.empty(self.number_fiber_type[ind])
+            
+            print 'the value of number_fiber_type', self.number_fiber_type[ind]
+            self.x_position[ind] = sp.empty(self.number_fiber_type[ind])
+            self.y_position[ind] = sp.empty(self.number_fiber_type[ind])
             while i_circle_number < self.circle_loop[ind]:
                 if i_circle_number == 0:
                     self.x_position[ind][determine_generate] = 0.
                     self.y_position[ind][determine_generate] = 0.
+                    index_position += 1
+                    i_circle_number += 1
+                    determine_generate += 1
+                    number_fiber_in_loop[ind] = number_fiber_in_loop[ind] - 1
                     
                 elif i_circle_number == 1:
+                    for i_index in sp.arange(self.number_circle[ind][i_circle_number]):
+                        self.x_central = self.x_position_vl[ind][i_index + 1]
+                        self.y_central = self.y_position_vl[ind][i_index + 1]
+                        self.x_position[ind][determine_generate] = self.x_central
+                        self.y_position[ind][determine_generate] = self.y_central
+                        index_position += 1
+                        determine_generate += 1
+                    i_circle_number += 1
+                    number_fiber_in_loop[ind] = number_fiber_in_loop[ind] - 6
+                    
+                elif i_circle_number > 1 and i_circle_number < self.circle_loop[ind] - 1:
+                    location_number[ind] = sp.empty(self.each_circle_zone_num[ind][i_circle_number], int)
+                    for i_index in sp.arange(self.each_circle_zone_num[ind][i_circle_number]):
+                        if i_index == 0:
+                            a_position = np.random.uniform(index_position, 
+                                        index_position + self.number_circle[ind][i_circle_number])
+                            random_position = int(a_position)
+                            location_number[ind][i_index] = random_position
+                            a = random_position 
+                            b = random_position
+                            self.x_central = self.x_position_vl[ind][a]#index_position + random_position]
+                            self.y_central = self.y_position_vl[ind][b]#index_position + random_position]
+                            self.x_position[ind][determine_generate] = self.x_central
+                            self.y_position[ind][determine_generate] = self.y_central
+                            determine_generate += 1
+                            #index += 5
+                        else:
+                            a_position = np.random.uniform(index_position, 
+                                        index_position + self.number_circle[ind][i_circle_number])
+                            random_position = int(a_position)
+                            determine_value = (random_position == location_number[ind])
+                            while determine_value.any() == True:
+                                a_position = np.random.uniform(index_position, 
+                                            index_position + self.number_circle[ind][i_circle_number])
+                                random_position = int(a_position)
+                                determine_value = (random_position == location_number[ind])
+                            else:
+                                location_number[ind][i_index] = random_position#.append(random_position)
+                                self.x_central = self.x_position_vl[ind][random_position]
+                                self.y_central = self.y_position_vl[ind][random_position]
+                                self.x_position[ind][determine_generate] = self.x_central
+                                self.y_position[ind][determine_generate] = self.y_central
+                                determine_generate += 1
+                                
+                    index_position += self.number_circle[ind][i_circle_number]
+                    number_fiber_in_loop[ind] = number_fiber_in_loop[ind] - self.each_circle_zone_num[ind][i_circle_number]
+                    i_circle_number += 1
+                    
+                elif i_circle_number == self.circle_loop[ind] - 1:
+                    print 'the last layer', number_fiber_in_loop[ind]
+                    location_number[ind] = sp.empty(number_fiber_in_loop[ind], int)
+                    for i_index in sp.arange(number_fiber_in_loop[ind]):
+                        if i_index == 0:
+                            a_position = np.random.uniform(index_position, 
+                                        index_position + self.number_circle[ind][i_circle_number] )
+                            random_position = int(a_position)
+                            location_number[ind][i_index] = random_position#.append(random_position)
+                            a = random_position
+                            b = random_position
+                            self.x_central = self.x_position_vl[ind][a]#index_position + random_position]
+                            self.y_central = self.y_position_vl[ind][b]#index_position + random_position]
+                            self.x_position[ind][determine_generate] = self.x_central
+                            self.y_position[ind][determine_generate] = self.y_central
+                            determine_generate += 1
+                        else:
+                            a_position = np.random.uniform(index_position, 
+                                        index_position + self.number_circle[ind][i_circle_number])
+                            random_position = int(a_position)
+                            determine_value = (random_position == location_number[ind])
+                            while determine_value.any() == True:
+                                a_position = np.random.uniform(index_position, 
+                                            index_position + self.number_circle[ind][i_circle_number])
+                                random_position = int(a_position)
+                                determine_value = (random_position == location_number[ind])
+                            else:
+                                location_number[ind][i_index] = random_position#.append(random_position)
+                                self.x_central = self.x_position_vl[ind][random_position]
+                                self.y_central = self.y_position_vl[ind][random_position]
+                                self.x_position[ind][determine_generate] = self.x_central
+                                self.y_position[ind][determine_generate] = self.y_central
+                            determine_generate += 1
+                    index_position += self.number_circle[ind][i_circle_number]
+                    i_circle_number += 1
+        print 'virtual location passed'
+        print self.x_position
+        
+        #shift position part
+        for ind in sp.arange(len(self.blend)):
+            self.number_fiber_type[ind] = int(self.blend[ind] / 100. * self.number_fiber)
+        #self.number_fiber_type[0] = 2
+        number_fiber_in_loop_shift = self.number_fiber_type[:]
+        print 'number of two fibers', self.number_fiber_type
+        self.circle_loop_shift = sp.zeros(self.type_fiber)
+        
+        self.x_position_shift = [0] * self.type_fiber
+        self.y_position_shift = [0] * self.type_fiber
+        location_number_shift = [0] * self.type_fiber
+        for ind in sp.arange(self.type_fiber):
+            i_determine_shift = 0
+            print 'the number_fiber_in_loop', number_fiber_in_loop_shift[ind]
+            while number_fiber_in_loop_shift[ind] > 0:
+                print 'the number of each circle', self.each_circle_zone_num_shift[ind]
+                print 'the number of in loop', number_fiber_in_loop_shift[ind]
+                number_fiber_in_loop_shift[ind] = number_fiber_in_loop_shift[ind] - \
+                                            self.each_circle_zone_num_shift[ind][i_determine_shift]
+                i_determine_shift += 1
+                self.circle_loop_shift[ind] += 1
+                print self.circle_loop_shift[ind]
+                print 'the length of the each zone', len(self.each_circle_zone_num_shift[ind])
+                print 'i_determine', i_determine
+            print 'the number of loop for distributing fibers', self.circle_loop_shift[ind]
+        for ind in sp.arange(len(self.blend)):
+            self.number_fiber_type[ind] = int(self.blend[ind] / 100. * self.number_fiber)
+        print self.number_fiber_type
+        number_fiber_in_loop_shift = self.number_fiber_type[:]
+        for ind in sp.arange(self.type_fiber):
+            determine_generate_shift = 0 #the number of generated fiber
+            index_position_shift = 0
+            i_circle_number_shift = 0
+            self.x_position_shift[ind] = sp.empty(self.number_fiber_type[ind], float)
+            self.y_position_shift[ind] = sp.empty(self.number_fiber_type[ind], float)
+            while i_circle_number_shift < self.circle_loop_shift[ind]:
+                if i_circle_number_shift == 0:
+                    self.x_position_shift[ind][determine_generate_shift] = self.radius_fiber[ind] *\
+                                                                    self.NONTOUCH_FAC * (1/2+1/4)
+                    self.y_position_shift[ind][determine_generate_shift] = 0.
+                    print 'determine_generate value', determine_generate_shift
+                    index_position_shift += 1
+                    i_circle_number_shift += 1
+                    determine_generate_shift += 1
+                    number_fiber_in_loop_shift[ind] = number_fiber_in_loop_shift[ind] - 1
+                    print 'finish the first point', number_fiber_in_loop_shift[ind]
+                    print 'value of the self.circle_loop_shift', self.circle_loop_shift[ind]
+                    
+                elif i_circle_number_shift == 1:
+                    print 'print the second layer', self.number_circle_shift[ind][i_circle_number_shift]
+                    for i_index in sp.arange(self.number_circle_shift[ind][i_circle_number_shift]):
+                        self.x_central = self.x_position_vl_shift[ind][i_index + 1]
+                        self.y_central = self.y_position_vl_shift[ind][i_index + 1]
+                        #print 'x_central for shift', x_central
+                        self.x_position_shift[ind][determine_generate_shift] = self.x_central
+                        self.y_position_shift[ind][determine_generate_shift] = self.y_central
+                        index_position_shift += 1
+                        determine_generate_shift += 1
+                    i_circle_number_shift += 1
+                    number_fiber_in_loop_shift[ind] = number_fiber_in_loop_shift[ind] - self.number_circle_shift[ind][i_circle_number_shift - 1]
+                    
+                elif i_circle_number_shift > 1 and i_circle_number_shift < self.circle_loop_shift[ind] - 1:
+                    
+                    location_number_shift[ind] = sp.empty(self.each_circle_zone_num_shift[ind][i_circle_number_shift], int)
+                    for i_index in sp.arange(self.each_circle_zone_num_shift[ind][i_circle_number_shift]):
+                        if i_index == 0:
+                            a_position = np.random.uniform(index_position_shift, 
+                                        index_position_shift + self.number_circle_shift[ind][i_circle_number_shift])
+                            random_position = int(a_position)
+                            location_number_shift[ind][i_index] = random_position
+                            a = random_position 
+                            b = random_position
+                            self.x_central = self.x_position_vl_shift[ind][a]#index_position + random_position]
+                            self.y_central = self.y_position_vl_shift[ind][b]#index_position + random_position]
+                            self.x_position_shift[ind][determine_generate_shift] = self.x_central
+                            self.y_position_shift[ind][determine_generate_shift] = self.y_central
+                            determine_generate_shift += 1
+                            print 'determine value when layer is larger than 2', determine_generate_shift
+                            #index += 5
+                        else:
+                            a_position = np.random.uniform(index_position_shift, 
+                                        index_position_shift + self.number_circle_shift[ind][i_circle_number_shift])
+                            random_position = int(a_position)
+                            determine_value = (random_position == location_number_shift[ind])
+                            while determine_value.any() == True:
+                                a_position = np.random.uniform(index_position_shift, 
+                                            index_position_shift + self.number_circle_shift[ind][i_circle_number_shift])
+                                random_position = int(a_position)
+                                determine_value = (random_position == location_number_shift[ind])
+                            else:
+                                location_number_shift[ind][i_index] = random_position#.append(random_position)
+                                self.x_central = self.x_position_vl_shift[ind][random_position]
+                                self.y_central = self.y_position_vl_shift[ind][random_position]
+                                self.x_position_shift[ind][determine_generate_shift] = self.x_central
+                                self.y_position_shift[ind][determine_generate_shift] = self.y_central
+                                determine_generate_shift += 1
+                                print 'etermine value when the layer is larger 2_1', determine_generate_shift
+                                
+                    index_position_shift += self.number_circle_shift[ind][i_circle_number_shift]
+                    number_fiber_in_loop_shift[ind] = number_fiber_in_loop_shift[ind] - self.each_circle_zone_num_shift[ind][i_circle_number_shift]
+                    i_circle_number_shift += 1
+                    print 'how many fibers are left', number_fiber_in_loop_shift[ind]
                     
                     
+                elif i_circle_number_shift == self.circle_loop_shift[ind] - 1:
+                    print 'the last layer', number_fiber_in_loop_shift[ind]
+                    location_number_shift[ind] = sp.empty(number_fiber_in_loop_shift[ind], int)
+                    for i_index in sp.arange(number_fiber_in_loop_shift[ind]):
+                        if i_index == 0:
+                            a_position = np.random.uniform(index_position_shift, 
+                                        index_position_shift + self.number_circle_shift[ind][i_circle_number_shift] )
+                            random_position = int(a_position)
+                            location_number_shift[ind][i_index] = random_position#.append(random_position)
+                            a = random_position
+                            b = random_position
+                            self.x_central = self.x_position_vl_shift[ind][a]#index_position + random_position]
+                            self.y_central = self.y_position_vl_shift[ind][b]#index_position + random_position]
+                            self.x_position_shift[ind][determine_generate_shift] = self.x_central
+                            self.y_position_shift[ind][determine_generate_shift] = self.y_central
+                            determine_generate_shift += 1
+                        else:
+                            a_position = np.random.uniform(index_position_shift, 
+                                        index_position_shift + self.number_circle_shift[ind][i_circle_number_shift])
+                            random_position = int(a_position)
+                            determine_value = (random_position == location_number_shift[ind])
+                            while determine_value.any() == True:
+                                a_position = np.random.uniform(index_position_shift, 
+                                            index_position_shift + self.number_circle_shift[ind][i_circle_number_shift])
+                                random_position = int(a_position)
+                                determine_value = (random_position == location_number_shift[ind])
+                            else:
+                                print 'the lengh of shift x position', len(self.x_position_shift[ind])
+                                print 'determine generate shift', determine_generate_shift
+                                location_number_shift[ind][i_index] = random_position#.append(random_position)
+                                self.x_central = self.x_position_vl_shift[ind][random_position]
+                                self.y_central = self.y_position_vl_shift[ind][random_position]
+                                self.x_position_shift[ind][determine_generate_shift] = self.x_central
+                                self.y_position_shift[ind][determine_generate_shift] = self.y_central
+                            determine_generate_shift += 1
+                    index_position_shift += self.number_circle_shift[ind][i_circle_number_shift]
+                    i_circle_number_shift += 1
+        print 'virtual location passed'
+        print self.x_position_shift[0]
         
         #take 50% numbers from each other
         self.number_vl_overlap = sp.empty(len(self.number_fiber_type))
+        for ind in sp.arange(len(self.blend)):
+            self.number_fiber_type[ind] = int(self.blend[ind] / 100. * self.number_fiber)
         for ind in sp.arange(len(self.number_fiber_type)):
             self.number_vl_overlap[ind] = int(self.number_fiber_type[ind] / 2.)
         print 'overlap value', self.number_vl_overlap
@@ -296,14 +541,14 @@ class Yarn2DOverlapping(object):
             self.position_half_shift[ind] = sp.empty(self.number_vl_overlap[ind])
             i_half = 0
             while i_half < self.number_vl_overlap[ind]:
-                a_position = np.random.uniform(1., total_number_fiber[ind] + 1.)
+                a_position = np.random.uniform(0., self.number_fiber_type[ind])
                 position_random = int(a_position)
                 if i_half == 0:
                     self.position_half[ind][i_half] = position_random
                 else:
                     determine_value = (position_random == self.position_half[ind])
                     while determine_value.any() == True:
-                        a_position = np.random.uniform(1, total_number_fiber[ind] + 1.)
+                        a_position = np.random.uniform(0., self.number_fiber_type[ind])
                         position_random = int(a_position)
                         determine_value = (position_random == self.position_half[ind])
                     else:
@@ -313,14 +558,14 @@ class Yarn2DOverlapping(object):
             
             i_half_1 = 0
             while i_half_1 < self.number_vl_overlap[ind]:
-                b_position = np.random.uniform(1.,total_number_fiber_shift[ind] + 1.)
+                b_position = np.random.uniform(0.,self.number_fiber_type[ind])
                 position_random = int(b_position)
                 if i_half_1 == 0:
                     self.position_half_shift[ind][i_half_1] = position_random
                 else:
                     determine_value = (position_random == self.position_half_shift[ind])
                     while determine_value.any() == True:
-                        b_position = np.random.uniform(1, total_number_fiber_shift[ind] + 1.)
+                        b_position = np.random.uniform(0., self.number_fiber_type[ind])
                         position_random = int(b_position)
                         determine_value = (position_random == self.position_half_shift[ind])
                     else:
@@ -335,17 +580,19 @@ class Yarn2DOverlapping(object):
         for index in sp.arange(self.number_vl_overlap[0]):
             a_ind = self.position_half[0][index]
             b_ind = self.position_half_shift[0][index]
-            x_position_random_1[index] = self.x_position_vl[0][a_ind]
-            y_position_random_1[index] = self.y_position_vl[0][a_ind]
-            x_position_random_1_shift[index] = self.x_position_vl_shift[0][b_ind]
-            y_position_random_1_shift[index] = self.y_position_vl_shift[0][b_ind]
-        print x_position_random_1
-        """
+            print 'a_ind', a_ind
+            print 'b_ind', b_ind
+            x_position_random_1[index] = self.x_position[0][a_ind]
+            y_position_random_1[index] = self.y_position[0][a_ind]
+            x_position_random_1_shift[index] = self.x_position_shift[0][b_ind]
+            y_position_random_1_shift[index] = self.y_position_shift[0][b_ind]
+        print x_position_random_1_shift
+        
         plt.plot(x_position_random_1, y_position_random_1, 'o',
             x_position_random_1_shift, y_position_random_1_shift, 's')
         plt.axis([-1,1, -1, 1])
         plt.show()
-        """
+        
     def create_circle_domain_gmesh(self, filename='yarn_new_1.geo', 
                                    filename1 = 'fib_centers_x_new1.geo',
                                    filename2 = 'fib_centers_y_new1.geo',

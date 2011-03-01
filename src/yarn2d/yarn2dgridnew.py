@@ -299,7 +299,7 @@ class Yarn2dNewGrid(object):
                                                 self.x_central, self.y_central - self.radius_fiber[0],
                                                 self.z, self.cellsize_centre))
                                 index += 5
-                                de termine_generate += 1
+                                determine_generate += 1
                     index_position += self.number_circle[i_circle_number]
                     number_fiber_in_loop = number_fiber_in_loop - self.each_circle_zone_num[i_circle_number]
                     i_circle_number += 1
