@@ -67,6 +67,10 @@ class Yarn2dGrid(object):
         self.cellsize_centre = self.cfg.get('domain.cellsize_centre')
         self.cellSize = self.cfg.get('domain.cellsize_fiber')
         self.number_fiber = self.cfg.get('fiber.number_fiber')
+        self.blend = self.cfg.get('fiber.blend')
+        self.number_fiber_blend = [val/100*self.number_fiber for val in self.blend]
+        self.number_fiber_blend[-1] = self.number_fiber - sum(self.number_fiber_blend[:-1])
+        print 'fibers per blend', self.number_fiber_blend,' total', self.number_fiber
         
         self.verbose = self.cfg.get('general.verbose')
 
