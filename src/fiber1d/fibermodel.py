@@ -83,7 +83,9 @@ class FiberModel(object):
         self.fiber_diff = self.cfg.get('fiber.internal_diffusion')
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
-        self.steps = self.time_period // self.delta_t
+        self.steps = (self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t
+        self.times = sp.linspace(0, self.time_period, self.steps + 1)
+        self.delta_t = self.times[1] - self.times[0]
         #read the initial and boundary information for fiber
         self.n_edge = self.cfg.get('fiber.n_edge') #discretize the fiber radius
         self.bound_left = BOUND_TYPE[self.cfg.get('boundary.type_left')]
@@ -384,8 +386,6 @@ class FiberModel(object):
         discretize the right side of equation. The mesh in this 1-D condition is 
         uniform
         """
-        discretization_t = self.steps + 1
-        self.times = sp.linspace(0, self.time_period, discretization_t)
         if self.submethod == 'fipy':
             self.solve_fipy()
         else:            
@@ -398,8 +398,8 @@ class FiberModel(object):
             elif self.submethod == 'odeu':
                 self.solve_odeu()
         self.fiber_surface = sp.empty(len(self.times), float)
-        for i in sp.arange(1,len(self.times) + 1,1):
-            self.fiber_surface[i - 1] = self.conc1[i - 1][-1]
+        for i in sp.arange(0,len(self.times),1):
+            self.fiber_surface[i] = self.conc1[i][-1]
 
     def view_sol(self, times, conc):
         """

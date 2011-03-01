@@ -46,7 +46,6 @@ from mycorrection import MyDiffusionTermNoCorrection
 from yarn2dgrid import Yarn2dGrid
 #from yarn2dgridnew import Yarn2dNewGrid
 #from yarn2d_overlap import Yarn2DOverlapping
-from yarn2dfiber import Yarn2dFiber
 from fiber1d.config import Fiber1dConfigManager
 from fiber1d.fibermodel import FiberModel
 
@@ -81,7 +80,9 @@ class Yarn2DModel(object):
         self.cfg = config
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
-        self.steps = self.time_period / self.delta_t
+        self.steps = (self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t
+        self.times = sp.linspace(0, self.time_period, self.steps + 1)
+        self.delta_t = self.times[1] - self.times[0]
         self.Ry = self.cfg.get('domain.yarnradius')
         self.scaleL = 1./self.Ry #get the scale factor for relative domain
         self.Rf = self.cfg.get('fiber.radius_fiber')
@@ -91,6 +92,7 @@ class Yarn2DModel(object):
         self.blend = self.cfg.get('fiber.blend')
         self.scaleL = 1./self.Ry #get the scale factor for relative domain
         self.nrtypefiber = self.cfg.get('fiber.number_type')
+        assert self.nrtypefiber == len(self.blend) == len(self.Rf)
         #computational radius
         self.cfg_fiber = []
         for filename in self.cfg.get('fiber.fiber_config'):
@@ -109,8 +111,6 @@ class Yarn2DModel(object):
             self.fiber_models.append(FiberModel(cfg))
 
         self.verbose = self.cfg.get('general.verbose')
-        #self.choosing_kind = []
-        #self.choosing_kind.append(Yarn2dFiber(cfg))
     
     def create_mesh(self):
         """
@@ -128,18 +128,6 @@ class Yarn2DModel(object):
         
         #self.center = Yarn2DOverlapping(self.cfg)
         #self.virtual_location_center = self.center.determine_centers()
-                            
-    def determine_fiber(self):
-        """
-        Create a determine file for choosing fiber kinds
-        """
-        #for model in self.choosing_kind:
-        #model.run()        
-        
-        self.determine = Yarn2dFiber(self.cfg)
-        self.choosing_kind = self.determine.create_fiber_kinds(filename = 'determine_kinds.dat', 
-                                                        regenerate = not self.cfg.get('general.read'))
-        #print 'read the value for fiber kinds', int(self.choosing_kind)
     
     def initial_yarn2d(self):
         self.init_conc = self.cfg.get('initial.init_conc')
@@ -162,6 +150,13 @@ class Yarn2DModel(object):
         """
         for model in self.fiber_models:
             model.run()
+            #times of the models must coincide at the moment as later on we do
+            #conc_on_fib[nyfib] = self.fiber_models[nyfib].fiber_surface[i+1]
+            #we should interpolate to avoid that
+            print self.times, len(self.times)
+            print model.times, len(model.times)
+            test = self.times == model.times
+            assert test.all()
 
     def solve_single_component(self):
         """
@@ -185,54 +180,37 @@ class Yarn2DModel(object):
         face_in = ((self.mesh2d.getExteriorFaces()) & 
                     (sp.power(xfc,2) + sp.power(yfc,2) \
                         < (self.grid.radius_domain - self.grid.radius_boundlayer)**2))
-        filepath = utils.OUTPUTDIR + os.sep + 'fib_centers_x.geo'
-        filepath1 = utils.OUTPUTDIR + os.sep + 'fib_centers_y.geo'
-        filepath2 = utils.OUTPUTDIR + os.sep + 'determine_kinds.dat'
         filepath3 = utils.OUTPUTDIR + os.sep + 'index_fiber.dat'
         filepath4 = utils.OUTPUTDIR + os.sep + 'yarn_out.gz'
-        self.fib_centers_x = open(filepath, 'r')
-        self.fib_centers_y = open(filepath1, 'r')
-        self.fib_x = eval(self.fib_centers_x.read())
-        self.fib_centers_x.close()
-        self.fib_y = eval(self.fib_centers_y.read())
-        self.fib_centers_y.close()
-        self.deter_file = open(filepath2, 'r')
-        self.deter_value1 = sp.empty(self.number_fiber)
-        for i in sp.arange(len(self.deter_value1)):
-            self.deter_value1[i] = eval(self.deter_file.readline())
-        self.index_fiber = open(filepath3, 'r')
-        self.index_value = sp.empty(self.number_fiber, int)
-        for i in sp.arange(len(self.index_value)):
-            self.index_value[i] = eval(self.index_fiber.readline())
-        self.deter_file.close()
-        self.index_fiber.close()
-        type_determine = sp.empty(self.number_fiber, bool)
-        i_type = 0
+        self.fib_x = self.grid.x_position
+        self.fib_y = self.grid.y_position
+        self.all_fib_radius = self.grid.all_radius_fibers
+        self.fiber_kind = self.grid.fiber_kind
+        #we need to determine which fibers are of a specific kind
         self.fibers = []
-        while i_type < self.nrtypefiber:
-            for i_index in sp.arange(self.number_fiber):
-                if self.deter_value1[i_index] == i_type:
-                    type_determine[i_index] = True
-                else:
-                    type_determine[i_index] = False
-            print 'each time for determine', type_determine
-            fiber_nrtype = self.index_value[type_determine]
-            print 'the position of each kind fiber', fiber_nrtype
-            self.fibers.append(fiber_nrtype)
-            i_type += 1 
-        eps_fib = sp.empty(len(self.radius_fiber))
-        for index_1 in sp.arange(len(eps_fib)):
-            eps_fib[index_1] = self.radius_fiber[index_1] * self.eps_value
+        for nyfib in sp.arange(self.nrtypefiber):
+            self.fibers += [self.fiber_kind == nyfib]
+        #we need to determine which indexes of the fiber are of specific kind
+        all_indexes = sp.arange(self.number_fiber)
+        self.index_fiber = []
+        for nyfib in sp.arange(self.nrtypefiber):
+            self.index_fiber += [all_indexes[self.fibers[nyfib]]]
+
+        #now determine boundaries
+        #outside
         self.ext_bound = ((self.mesh2d.getExteriorFaces()) & 
                     (sp.power(xfc,2) + sp.power(yfc,2) \
                         < (self.grid.radius_domain - self.grid.radius_boundlayer)**2))
+        
+        #we need to determine which nodes in the mesh are surface of 
+        #of a certain fiber kind and create the inner boundary
+        eps_fib = [val * self.eps_value for val in self.radius_fiber]
         self.int_bound = []
         for nyfib in sp.arange(self.nrtypefiber):
-            tmp = np.empty(len(face_in), bool)
-            tmp[:] = False
-            for fib in self.fibers[nyfib]:
+            tmp = np.zeros(len(face_in), bool)
+            for fib in self.index_fiber[nyfib]:
                 tmp = (((self.mesh2d.getExteriorFaces()) &
-                    (sp.power(xfc - self.fib_x[fib-1], 2) + sp.power(yfc - self.fib_y[fib-1], 2)\
+                    (sp.power(xfc - self.fib_x[fib], 2) + sp.power(yfc - self.fib_y[fib], 2)\
                     <= (self.radius_fiber[nyfib] + eps_fib[nyfib])**2)) | (tmp))
             self.int_bound.append(tmp)
         face_ex = (~face_in) & (self.mesh2d.getExteriorFaces())
@@ -240,16 +218,10 @@ class Yarn2DModel(object):
         filename1 = 'concentration_out.gz'
         filepath1 = utils.OUTPUTDIR + os.sep + filename1
         conc1_out_yarn = sp.zeros(self.steps, float)
-##        #calculate the bed net part
-##        n_point_net = int(self.yarn_length / self.net_width) + 1
-##        delta_effect = self.domain_effect / self.dis_effect
-##        self.distance_yarn = sp.empty(4 * n_point_net, float)
         conc_on_fib = sp.empty(self.nrtypefiber)
         flux_in_fib = sp.empty(self.nrtypefiber)
-        #* None
-        #loss to outside of yarn is 0.01 conc at outside
+
         ## TODO: IMPROVE THIS BC
-        self.times = sp.empty(self.steps, float)
         conc1_out_yarn = []
         value_face_out = np.empty(len(face_ex), float)
         determine_out = np.empty(len(face_ex), bool)
@@ -257,13 +229,14 @@ class Yarn2DModel(object):
             BCs = []
             BCs.append(FixedFlux(face_ex, value = 0.0))
             for nyfib in sp.arange(self.nrtypefiber):
-                conc_on_fib[nyfib] = self.fiber_models[nyfib].fiber_surface[i+1]
+                print self.steps, i, len(self.fiber_models[nyfib].fiber_surface)
+                conc_on_fib[nyfib] = (self.fiber_models[nyfib].fiber_surface[i] +
+                                self.fiber_models[nyfib].fiber_surface[i+1]) / 2
                 flux_in_fib[nyfib] = self.fiber_models[nyfib].boundary_transf_right * conc_on_fib[nyfib]
                 BCs.append(FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib]))#[nyfib + 1] = FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib])
             self.initial_t += self.delta_t
             self.eq.solve(var = self.conc, boundaryConditions = tuple(BCs), dt = self.delta_t, )
             print 'time = ', (i+1) * self.delta_t
-            self.times[i] = (i + 1) * self.delta_t
             self.conc_tot_each = self.conc.getValue()
             self.conc_face_ex = self.conc.getArithmeticFaceValue()
             for i_out in sp.arange(len(face_ex)):
@@ -293,8 +266,6 @@ class Yarn2DModel(object):
     
     def run(self):        
         self.create_mesh()
-        self.determine_fiber()
         self.initial_yarn2d()
         self.solve_fiber()
         self.solve_single_component()
-        

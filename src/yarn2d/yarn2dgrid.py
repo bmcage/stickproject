@@ -67,35 +67,37 @@ class Yarn2dGrid(object):
         
         self.verbose = self.cfg.get('general.verbose')
 
-    def create_circle_domain_gmsh(self, filename='yarn.geo', filename1 = 'fib_centers_x.geo',
-        filename2 = 'fib_centers_y.geo' ,regenerate=True):
+    def create_circle_domain_gmsh(self, filename='yarn.geo', 
+            layoutfile = 'layout.dat', regenerate=True):
         """
         Create gmsh file with the circle domain of yarn and the fibers in it
         returns string with defenition, path to file
+        Layout is dumped to layout.dat
         """
         filepath = utils.OUTPUTDIR + os.sep + filename
-        filepath1 = utils.OUTPUTDIR + os.sep + filename1
-        filepath2 = utils.OUTPUTDIR + os.sep + filename2
         start = time.clock()
         self.x_central = 0.
         self.y_central = 0.
         self.z = 0.
         
         if not regenerate:
+            npzfile = np.load(utils.OUTPUTDIR + os.sep + layoutfile)
+            self.x_position = npzfile['fib_centers_x'], 
+            self.y_position = npzfile['fib_centers_y'],
+            self.all_radius_fibers = npzfile['fib_radius'],
+            self.fiber_kind = npzfile['fiber_kind']
             circledef = open(filepath, "r").readlines()
         else:
             #first determine the different centerpoints of the fibers
             if self.fiberlayout == 'random':
-                self.x_position, self.y_position, self.all_radius_fibers = \
-                    randomfiberlayout(self)
+                self.x_position, self.y_position, self.all_radius_fibers, \
+                    self.fiber_kind = randomfiberlayout(self)
             else:
                 print 'ERROR: not implemented fiberlayout %s' % self.fiberlayout
                 sys.exit(0)
             
             #write data to files
             self.circle_file = open(filepath, "w")
-            self.fib_centers_x = open(filepath1, "w")
-            self.fib_centers_y = open(filepath2, "w")
             index = 1
             self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
                                     self.x_central, self.y_central, self.z, 
@@ -180,33 +182,42 @@ class Yarn2dGrid(object):
             self.circle_file.flush()
             os.fsync(self.circle_file)
             self.circle_file.close()
-            self.fib_centers_x.write(repr(self.x_position))
-            self.fib_centers_y.write(repr(self.y_position))
-            self.fib_centers_x.close()
-            self.fib_centers_y.close()
+            #dump the layout to disk
+            self.x_position, self.y_position, self.all_radius_fibers, \
+                    self.fiber_kind
+            np.savez(utils.OUTPUTDIR + os.sep + layoutfile, 
+                     fib_centers_x=self.x_position, 
+                     fib_centers_y=self.y_position,
+                     fib_radius=self.all_radius_fibers,
+                     fiber_kind=self.fiber_kind)
             circledef = open(filepath, "r").readlines()
         return '\n'.join(circledef)
     
-    def mesh_2d_generate(self, filename='yarn.geo', filename1 = 'fib_centers_x.geo',
-        filename2 = 'fib_centers_y.geo' ,regenerate=True):
+    def mesh_2d_generate(self, filename='yarn.geo', regenerate=True):
         """
         Return a Gmsh2D object from Fipy for the yarn 2D grid
         The gmsh file is written to filename.
         If regenerate is True, it is looked if the file already exists, and if
         so, the file is reused instead of generated.
         """
-        self.mesh = Gmsh2D(self.create_circle_domain_gmsh(filename, filename1, filename2,
-                            regenerate))
+        self.mesh = Gmsh2D(self.create_circle_domain_gmsh(filename,
+                            regenerate=regenerate))
         return self.mesh
 
 def randomfiberlayout(options):
-    """ Generate list of center points of the fibers in random fashion
+    """ Generate the fiber layout in the yarn in random fashion
     Options should contain attributes:
         number_fiber : amount of fibers to generate
         x_central: central point, 0. otherwise
         y_central: central point, 0. otherwise
         radius_yarn
         radius_fiber: array of length 1 with radius of the fiber
+    
+    Returns a tuple 
+        (list of x coord center points,
+         list of y coord center points,
+         list of radius of fiber,
+         list integers indicating kind of fiber)
     """
     #check options
     if hasattr(options, 'x_central'):
@@ -226,6 +237,7 @@ def randomfiberlayout(options):
     x_position = sp.empty(options.number_fiber, float)
     y_position = sp.empty(options.number_fiber, float)
     radius_fiber = sp.empty(options.number_fiber, float)
+    fiber_kind = sp.zeros(options.number_fiber, int)
 
     for i in sp.arange(0, options.number_fiber, 1):
         #generate the position of fiber
@@ -250,4 +262,4 @@ def randomfiberlayout(options):
             x_position[i] = a
             y_position[i] = b
             radius_fiber[i] = options.radius_fiber[0]
-    return (x_position, y_position, radius_fiber)
+    return (x_position, y_position, radius_fiber, fiber_kind)
