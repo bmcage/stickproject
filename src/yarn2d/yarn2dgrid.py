@@ -40,7 +40,7 @@ import time
 #-------------------------------------------------------------------------
 import lib.utils.utils as utils
 from fipy import Gmsh2D
-
+from yarn2d.config import FIBERLAYOUTS
 
 #-------------------------------------------------------------------------
 #
@@ -52,6 +52,9 @@ class Yarn2dGrid(object):
     def __init__(self, cfg):
         self.cfg = cfg
         self.fiberlayout = self.cfg.get('domain.fiberlayout_method')
+        if not (self.fiberlayout in FIBERLAYOUTS):
+            print 'ERROR: unkown fiber layout method %s' % self.fiberlayout
+            sys.exit(0)
         
         self.Ry = self.cfg.get('domain.yarnradius')
         self.Rf = self.cfg.get('fiber.radius_fiber')
@@ -90,12 +93,18 @@ class Yarn2dGrid(object):
         else:
             #first determine the different centerpoints of the fibers
             if self.fiberlayout == 'random':
-                self.x_position, self.y_position, self.all_radius_fibers, \
-                    self.fiber_kind = randomfiberlayout(self)
+                layoutfun = randomfiberlayout
+            elif self.fiberlayout == 'virtloc':
+                layoutfun = virtloclayout
+            elif self.fiberlayout == 'virtlocoverlap':
+                layoutfun = virtlocoverlaplayout
             else:
                 print 'ERROR: not implemented fiberlayout %s' % self.fiberlayout
                 sys.exit(0)
             
+            self.x_position, self.y_position, self.all_radius_fibers, \
+                    self.fiber_kind = layoutfun(self)
+    
             #write data to files
             self.circle_file = open(filepath, "w")
             index = 1
@@ -263,3 +272,9 @@ def randomfiberlayout(options):
             y_position[i] = b
             radius_fiber[i] = options.radius_fiber[0]
     return (x_position, y_position, radius_fiber, fiber_kind)
+
+def virtloclayout(options):
+    raise NotImplementedError
+
+def virtlocoverlaplayout(options):
+    raise NotImplementedError

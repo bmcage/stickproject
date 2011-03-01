@@ -50,6 +50,12 @@ METHOD = {
     'FVM': ('Finite Volume Method discretization', ['fipy']),
     }
 
+FIBERLAYOUTS = {
+    'random': ('random position of fibers in the yarn',),
+    'virtloc': ('default virtual locations (start in center, no overlap)',),
+    'virtlocoverlap': ('adapted virtual locations (different fiber size, overlap)',),
+    }
+
 #possible fiber materials, map to diff coeff of components
 YARN_MAT = {
     'YARN_1': ([0.015], ),
@@ -94,6 +100,7 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("domain.cellsize_centre", 5.0e-2)
         self.register("domain.cellsize_fiber", 5.0e-2)
         self.register("domain.yarnradius", 1.)
+        self.register("domain.fiberlayout_method", 'random')
         self.register("domain.theta_value", 0.05)
         self.register("domain.beta_value", 1.2)
 

@@ -64,8 +64,9 @@ class Yarn2dNewGrid(object):
         
         self.verbose = self.cfg.get('general.verbose')
         
-    def create_circle_domain_gmesh(self, filename='yarn_new.geo', filename1 = 'fib_centers_x_new.geo',
-        filename2 = 'fib_centers_y_new.geo' ,regenerate=True):
+    def create_circle_domain_gmesh(self, filename='yarn_new.geo', 
+                    filename1 = 'fib_centers_x_new.geo',
+                    filename2 = 'fib_centers_y_new.geo' ,regenerate=True):
         filepath = utils.OUTPUTDIR + os.sep + filename
         filepath1 = utils.OUTPUTDIR + os.sep + filename1
         filepath2 = utils.OUTPUTDIR + os.sep + filename2

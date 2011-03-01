@@ -153,8 +153,6 @@ class Yarn2DModel(object):
             #times of the models must coincide at the moment as later on we do
             #conc_on_fib[nyfib] = self.fiber_models[nyfib].fiber_surface[i+1]
             #we should interpolate to avoid that
-            print self.times, len(self.times)
-            print model.times, len(model.times)
             test = self.times == model.times
             assert test.all()
 
@@ -229,7 +227,6 @@ class Yarn2DModel(object):
             BCs = []
             BCs.append(FixedFlux(face_ex, value = 0.0))
             for nyfib in sp.arange(self.nrtypefiber):
-                print self.steps, i, len(self.fiber_models[nyfib].fiber_surface)
                 conc_on_fib[nyfib] = (self.fiber_models[nyfib].fiber_surface[i] +
                                 self.fiber_models[nyfib].fiber_surface[i+1]) / 2
                 flux_in_fib[nyfib] = self.fiber_models[nyfib].boundary_transf_right * conc_on_fib[nyfib]
