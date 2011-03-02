@@ -292,7 +292,18 @@ def randomfiberlayout(options):
     return (x_position, y_position, radius_fiber, fiber_kind)
 
 def virtloclayout(options):
-    raise NotImplementedError
+    """ Generate the fiber layout in the yarn in virtual locations
+    Options should contain attributes:
+        number_fiber : amount of fibers to generate
+        radius_yarn
+        radius_fiber: array of length 1 with radius of the fiber
+    
+    Returns a tuple 
+        (list of x coord center points,
+         list of y coord center points,
+         list of radius of fiber,
+         list integers indicating kind of fiber)
+    """
 
 def virtlocoverlaplayout(options):
     raise NotImplementedError

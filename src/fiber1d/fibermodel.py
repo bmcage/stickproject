@@ -195,14 +195,10 @@ class FiberModel(object):
         
         for i in sp.arange(len(self.grid)):
             determine_porosity = (i + 1) * self.grid[i]
-            print 'surf', self.surf
-            print self.grid[i]
             if determine_porosity < self.surf[0]:
-                self.porosity_domain[i] = 0.2
-                print self.porosity_domain[i]
+                self.porosity_domain[i] = self.porosity_in
             else:
                 self.porosity_domain[i] = self.porosity_layer
-                print self.porosity_domain[i]
         print 'initial mass = ', self.calc_mass(self.initial_c1)
 
     def calc_mass(self, conc_r):
@@ -211,7 +207,7 @@ class FiberModel(object):
         
         conc_r: concentration in self.grid
         """
-        return sp.sum(conc_r *  self.grid* self.delta_r) * 2. * sp.pi 
+        return sp.sum(conc_r * self.grid* self.delta_r * self.porosity_domain) * 2. * sp.pi 
         
     def _set_bound_flux(self, flux_edge, w_rep):
         """
@@ -271,7 +267,7 @@ class FiberModel(object):
                     * self.grid_edge[1:-1] \
                     * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
                     / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
-        diff_w_t[:]=(flux_edge[1:]-flux_edge[:-1])/self.delta_r[:]
+        diff_w_t[:]=(flux_edge[1:]-flux_edge[:-1])/self.delta_r[:] / self.porosity_domain[:]
         return diff_w_t
     
     def f_conc1_odeu(self, t, conc_r):
@@ -324,7 +320,6 @@ class FiberModel(object):
             tstep += 1
             self.conc1[tstep][:] = r.y / self.grid
             #print 'mass = ', self.calc_mass(self.conc1[tstep])
-            print self.conc1[tstep][-1]
         self.view_sol(self.times, self.conc1)
         
     def solve_odeu(self):
@@ -341,7 +336,6 @@ class FiberModel(object):
             tstep += 1
             self.conc1[tstep][:] = r.y 
             #print 'mass = ', self.calc_mass(self.conc1[tstep])
-            print self.conc1[tstep][-1]
         self.view_sol(self.times, self.conc1)
        
 
@@ -349,8 +343,8 @@ class FiberModel(object):
         #using fipy to solve 1D problem in fiber
         self.solution_fiber = CellVariable(name = "fiber concentration", 
                                 mesh = self.mesh_fiber,
-                                value = self.initial_c1, hasOld = 1)
-        self.viewer =  Viewer(vars = self.solution_fiber, datamin=0., datamax= 1.1)
+                                value = self.initial_c1 * self.porosity_domain, hasOld = 1)
+        self.viewer =  Viewer(vars = self.solution_fiber / self.porosity_domain, datamin=0., datamax= 1.1)
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
 
         if self.bound_left == FLUX and self.bound_right == FLUX:
@@ -371,8 +365,8 @@ class FiberModel(object):
         ##      FaceVariable already not be better?
         self.eqX_fiber = TransientTerm() == DiffusionTerm(coeff = 
                             self.diffusion_coeff * 
-                            sp.exp(-self.diffusion_exp_fact * self.solution_fiber)*
-                            self.porosity_domain)
+                            sp.exp(-self.diffusion_exp_fact * self.solution_fiber / self.porosity_domain)*
+                            self.porosity_domain) 
         tstep = 0
         self.conc1[tstep][:] = self.initial_c1[:]
         for time in self.times[1:]:
@@ -387,7 +381,6 @@ class FiberModel(object):
             #            filename = utils.OUTPUTDIR + os.sep + 'fipy_t1.gz', extension = '.gz')
             #    print 'finish file'
             #print 'mass = ', self.calc_mass(self.conc1[tstep])
-            print self.conc1[tstep][-1]
 
     def solve_fipy_step(self):
         res = 1e+1
