@@ -102,14 +102,14 @@ class Fiber1dConfigManager(ConfigManager):
         self.register("fiber.diffusion_polymer_exp_factor", 0.)
         self.register("fiber.n_edge", 41)
         self.register("fiber.init_conc", 'lambda x: 0.')
-        self.register("fiber.porosity_in", 20.)
-        self.register("fiber.percentage_active", 2.2)
+        self.register("fiber.porosity_in", 0.2)
+        self.register("fiber.percentage_active", 1.0)
 
         self.register("fiberlayer_0.n_edge", 41)
         self.register("fiberlayer_0.thickness", 0.0017)
         self.register("fiberlayer_0.diffusion_coef", 5.2e-9)
         self.register("fiberlayer_0.init_conc", 'lambda x: 0.70')
-
+        self.register("fiberlayer_0.porosity_layer", 1.0)
 
         self.register("boundary.type_left", 'flux')
         self.register("boundary.type_right", 'flux')

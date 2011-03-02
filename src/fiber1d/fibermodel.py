@@ -93,6 +93,8 @@ class FiberModel(object):
         self.boundary_fib_left = self.cfg.get('boundary.boundary_fib_left')
         self.boundary_fib_right = self.cfg.get('boundary.boundary_fib_right')
         self.boundary_transf_right = self.cfg.get('boundary.transfer_right')
+        #self.porosity_in = self.cfg.get('fiber.porosity_in')
+        self.porosity_layer = self.cfg.get('fiberlayer_0.porosity_layer')
         
         self.verbose = self.cfg.get('general.verbose')
 
@@ -146,6 +148,7 @@ class FiberModel(object):
         for nr, right in zip(n_edge, self.surf):
             if nr:
                 if first:
+                    #left = 0.
                     self.grid_edge[totnr:totnr+nr] = sp.linspace(left, right, nr)
                     totnr += nr
                 else:
@@ -174,6 +177,7 @@ class FiberModel(object):
         self.initial_c1 = sp.empty(self.tot_edges-1, float)
         self.diffusion_coeff = sp.empty(self.tot_edges-1, float)
         self.diffusion_exp_fact = sp.empty(self.tot_edges-1, float)
+        self.porosity_domain = sp.empty(self.tot_edges - 1, float)
         st = 0
         surf = self.surf[st]
         for i, pos in enumerate(self.grid):
@@ -182,13 +186,23 @@ class FiberModel(object):
                 surf = self.surf[st]
             if st == 0:
                 self.initial_c1[i] = self.init_conc[st](pos) * \
-                                            (self.porosity_in / 100.) * \
+                                            (self.porosity_in) * \
                                             (self.percentage_active / 100.)
             else:
                 self.initial_c1[i] = self.init_conc[st](pos)
             self.diffusion_coeff[i] = self.diff_coef[st]
             self.diffusion_exp_fact[i] = self.diff_exp_fact[st]
-
+        
+        for i in sp.arange(len(self.grid)):
+            determine_porosity = (i + 1) * self.grid[i]
+            print 'surf', self.surf
+            print self.grid[i]
+            if determine_porosity < self.surf[0]:
+                self.porosity_domain[i] = 0.2
+                print self.porosity_domain[i]
+            else:
+                self.porosity_domain[i] = self.porosity_layer
+                print self.porosity_domain[i]
         print 'initial mass = ', self.calc_mass(self.initial_c1)
 
     def calc_mass(self, conc_r):
@@ -213,8 +227,12 @@ class FiberModel(object):
             flux_edge[-1] = self.boundary_fib_right *  self.grid_edge[-1]
         else:
             # a transfer coeff to the right
-            flux_edge[-1] = -self.boundary_transf_right * w_rep[-1] + self.diffusion_coeff[-1] * \
-                            sp.exp(-self.diffusion_exp_fact[-1] * w_rep[-1]/self.grid[-1])*w_rep[-1]/self.grid[-1]
+            ## Tine is this correct ??
+            #flux_edge[-1] = -self.boundary_transf_right * w_rep[-1]* \
+            #                self.porosity_domain[-1] + self.diffusion_coeff[-1] * \
+            #                self.porosity_domain[-1] * sp.exp(-self.diffusion_exp_fact[-1] * w_rep[-1]/self.grid[-1])*w_rep[-1]/self.grid[-1]
+            flux_edge[-1] = -self.boundary_transf_right * w_rep[-1] * \
+                            self.porosity_domain[-1]
 
     def _set_bound_fluxu(self, flux_edge, conc_r):
         """
@@ -246,9 +264,9 @@ class FiberModel(object):
         self._set_bound_flux(flux_edge, w_rep)
         #Diffusion coefficient changes with the concentration changing
         #calculate flux rate in each edge of the domain
-        flux_edge[1:-1] = (self.diffusion_coeff[:-1] * \
+        flux_edge[1:-1] = (self.porosity_domain[:-1] * self.diffusion_coeff[:-1] * 
                             sp.exp(-self.diffusion_exp_fact[:-1] * w_rep[:-1]/self.grid[:-1]) \
-                         + self.diffusion_coeff[1:] * \
+                         + self.porosity_domain[1:] * self.diffusion_coeff[1:] * 
                             sp.exp(-self.diffusion_exp_fact[1:] * w_rep[1:]/self.grid[1:]))/2.\
                     * self.grid_edge[1:-1] \
                     * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
@@ -269,9 +287,9 @@ class FiberModel(object):
         self._set_bound_fluxu(flux_edge, conc_r)
         #Diffusion coefficient changes with the concentration changing
         #calculate flux rate in each edge of the domain
-        flux_edge[1:-1] = (self.diffusion_coeff[:-1] * \
+        flux_edge[1:-1] = (self.porosity_domain[:-1] * self.diffusion_coeff[:-1] * 
                             sp.exp(-self.diffusion_exp_fact[:-1] * conc_r[:-1]) \
-                         + self.diffusion_coeff[1:] * \
+                         + self.porosity_domain[1:] * self.diffusion_coeff[1:] * 
                             sp.exp(-self.diffusion_exp_fact[1:] * conc_r[1:]))/2.\
                     * self.grid_edge[1:-1] \
                     * (conc_r[1:] - conc_r[:-1])\
@@ -353,7 +371,8 @@ class FiberModel(object):
         ##      FaceVariable already not be better?
         self.eqX_fiber = TransientTerm() == DiffusionTerm(coeff = 
                             self.diffusion_coeff * 
-                            sp.exp(-self.diffusion_exp_fact * self.solution_fiber))
+                            sp.exp(-self.diffusion_exp_fact * self.solution_fiber)*
+                            self.porosity_domain)
         tstep = 0
         self.conc1[tstep][:] = self.initial_c1[:]
         for time in self.times[1:]:
