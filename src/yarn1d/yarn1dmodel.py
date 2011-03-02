@@ -195,7 +195,7 @@ class Yarn1DModel(object):
                     print 'time over endtime', t, '>', self.times[-1]
                     self.index_t_yarn = self.steps-1
                 else:
-                    print t, self.times
+                    print "ERROR t > endtime,", t, self.times
                     #raise exception, 'something wrong'
 
             self.cache_index_t_yarn = self.index_t_yarn
@@ -226,7 +226,7 @@ class Yarn1DModel(object):
             if self.index_t_fiber[nr] is None:
                 #no interval found
                 if t > self.timesteps[nr][-1]:
-                    print 'time over endtime', t, '>', self.timesteps[nr][-1]
+                    print 'ERROR: time over endtime', t, '>', self.timesteps[nr][-1]
                     self.index_t_fiber[nr] = self.nr_timesteps-1
                 else:
                     print nr, t, self.timesteps

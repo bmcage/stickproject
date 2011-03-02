@@ -68,7 +68,7 @@ class Yarn2dGrid(object):
         self.cellSize = self.cfg.get('domain.cellsize_fiber')
         self.number_fiber = self.cfg.get('fiber.number_fiber')
         self.blend = self.cfg.get('fiber.blend')
-        self.number_fiber_blend = [val/100*self.number_fiber for val in self.blend]
+        self.number_fiber_blend = [int(round(val/100*self.number_fiber)) for val in self.blend]
         self.number_fiber_blend[-1] = self.number_fiber - sum(self.number_fiber_blend[:-1])
         print 'fibers per blend', self.number_fiber_blend,' total', self.number_fiber
         
@@ -221,6 +221,7 @@ def randomfiberlayout(options):
     """ Generate the fiber layout in the yarn in random fashion
     Options should contain attributes:
         number_fiber : amount of fibers to generate
+        number_fiber_blend : number of fibers per blend type
         x_central: central point, 0. otherwise
         y_central: central point, 0. otherwise
         radius_yarn
@@ -242,15 +243,27 @@ def randomfiberlayout(options):
     else:
         y_central = 0.
 
-    if len(options.radius_fiber) > 1:
-        print 'ERROR: randomfiberlayout can only handle one type of fiber'
-        sys.exit()
+    ##if len(options.radius_fiber) > 1:
+    ##    print 'ERROR: randomfiberlayout can only handle one type of fiber'
+    ##    sys.exit()
 
     #allocate space
     x_position = sp.empty(options.number_fiber, float)
     y_position = sp.empty(options.number_fiber, float)
     radius_fiber = sp.empty(options.number_fiber, float)
-    fiber_kind = sp.zeros(options.number_fiber, int)
+    fiber_kind = sp.empty(options.number_fiber, int)
+    
+    #preset the radius_fiber. This algorithm does first the largest fibers,
+    #then the others
+    ind = sp.arange(options.number_fiber)
+    radius_fiber[:options.number_fiber_blend[0]] = options.radius_fiber[0]
+    fiber_kind[:options.number_fiber_blend[0]] = 0
+    for j in range(1, len(options.number_fiber_blend)):
+        assert options.radius_fiber[j] <= options.radius_fiber[j-1], \
+                'Give fibers in decreasing size in ini file'
+        radius_fiber[sum(options.number_fiber_blend[:j]):sum(options.number_fiber_blend[:j+1])]\
+            = options.radius_fiber[j]
+        fiber_kind[:options.number_fiber_blend[0]] = j
 
     for i in sp.arange(0, options.number_fiber, 1):
         #generate the position of fiber
@@ -261,9 +274,11 @@ def randomfiberlayout(options):
         #distance between the current point and existing points
         distance_each = sp.sqrt((a - x_position[:i])**2 + \
                                 (b - y_position[:i])**2)
-        while (distance_center + options.radius_fiber[0] >= options.radius_yarn or 
-               (i>0 and (np.min(distance_each)\
-                <= (2*options.radius_fiber[0])+ 0.001 * options.radius_fiber[0]))): 
+        while (distance_center + radius_fiber[i] >= options.radius_yarn or
+               (i>0 and not (( distance_each
+                >= (1.001*radius_fiber[i] + radius_fiber[:i])).all()))): 
+            #   (i>0 and (np.min(distance_each)\
+            #    <= (2*options.radius_fiber[0])+ 0.001 * options.radius_fiber[0]))):
             a = np.random.uniform(-1, 1)
             b = np.random.uniform(-1, 1)
             distance_center = sp.sqrt((a - x_central)**2 + \
@@ -274,7 +289,6 @@ def randomfiberlayout(options):
         else:
             x_position[i] = a
             y_position[i] = b
-            radius_fiber[i] = options.radius_fiber[0]
     return (x_position, y_position, radius_fiber, fiber_kind)
 
 def virtloclayout(options):
