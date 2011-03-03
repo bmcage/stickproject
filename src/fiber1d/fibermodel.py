@@ -215,12 +215,14 @@ class FiberModel(object):
         Data is written to flux_edge, w_rep contains solution in the cell centers
         """
         if self.bound_left == FLUX:
-            flux_edge[0] = -self.boundary_fib_left *  self.grid_edge[0]
+            flux_edge[0] = -self.boundary_fib_left +  self.diffusion_coeff[0] * \
+                            sp.exp(-self.diffusion_exp_fact[0] * w_rep[0]/self.grid[0])*w_rep[0]/self.grid[0]
         else:
             print 'ERROR: boundary type left not implemented'
             sys.exit(0)
         if self.bound_right == FLUX:
-            flux_edge[-1] = self.boundary_fib_right *  self.grid_edge[-1]
+            flux_edge[-1] = self.boundary_fib_right +  self.diffusion_coeff[-1] * \
+                            sp.exp(-self.diffusion_exp_fact[-1] * w_rep[-1]/self.grid[-1])*w_rep[-1]/self.grid[-1]
         else:
             # a transfer coeff to the right
             ## Tine is this correct ??
@@ -291,7 +293,7 @@ class FiberModel(object):
                     * (conc_r[1:] - conc_r[:-1])\
                     / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
         #diff_u_t[:]=2*(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[1:]*self.delta_r[:]+self.delta_r[:]**2)
-        diff_u_t[:]=(flux_edge[1:]-flux_edge[:-1])/(self.grid_edge[1:]**22-self.grid_edge[:-1]**2/2)
+        diff_u_t[:]=2.*(flux_edge[1:]-flux_edge[:-1])/(self.grid_edge[1:]**2-self.grid_edge[:-1]**2)
         return diff_u_t
     
     def solve_odeint(self):
