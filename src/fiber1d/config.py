@@ -40,7 +40,7 @@ from lib.config import ConfigManager
 #
 #---------------------------------------------------------------
 INIFILE_DEFAULT = const.INI_DIR + os.sep + 'fiber' + os.sep + \
-                     'defaultfiber.ini'
+                     'defaultfiber2.ini'
 
 LONGOPTS = ["inifile", 'outputdir']
 SHORTOPTS = "i:o" 
