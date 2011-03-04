@@ -239,7 +239,8 @@ class FiberModel(object):
             flux_edge[-1] = self.boundary_fib_right
         else:
             # a transfer coeff to the right
-            flux_edge[-1] = -self.boundary_transf_right * conc_r[-1] 
+            flux_edge[-1] = -self.boundary_transf_right * \
+                             self.porosity_domain[-1] * conc_r[-1] * self.grid[-1]
             #print 'flux', flux_edge[-1]
 
     def f_conc1_ode(self, t, w_rep):
@@ -285,7 +286,9 @@ class FiberModel(object):
                     * self.grid_edge[1:-1] \
                     * (conc_r[1:] - conc_r[:-1])\
                     / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
-        diff_u_t[:]=2.*(flux_edge[1:]-flux_edge[:-1])/(self.grid_edge[1:]**2-self.grid_edge[:-1]**2)
+        diff_u_t[:] = 2.*((flux_edge[1:]-flux_edge[:-1])
+                        /(self.grid_edge[1:]**2-self.grid_edge[:-1]**2)
+                        / self.porosity_domain[:])
         return diff_u_t
     
     def solve_odeint(self):
