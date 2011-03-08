@@ -42,6 +42,8 @@ import lib.utils.utils as utils
 from fipy import Gmsh2D
 from yarn2d.config import FIBERLAYOUTS
 
+
+
 #-------------------------------------------------------------------------
 #
 # Yarn2dGrid class
@@ -75,9 +77,9 @@ class Yarn2dGrid(object):
         self.beta_value = self.cfg.get('domain.beta_value')
         
         self.verbose = self.cfg.get('general.verbose')
-
+        
     def create_circle_domain_gmsh(self, filename='yarn.geo', 
-            layoutfile = 'layout.dat', regenerate=True):
+            layoutfile = 'layout.dat', regenerate=True, plotyarn=False):
         """
         Create gmsh file with the circle domain of yarn and the fibers in it
         returns string with defenition, path to file
@@ -101,29 +103,23 @@ class Yarn2dGrid(object):
             #first determine the different centerpoints of the fibers
             if self.fiberlayout == 'random':
                 layoutfun = randomfiberlayout
-                self.x_position, self.y_position, self.all_radius_fibers, \
-                    self.fiber_kind = layoutfun(self)
             elif self.fiberlayout == 'virtloc':
                 layoutfun = virtloclayout
-                self.x_position1, self.y_position1, self.all_radius_fibers1, \
-                        self.fiber_kind = layoutfun(self)
-                self.x_position = self.x_position1[0]
-                self.y_position = self.y_position1[0]
-                self.all_radius_fibers = self.all_radius_fibers1[0]
-                print self.y_position1
             elif self.fiberlayout == 'virtlocoverlap':
                 layoutfun = virtlocoverlaplayout
             else:
                 print 'ERROR: not implemented fiberlayout %s' % self.fiberlayout
                 sys.exit(0)
-            self.x_position1, self.y_position1, self.all_radius_fibers1, \
-                        self.fiber_kind = layoutfun(self)
-            #draw the central points of fibers
-            #plt.figure()
-            #plt.plot()
-            #plt.xlabel()
-            #plt.savefig(filepath_f)
-            
+            ouroptions = {
+                'x_central' : self.x_central,
+                'y_central' : self.y_central,
+                'number_fiber' : self.number_fiber,
+                'number_fiber_blend' : self.number_fiber_blend,
+                'radius_fiber' : self.radius_fiber,
+                'radius_yarn' : self.radius_yarn,
+                }
+            self.x_position, self.y_position, self.all_radius_fibers, \
+                        self.fiber_kind = layoutfun(ouroptions)
             
             #write data to files
             self.circle_file = open(filepath, "w")
@@ -235,7 +231,7 @@ class Yarn2dGrid(object):
 
 def randomfiberlayout(options):
     """ Generate the fiber layout in the yarn in random fashion
-    Options should contain attributes:
+    Options should be a dictionary with keys:
         number_fiber : amount of fibers to generate
         number_fiber_blend : number of fibers per blend type
         x_central: central point, 0. otherwise
@@ -250,38 +246,37 @@ def randomfiberlayout(options):
          list integers indicating kind of fiber)
     """
     #check options
-    if hasattr(options, 'x_central'):
-        x_central = options.x_central
-    else:
-        x_central = 0.
-    if hasattr(options, 'y_central'):
-        y_central = options.y_central
-    else:
-        y_central = 0.
+    x_central = options.get('x_central', 0.)
+    y_central = options.get('y_central', 0.)
+    onumber_fiber = options.get('number_fiber', 1)
+    onumber_fiber_blend = options.get('number_fiber_blend', [1])
+    oradius_fiber = options.get('radius_fiber', 1.)
+    oradius_yarn = options.get('radius_yarn', 2.)
 
     ##if len(options.radius_fiber) > 1:
     ##    print 'ERROR: randomfiberlayout can only handle one type of fiber'
     ##    sys.exit()
 
     #allocate space
-    x_position = sp.empty(options.number_fiber, float)
-    y_position = sp.empty(options.number_fiber, float)
-    radius_fiber = sp.empty(options.number_fiber, float)
-    fiber_kind = sp.empty(options.number_fiber, int)
+    
+    x_position = sp.empty(onumber_fiber, float)
+    y_position = sp.empty(onumber_fiber, float)
+    radius_fiber = sp.empty(onumber_fiber, float)
+    fiber_kind = sp.empty(onumber_fiber, int)
     
     #preset the radius_fiber. This algorithm does first the largest fibers,
     #then the others
-    ind = sp.arange(options.number_fiber)
-    radius_fiber[:options.number_fiber_blend[0]] = options.radius_fiber[0]
-    fiber_kind[:options.number_fiber_blend[0]] = 0
-    for j in range(1, len(options.number_fiber_blend)):
-        assert options.radius_fiber[j] <= options.radius_fiber[j-1], \
+    ind = sp.arange(onumber_fiber)
+    radius_fiber[:onumber_fiber_blend[0]] = oradius_fiber[0]
+    fiber_kind[:onumber_fiber_blend[0]] = 0
+    for j in range(1, len(onumber_fiber_blend)):
+        assert oradius_fiber[j] <= oradius_fiber[j-1], \
                 'Give fibers in decreasing size in ini file'
-        radius_fiber[sum(options.number_fiber_blend[:j]):sum(options.number_fiber_blend[:j+1])]\
-            = options.radius_fiber[j]
-        fiber_kind[options.number_fiber_blend[j-1]:options.number_fiber_blend[j]] = j
+        radius_fiber[sum(onumber_fiber_blend[:j]):sum(onumber_fiber_blend[:j+1])]\
+            = oradius_fiber[j]
+        fiber_kind[onumber_fiber_blend[j-1]:onumber_fiber_blend[j]] = j
 
-    for i in sp.arange(0, options.number_fiber, 1):
+    for i in sp.arange(0, onumber_fiber, 1):
         #generate the position of fiber
         a = np.random.uniform(-1, 1)
         b = np.random.uniform(-1, 1)
@@ -290,11 +285,11 @@ def randomfiberlayout(options):
         #distance between the current point and existing points
         distance_each = sp.sqrt((a - x_position[:i])**2 + \
                                 (b - y_position[:i])**2)
-        while (distance_center + radius_fiber[i] >= options.radius_yarn or
+        while (distance_center + radius_fiber[i] >= oradius_yarn or
                (i>0 and not (( distance_each
                 >= (1.001*radius_fiber[i] + radius_fiber[:i])).all()))): 
             #   (i>0 and (np.min(distance_each)\
-            #    <= (2*options.radius_fiber[0])+ 0.001 * options.radius_fiber[0]))):
+            #    <= (2*oradius_fiber[0])+ 0.001 * oradius_fiber[0]))):
             a = np.random.uniform(-1, 1)
             b = np.random.uniform(-1, 1)
             distance_center = sp.sqrt((a - x_central)**2 + \
@@ -605,8 +600,12 @@ def virtlocoverlaplayout(options):
         x_position_random_shift[0], y_position_random_shift[0], 's')
     plt.axis([-1,1, -1, 1])
     plt.show()
-
-                    
-    
     
     raise NotImplementedError
+
+def plot_yarn(x_position, y_position, radius_fiber, fiber_kind, x_central,
+              y_central, radius_yarn):
+    """
+    Function to make a nice plot of the yarn with all the fibers
+    """
+    pass
