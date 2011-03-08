@@ -84,6 +84,7 @@ class Yarn2dGrid(object):
         Layout is dumped to layout.dat
         """
         filepath = utils.OUTPUTDIR + os.sep + filename
+        filepath_f = utils.OUTPUTDIR + os.sep +figure_file
         start = time.clock()
         self.x_central = 0.
         self.y_central = 0.
@@ -118,6 +119,10 @@ class Yarn2dGrid(object):
             self.x_position1, self.y_position1, self.all_radius_fibers1, \
                         self.fiber_kind = layoutfun(self)
             #draw the central points of fibers
+            #plt.figure()
+            #plt.plot()
+            #plt.xlabel()
+            #plt.savefig(filepath_f)
             
             
             #write data to files
