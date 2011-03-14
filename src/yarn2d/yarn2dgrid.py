@@ -509,7 +509,6 @@ def virtloclayout(options):
     while i_circle_number < circle_loop: 
         if i_circle_number < circle_loop - 1:
             location_number = sp.zeros(each_circle_zone_num[i_circle_number]) - 1
-            print 'location_number', location_number
             for i_index in sp.arange(each_circle_zone_num[i_circle_number]):
                 if i_index == 0:
                     a_position = np.random.uniform(index_position, 
@@ -662,7 +661,6 @@ def virtlocoverlaplayout(options):
     number_vl_overlap = sp.empty(len(onumber_fiber_blend))
     for ind in sp.arange(len(onumber_fiber_blend)):
         number_vl_overlap[ind] = int(onumber_fiber_blend[ind] / 2.)
-    print 'number_vl_overlap', number_vl_overlap
     position_half = [0] * type_fiber
     position_half_shift = [0] * type_fiber
     for ind in range(type_fiber):
@@ -748,6 +746,7 @@ def virtlocoverlaplayout(options):
         notok = False
         #move the points
     raw_input("wait")
+    
     return (x_position, y_position, radius_fiber, fiber_kind)
 
 def determine_overlap(xpos, ypos, radin):
@@ -836,7 +835,6 @@ def plot_overlap(x_position, y_position, radius_fiber, fiber_kind, type_fiber,
         for x_center, y_center, radii in zip(x_position[i_type], y_position[i_type], 
         radius_fiber[i_type]):
             circle = Circle((x_center, y_center), radii)
-            print x_center
             patches.append(circle)
     #each fiber shift is drawn
     for i_type in sp.arange(type_fiber):
