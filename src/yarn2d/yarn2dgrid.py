@@ -720,7 +720,6 @@ def virtlocoverlaplayout(options):
     plt.axis([-1,1, -1, 1])
     plt.show()
     
-    # we now make sure the points are no longer overlapping
     # merge back into 1 array
     x_position = sp.empty(onumber_fiber, float)
     y_position = sp.empty(onumber_fiber, float)
@@ -740,8 +739,74 @@ def virtlocoverlaplayout(options):
         radius_fiber[sum(onumber_fiber_blend[:j]):sum(onumber_fiber_blend[:j+1])]\
             = oradius_fiber[j]
         fiber_kind[onumber_fiber_blend[j-1]:onumber_fiber_blend[j]] = j
+
+    # we now make sure the points are no longer overlapping, we detect overlap,
+    # and use a dynamic scheme to correct the positions
+    notok = False
+    while notok:
+        overlap = determine_overlap(x_position, y_position, radius_fiber)
+        notok = False
+        #move the points
     raw_input("wait")
     return (x_position, y_position, radius_fiber, fiber_kind)
+
+def determine_overlap(xpos, ypos, radin):
+    """
+    We determine if there is overlap between circles
+    """
+    from fipy import numerix
+    #create two arrays to compare
+    self_XvertexCoords = sp.empty((2, len(xpos)))
+    other_XvertexCoords = sp.empty((2, len(xpos)))
+    rad =  sp.empty((1, len(radin)))
+    self_XvertexCoords[0,:] = xpos[:]
+    self_XvertexCoords[1,:] = ypos[:]
+    other_XvertexCoords[0,:] = xpos[:]
+    other_XvertexCoords[1,:] = ypos[:]
+    rad[0,:] = radin[:]
+    #find index in self_XvertexCoords that is closest to other
+    indices = sp.arange(len(xpos))
+    tooclose = [0] * len(xpos)
+    dist = [0] * len(xpos)
+    distreq = [0] * len(xpos)
+    chunk_size = 10
+    nr_chunks = int(round(len(indices) / chunk_size + 0.5))
+    for chunk in range(nr_chunks):
+        print chunk+1, 'of', nr_chunks
+        chunk_indices = indices[chunk*chunk_size:(chunk+1)*chunk_size]
+        chunk_size = len(chunk_indices)  #last length may be different
+        tmpself_XvertexCoords = self_XvertexCoords[..., chunk_indices]
+        print rad
+        print chunk_indices
+        tmpradother = rad[...,chunk_indices]
+        #repeat self_X as many times as vert in other
+        self_vertexCoordMap  = numerix.repeat(tmpself_XvertexCoords, 
+                other_XvertexCoords.shape[-1], axis=1)
+        self_radMap  = numerix.repeat(tmpradother, rad.shape[-1], axis=1)
+        #repeat other_X as many times as chunk_size
+        other_vertexCoordMap = numerix.repeat(other_XvertexCoords, 
+                                              chunk_size, axis=0).reshape(
+                                (other_XvertexCoords.shape[0], 
+                                 chunk_size*other_XvertexCoords.shape[-1]))
+        other_radMap = numerix.repeat(rad, chunk_size, axis=0).reshape(
+                                (1, chunk_size*rad.shape[-1]))
+        #substract both and calc distance of all pairs
+        tmp = self_vertexCoordMap - other_vertexCoordMap
+        tmp = numerix.sum(tmp*tmp, axis=0) #square of distance
+        tmp = tmp.reshape((chunk_size,other_XvertexCoords.shape[-1]))
+        #the required distance everywhere is sum of radius
+        Dreqsquared = sp.power(self_radMap + other_radMap, 2)
+        Dreqsquared = Dreqsquared.reshape((chunk_size,rad.shape[-1]))
+        #now determine all indices that overlap
+        print 'Dreq', Dreqsquared
+        print tmp
+        result = (0. < tmp) & (tmp < Dreqsquared) #assume 0. is point self!
+        Dreq = sp.sqrt(Dreqsquared)
+        for (nr, ind) in enumerate(chunk_indices):
+            tooclose[ind] = indices[result[nr]]
+            dist[ind] = tmp[ind][result[nr]]
+            distreq[ind] = Dreq[ind][result[nr]]
+    return (tooclose, dist, distreq)
 
 def plot_yarn(x_position, y_position, radius_fiber, fiber_kind):
     """
@@ -785,6 +850,10 @@ def plot_overlap(x_position, y_position, radius_fiber, fiber_kind, type_fiber,
     ax.add_collection(p)
     pylab.draw()
 
-    
-    #pass
-    
+def test():
+    #test if determine overlap works. 
+    res = determine_overlap([0.,1.,0.],[0.,0.,1.],[1.,0.5,0.5])
+    print 'res', res
+
+if __name__ == '__main__':
+    test()
