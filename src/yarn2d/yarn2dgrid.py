@@ -172,7 +172,7 @@ class Yarn2dGrid(object):
                 index = index + 1
                 self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
                                     self.x_position[i-1], self.y_position[i-1], 
-                                    self.z,self.cellSize))
+                                    self.z, self.cellSize))
                 self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
                         self.x_position[i-1] - self.all_radius_fibers[i-1],
                         self.y_position[i-1], self.z, self.cellSize))
@@ -573,8 +573,7 @@ def virtlocoverlaplayout(options):
     y_position = [0] * type_fiber
     radius_fiber = [0] * type_fiber
     fiber_kind = [0] * type_fiber
-    
-    
+
     x_position_shift = [0] * type_fiber
     y_position_shift = [0] * type_fiber
     radius_fiber_shift = [0] * type_fiber
@@ -584,7 +583,7 @@ def virtlocoverlaplayout(options):
         x_position[i_type] = sp.zeros(onumber_fiber_blend[i_type], float)
         y_position[i_type] = sp.zeros(onumber_fiber_blend[i_type], float)
         radius_fiber[i_type] = sp.zeros(onumber_fiber_blend[i_type],float)
-        fiber_kind[i_type] = sp.empty(onumber_fiber_blend[i_type])
+        fiber_kind[i_type] = sp.empty(onumber_fiber_blend[i_type], int)
         
         ouroptions = {
                 'x_central' : x_central,
@@ -625,8 +624,8 @@ def virtlocoverlaplayout(options):
         y_position_shift[i_type][:] = ay_position_shift[:]
         radius_fiber_shift[i_type][:] = aradius_fiber_shift[:]
         fiber_kind_shift[i_type][:] = afiber_kind_shift[:]
-        # TODO
-    #take 50% point from each other
+
+    #take 50% points from each other
     number_vl_overlap = sp.empty(len(onumber_fiber_blend))
     for ind in sp.arange(len(onumber_fiber_blend)):
         number_vl_overlap[ind] = int(onumber_fiber_blend[ind] / 2.)
@@ -634,8 +633,8 @@ def virtlocoverlaplayout(options):
     position_half = [0] * type_fiber
     position_half_shift = [0] * type_fiber
     for ind in range(type_fiber):
-        position_half[ind] = sp.empty(number_vl_overlap[ind])
-        position_half_shift[ind] = sp.empty(number_vl_overlap[ind])
+        position_half[ind] = sp.empty(number_vl_overlap[ind], int)
+        position_half_shift[ind] = sp.empty(onumber_fiber_blend[ind]-number_vl_overlap[ind], int)
         i_half = 0
         while i_half < number_vl_overlap[ind]:
             a_position = np.random.uniform(0., onumber_fiber_blend[ind])
@@ -655,7 +654,7 @@ def virtlocoverlaplayout(options):
             i_half += 1
         
         i_half_1 = 0
-        while i_half_1 < number_vl_overlap[ind]:
+        while i_half_1 < onumber_fiber_blend[ind]-number_vl_overlap[ind]:
             b_position = np.random.uniform(0., onumber_fiber_blend[ind])
             position_random = int(b_position)
             if i_half_1 == 0:
@@ -674,22 +673,10 @@ def virtlocoverlaplayout(options):
     x_position_random_shift = [0] * len(onumber_fiber_blend)
     y_position_random_shift = [0] * len(onumber_fiber_blend)
     for ind in sp.arange(len(onumber_fiber_blend)):
-        x_position_random[ind] = sp.empty(number_vl_overlap[ind], float)
-        y_position_random[ind] = sp.empty(number_vl_overlap[ind], float)
-        x_position_random_shift[ind] = sp.empty(number_vl_overlap[ind], float)
-        y_position_random_shift[ind] = sp.empty(number_vl_overlap[ind], float)
-        for index in sp.arange(int(number_vl_overlap[ind])):
-            a_ind = int(position_half[ind][index])
-            b_ind = int(position_half_shift[ind][index])
-            #print 'a_ind', a_ind
-            #print 'b_ind', b_ind
-            #print 'index', index
-            #print x_position_shift[ind][b_ind]
-            x_position_random[ind][index] = x_position[ind][a_ind]
-            y_position_random[ind][index] = y_position[ind][a_ind]
-            x_position_random_shift[ind][index] = x_position_shift[ind][b_ind]
-            y_position_random_shift[ind][index] = y_position_shift[ind][b_ind]
-    #plot the overlapping fibers
+        x_position_random[ind] = x_position[ind][position_half[ind]]
+        y_position_random[ind] = y_position[ind][position_half[ind]]
+        x_position_random_shift[ind] = x_position_shift[ind][position_half_shift[ind]]
+        y_position_random_shift[ind] = y_position_shift[ind][position_half_shift[ind]]
 
     fig = plot_overlap(x_position_random, y_position_random, radius_fiber, 
         fiber_kind, type_fiber, x_position_random_shift, y_position_random_shift)
@@ -700,7 +687,28 @@ def virtlocoverlaplayout(options):
     plt.axis([-1,1, -1, 1])
     plt.show()
     
-    #raise NotImplementedError
+    # we now make sure the points are no longer overlapping
+    # merge back into 1 array
+    x_position = sp.empty(onumber_fiber, float)
+    y_position = sp.empty(onumber_fiber, float)
+    radius_fiber = sp.empty(onumber_fiber, float)
+    fiber_kind = sp.empty(onumber_fiber, int)
+    start = 0
+    for ind in sp.arange(len(onumber_fiber_blend)):
+        for (t1array, t2array, t3array)  in \
+                [(x_position, x_position_random, x_position_random_shift), 
+                 (y_position, y_position_random, y_position_random_shift)]:
+            t1array[start:start+number_vl_overlap[ind]]\
+                    = t2array[ind][:]
+            t1array[start+number_vl_overlap[ind]:start+onumber_fiber_blend[ind]]\
+                    = t3array[ind][:]
+        start = start+onumber_fiber_blend[ind]
+    for j in range(1, len(onumber_fiber_blend)):
+        radius_fiber[sum(onumber_fiber_blend[:j]):sum(onumber_fiber_blend[:j+1])]\
+            = oradius_fiber[j]
+        fiber_kind[onumber_fiber_blend[j-1]:onumber_fiber_blend[j]] = j
+    raw_input("wait")
+    return (x_position, y_position, radius_fiber, fiber_kind)
 
 def plot_yarn(x_position, y_position, radius_fiber, fiber_kind):
     """

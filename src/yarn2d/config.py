@@ -43,7 +43,7 @@ from lib.config import ConfigManager
 INIFILE_DEFAULT = const.INI_DIR + os.sep + 'yarn2d' + os.sep + \
                      'defaultyarn.ini'
 
-LONGOPTS = ["inifile", 'outputdir']
+LONGOPTS = ["inifile", 'outputdir', 'mesh']
 SHORTOPTS = "i:o" 
 
 METHOD = {

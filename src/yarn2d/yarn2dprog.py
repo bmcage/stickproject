@@ -71,16 +71,21 @@ def main(argv=None):
 
     inifile = conf.INIFILE_DEFAULT
     outputdir = const.DATA_DIR
+    onlymesh = False
     for opt_ix in range(len(options)):
         option, value = options[opt_ix]
         if option in ( '-i', '--inifile'):
             inifile = value
         elif option in ('-o', '--outputdir'):
             outputdir = value
+        elif option in ('--mesh'):
+            onlymesh = True
     
     #Parse ini file to obtain parameters.
     print inifile
     cfg = conf.Yarn2dConfigManager.get_instance(inifile)
+    if not hasattr(cfg, 'onlymesh'):
+        cfg.onlymesh = onlymesh
     
     #create outputdir if not existing
     if not os.path.isdir(outputdir):

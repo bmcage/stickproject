@@ -119,15 +119,8 @@ class Yarn2DModel(object):
         self.grid = Yarn2dGrid(self.cfg)
         self.mesh2d = self.grid.mesh_2d_generate(filename='yarn.geo',
                                 regenerate=not self.cfg.get('general.read'))
-        """
-        Create a mesh with the concept of virtual location
-        """
-        #self.grid1 = Yarn2dNewGrid(self.cfg)
-        #self.mesh2d_1 = self.grid1.mesh_new_generate(filename = 'yarn_new.geo',
-                                #regenerate = not self.cfg.get('general.read'))
-        
-        #self.center = Yarn2DOverlapping(self.cfg)
-        #self.virtual_location_center = self.center.determine_centers()
+        if self.cfg.onlymesh:
+            raw_input("Finished Mesh generation, press Enter to continue")
     
     def initial_yarn2d(self):
         self.init_conc = self.cfg.get('initial.init_conc')
@@ -263,8 +256,9 @@ class Yarn2DModel(object):
         return sp.sum(conc_void * cell_volume)
         
     
-    def run(self):        
+    def run(self):
         self.create_mesh()
-        self.initial_yarn2d()
-        self.solve_fiber()
-        self.solve_single_component()
+        if not self.cfg.onlymesh:
+            self.initial_yarn2d()
+            self.solve_fiber()
+            self.solve_single_component()
