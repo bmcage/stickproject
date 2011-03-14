@@ -78,7 +78,7 @@ class Yarn2dGrid(object):
         self.number_fiber_blend[-1] = self.number_fiber - sum(self.number_fiber_blend[:-1])
         print 'fibers per blend', self.number_fiber_blend,' total', self.number_fiber
         self.theta_value = self.cfg.get('domain.theta_value')
-        self.beta_value = self.cfg.get('domain.beta_value')
+        self.beta_value = self.cfg.get('fiber.beta_value')
         
         self.verbose = self.cfg.get('general.verbose')
         
@@ -386,8 +386,8 @@ def virtloclayout(options):
     radius_circle_central = sp.empty(total_circles, float)
     
     #one fiber, fixed kind and radius
-    radius_fiber = sp.ones(onumber_fiber, float)*oradius_fiber
-    fiber_kind = sp.zeros(onumber_fiber, int)
+    radius_fiber = sp.ones(onumber_fiber_blend[0], float)*oradius_fiber
+    fiber_kind = sp.zeros(onumber_fiber_blend[0], int)
     ind = sp.arange(onumber_fiber)
     if ofirst_center == 0:
         for i_circle in sp.arange(total_circles):
@@ -438,7 +438,7 @@ def virtloclayout(options):
                 x_position_vl.append(x_position_t)
                 y_position_vl.append(y_position_t)
     #calculate the distribution value in each circle zone
-        probability_value[i_circle] = (1 - 2 * otheta_value) * sp.power(
+        probability_value[i_circle] =  (1 - 2 * otheta_value) * sp.power(
                                     (sp.exp(1.) -sp.exp(radius_circle_central[i_circle] / 
                                     oradius_yarn))/(sp.exp(1) - 1), 
                                     obeta_value) + otheta_value        
@@ -462,17 +462,50 @@ def virtloclayout(options):
     
     circle_loop = 0
     i_determine = 0
-    number_fiber_in_loop = onumber_fiber
+    number_fiber_in_loop = onumber_fiber_blend[0]
+    
     while number_fiber_in_loop > 0:
         number_fiber_in_loop = number_fiber_in_loop - each_circle_zone_num[i_determine]
         i_determine += 1
         circle_loop += 1
-    x_position = sp.empty(onumber_fiber)
-    y_position = sp.empty(onumber_fiber)
+    #make the fiber reach the radius of yarn
+    while circle_loop < total_circles:
+        obeta_value += obeta_value 
+        circle_loop = 0
+        i_determine = 0
+        number_fiber_in_loop = onumber_fiber_blend[0]
+        for i_circle in sp.arange(total_circles):
+            probability_value[i_circle] =  (1 - 2 * otheta_value) * sp.power(
+                            (sp.exp(1.) -sp.exp(radius_circle_central[i_circle] / 
+                            oradius_yarn))/(sp.exp(1) - 1), 
+                            obeta_value) + otheta_value
+            each_circle_zone_num[i_circle] = int(round(number_circle_central[i_circle] * 
+                                                    probability_value[i_circle]))
+        total_sum_fiber = sum(each_circle_zone_num[:])
+        while total_sum_fiber < onumber_fiber:
+            obeta_value = obeta_value * 3. / 4. 
+            for i_circle in sp.arange(total_circles):
+                probability_value[i_circle] =  (1 - 2 * otheta_value) * sp.power(
+                                (sp.exp(1.) -sp.exp(radius_circle_central[i_circle] / 
+                                oradius_yarn))/(sp.exp(1) - 1), 
+                                obeta_value) + otheta_value
+                each_circle_zone_num[i_circle] = int(round(number_circle_central[i_circle] * 
+                                                        probability_value[i_circle]))
+            total_sum_fiber = sum(each_circle_zone_num[:])
+        else:
+            while number_fiber_in_loop > 0:
+                number_fiber_in_loop = number_fiber_in_loop - each_circle_zone_num[i_determine]
+                i_determine += 1
+                circle_loop += 1
+    else:
+        print 'the fiber distribution can reach the radius of yarn'
+        
+    x_position = sp.empty(onumber_fiber_blend[0])
+    y_position = sp.empty(onumber_fiber_blend[0])
     determine_generate = 0 #the number of generated fiber
     index_position = 0
     i_circle_number = 0
-    number_fiber_in_loop = onumber_fiber
+    number_fiber_in_loop = onumber_fiber_blend[0]
     while i_circle_number < circle_loop: 
         if i_circle_number < circle_loop - 1:
             location_number = sp.zeros(each_circle_zone_num[i_circle_number]) - 1
@@ -534,7 +567,7 @@ def virtloclayout(options):
                 determine_generate += 1
             index_position += number_circle_central[i_circle_number]
             i_circle_number += 1
-    oradius_fiber_array = sp.zeros(onumber_fiber, float)
+    oradius_fiber_array = sp.zeros(onumber_fiber_blend[0], float)
     oradius_fiber_array[:] = oradius_fiber
     fig = plot_yarn(x_position, y_position, oradius_fiber_array, fiber_kind)
     #print x_position
@@ -564,7 +597,7 @@ def virtlocoverlaplayout(options):
     oradius_fiber = options.get('radius_fiber', [1.])
     oradius_yarn = options.get('radius_yarn', 2.)
     otheta_value = options.get('theta_value', 0.1)
-    obeta_value = options.get('beta_value', 0.05)
+    obeta_value = options.get('beta_value', [0.05])
     onumber_fiber_each = sp.zeros(len(onumber_fiber_blend), float)
     onumber_fiber_each[:] = onumber_fiber_blend[:]
     type_fiber = len(onumber_fiber_blend)
@@ -593,7 +626,7 @@ def virtlocoverlaplayout(options):
                 'radius_fiber' : [oradius_fiber[i_type]],
                 'radius_yarn' : oradius_yarn,
                 'theta_value' : otheta_value,
-                'beta_value' : obeta_value,
+                'beta_value' : obeta_value[i_type],
                 }
         ouroptions['radius_first_center'] = 0.             
         ax_position, ay_position, aradius_fiber, afiber_kind = virtloclayout(ouroptions)
@@ -616,7 +649,7 @@ def virtlocoverlaplayout(options):
                 'radius_fiber' : [oradius_fiber[i_type]],
                 'radius_yarn' : oradius_yarn,
                 'theta_value' : otheta_value,
-                'beta_value' : obeta_value,
+                'beta_value' : obeta_value[i_type],
         }
         ouroptions['radius_first_center'] = 0.5*oradius_fiber[i_type]
         ax_position_shift, ay_position_shift, aradius_fiber_shift, afiber_kind_shift = virtloclayout(ouroptions)
@@ -715,7 +748,7 @@ def plot_yarn(x_position, y_position, radius_fiber, fiber_kind):
     Function to make a nice plot of the yarn with all the fibers
     """
     fig = pylab.figure()
-    ax = fig.add_subplot(111, xlim = (-1.5, 1.5), ylim = (-1.5, 1.5))
+    ax = fig.add_subplot(111, xlim = (-1.1, 1.1), ylim = (-1.1, 1.1))
     patches = []
     #each fiber is drawn
     for x_center, y_center, radii in zip(x_position, y_position, radius_fiber):
@@ -730,9 +763,8 @@ def plot_yarn(x_position, y_position, radius_fiber, fiber_kind):
 
 def plot_overlap(x_position, y_position, radius_fiber, fiber_kind, type_fiber,
     x_position_shift, y_position_shift):
-    print 'beigin to run the plot'
     fig = pylab.figure()
-    ax = fig.add_subplot(111, xlim = (-1.5, 1.5), ylim = (-1.5, 1.5))
+    ax = fig.add_subplot(111, xlim = (-1.1, 1.1), ylim = (-1.1, 1.1))
     patches = []
     #each fiber is drawn
     for i_type in sp.arange(type_fiber):

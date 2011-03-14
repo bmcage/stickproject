@@ -102,7 +102,7 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("domain.yarnradius", 1.)
         self.register("domain.fiberlayout_method", 'random')
         self.register("domain.theta_value", 0.05)
-        self.register("domain.beta_value", 1.2)
+        #self.register("domain.beta_value", 1.2)
         self.register("'domain.radius_first_center_virtloc", 0.)
 
         self.register("fiber.number_type", 2)
@@ -110,6 +110,7 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("fiber.eps_value", 0.001)
         self.register("fiber.blend", [100.0])
         self.register("fiber.radius_fiber", [0.0117])
+        self.register("fiber.beta_value", [0.02])
         self.register("fiber.fiber_config", ['../fiber/defaultfiber.ini'])
         
         self.register("initial.init_conc", 0.)
