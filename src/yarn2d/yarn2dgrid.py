@@ -568,7 +568,7 @@ def virtloclayout(options):
             i_circle_number += 1
     oradius_fiber_array = sp.zeros(onumber_fiber_blend[0], float)
     oradius_fiber_array[:] = oradius_fiber
-    fig = plot_yarn(x_position, y_position, oradius_fiber_array, fiber_kind)
+    fig = plot_yarn(x_position, y_position, oradius_fiber_array)#, fiber_kind)
     #print x_position
     return (x_position, y_position, radius_fiber, fiber_kind)
     
@@ -733,18 +733,15 @@ def virtlocoverlaplayout(options):
             t1array[start+number_vl_overlap[ind]:start+onumber_fiber_blend[ind]]\
                     = t3array[ind][:]
         start = start+onumber_fiber_blend[ind]
-    for j in range(1, len(onumber_fiber_blend)):
+    for j in range(len(onumber_fiber_blend)):
         radius_fiber[sum(onumber_fiber_blend[:j]):sum(onumber_fiber_blend[:j+1])]\
             = oradius_fiber[j]
         fiber_kind[onumber_fiber_blend[j-1]:onumber_fiber_blend[j]] = j
 
     # we now make sure the points are no longer overlapping, we detect overlap,
     # and use a dynamic scheme to correct the positions
-    notok = False
-    while notok:
-        overlap = determine_overlap(x_position, y_position, radius_fiber)
-        notok = False
-        #move the points
+    move_fibers_nonoverlap(x_position, y_position, radius_fiber, oradius_yarn)
+    figure = plot_yarn(x_position, y_position, radius_fiber)#, fiber_kind)
     raw_input("wait")
     
     return (x_position, y_position, radius_fiber, fiber_kind)
@@ -753,7 +750,6 @@ def determine_overlap(xpos, ypos, radin):
     """
     We determine if there is overlap between circles
     """
-    from fipy import numerix
     #create two arrays to compare
     self_XvertexCoords = sp.empty((2, len(xpos)))
     other_XvertexCoords = sp.empty((2, len(xpos)))
@@ -775,23 +771,21 @@ def determine_overlap(xpos, ypos, radin):
         chunk_indices = indices[chunk*chunk_size:(chunk+1)*chunk_size]
         chunk_size = len(chunk_indices)  #last length may be different
         tmpself_XvertexCoords = self_XvertexCoords[..., chunk_indices]
-        print rad
-        print chunk_indices
         tmpradother = rad[...,chunk_indices]
         #repeat self_X as many times as vert in other
-        self_vertexCoordMap  = numerix.repeat(tmpself_XvertexCoords, 
+        self_vertexCoordMap  = np.repeat(tmpself_XvertexCoords, 
                 other_XvertexCoords.shape[-1], axis=1)
-        self_radMap  = numerix.repeat(tmpradother, rad.shape[-1], axis=1)
+        self_radMap  = np.repeat(tmpradother, rad.shape[-1], axis=1)
         #repeat other_X as many times as chunk_size
-        other_vertexCoordMap = numerix.repeat(other_XvertexCoords, 
+        other_vertexCoordMap = np.repeat(other_XvertexCoords, 
                                               chunk_size, axis=0).reshape(
                                 (other_XvertexCoords.shape[0], 
                                  chunk_size*other_XvertexCoords.shape[-1]))
-        other_radMap = numerix.repeat(rad, chunk_size, axis=0).reshape(
+        other_radMap = np.repeat(rad, chunk_size, axis=0).reshape(
                                 (1, chunk_size*rad.shape[-1]))
         #substract both and calc distance of all pairs
         tmp = self_vertexCoordMap - other_vertexCoordMap
-        tmp = numerix.sum(tmp*tmp, axis=0) #square of distance
+        tmp = np.sum(tmp*tmp, axis=0) #square of distance
         tmp = tmp.reshape((chunk_size,other_XvertexCoords.shape[-1]))
         #the required distance everywhere is sum of radius
         Dreqsquared = sp.power(self_radMap + other_radMap, 2)
@@ -799,15 +793,99 @@ def determine_overlap(xpos, ypos, radin):
         #now determine all indices that overlap
         print 'Dreq', Dreqsquared
         print tmp
-        result = (0. < tmp) & (tmp < Dreqsquared) #assume 0. is point self!
+        result = (tmp < Dreqsquared) #assume 0. is point self!
         Dreq = sp.sqrt(Dreqsquared)
         for (nr, ind) in enumerate(chunk_indices):
             tooclose[ind] = indices[result[nr]]
-            dist[ind] = tmp[ind][result[nr]]
-            distreq[ind] = Dreq[ind][result[nr]]
+            dist[ind] = tmp[nr][result[nr]]
+            distreq[ind] = Dreq[nr][result[nr]]
     return (tooclose, dist, distreq)
 
-def plot_yarn(x_position, y_position, radius_fiber, fiber_kind):
+def move_fibers_nonoverlap(xpos, ypos, radin, rad_yarn):
+    notok = True
+    nrmoves = 0
+    nrmovesmax = 1
+    nrmovesmaxyarn = 2
+    #vx = 0.
+    #vy = 0.
+    while notok:
+        notok = False
+        nrmoves += 1
+        (tooclose, dist, distreq) = determine_overlap(xpos, ypos, 
+                                    radin)
+##        print 'the length of tooclose', len(tooclose)
+##        print tooclose
+##        print 'the length of dist', len(dist)
+##        print dist
+##        print 'the length of disreq', len(distreq)
+##        print distreq
+        #move the fibers
+        vx = sp.zeros(len(tooclose), float)
+        vy = sp.zeros(len(tooclose), float)
+        for ind in sp.arange(len(tooclose)):
+            print 'the elementin tooclose', tooclose[ind]
+            for ov_ind, ov_distreal, ov_distreq in zip(tooclose[ind],
+                                dist[ind], distreq[ind]):
+                if ov_ind == ind:
+                    continue
+                notok = True
+                #print ov_distreal
+                if ov_distreal == 0.:
+                    if ind < ov_ind:
+                        delta_dir_x = xpos[ov_ind] / sp.sqrt(sp.power(xpos[ov_ind], 2.) + 
+                                                    sp.power(ypos[ov_ind], 2.))
+                        delta_dir_y = ypos[ov_ind] / sp.sqrt(sp.power(xpos[ov_ind], 2.) + 
+                                                    sp.power(ypos[ov_ind], 2.))
+                    else:
+                        delta_dir_x = -xpos[ov_ind] / sp.sqrt(sp.power(xpos[ov_ind], 2.) + 
+                                                    sp.power(ypos[ov_ind], 2.))
+                        delta_dir_y = -ypos[ov_ind] / sp.sqrt(sp.power(xpos[ov_ind], 2.) + 
+                                                    sp.power(ypos[ov_ind], 2.))
+                    dirx = (ov_distreal - ov_distreq) * \
+                            (radin[ov_ind] / (radin[ov_ind] + radin[ind]))* \
+                            delta_dir_x
+                    diry = (ov_distreal - ov_distreq) * \
+                            (radin[ov_ind] / (radin[ov_ind] + radin[ind]))* \
+                            delta_dir_y
+                else:
+                    dirx = (ov_distreal - ov_distreq) * \
+                            (radin[ov_ind] / (radin[ov_ind] + radin[ind]))* \
+                            (xpos[ov_ind] - xpos[ind])/ (ov_distreal)
+                    diry = (ov_distreal - ov_distreq) * \
+                            (radin[ov_ind] / (radin[ov_ind] + radin[ind]))* \
+                            (ypos[ov_ind] - ypos[ind])/ (ov_distreal)
+                
+                vx[ind] += dirx
+                vy[ind] += diry
+                print 'vx value is', vx[ind]
+                print 'vy value is', vy[ind]
+            distance_central = sp.sqrt(xpos[ind]**2 + 
+                                ypos[ind]**2)
+            if distance_central > rad_yarn-radin[ind]:
+                delta_central =  rad_yarn - radin[ind] - distance_central
+                dirx = delta_central * xpos[ind] / sp.sqrt(xpos[ind]**2
+                        + ypos[ind]**2.)
+                diry = delta_central * ypos[ind] / sp.sqrt(xpos[ind]**2 + 
+                        ypos[ind]**2)
+                vx[ind] += dirx
+                vy[ind] += diry
+        
+        for ind in sp.arange(len(tooclose)):
+            lambda_value = np.random.uniform(0,0.001)
+            xpos[ind] = xpos[ind] + vx[ind] * (1 + lambda_value)
+            ypos[ind] = ypos[ind] + vy[ind] * (1 + lambda_value)
+            print 'the value of x', xpos[ind]
+            print 'the value of y', ypos[ind]
+        #figure = plot_yarn(xpos, ypos, radin)
+        print xpos, ypos
+        
+        #break if too many iterations
+        if nrmoves > nrmovesmax:
+            print 'ERROR: no good solution found, breaking loop'
+            break
+
+
+def plot_yarn(x_position, y_position, radius_fiber):#, fiber_kind):
     """
     Function to make a nice plot of the yarn with all the fibers
     """
@@ -850,8 +928,9 @@ def plot_overlap(x_position, y_position, radius_fiber, fiber_kind, type_fiber,
 
 def test():
     #test if determine overlap works. 
-    res = determine_overlap([0.,1.,0.],[0.,0.,1.],[1.,0.5,0.5])
+    res = determine_overlap([0.,1.,0.,2.],[0.,0.,1.,0.],[1.,0.5,0.5,0.5])
     print 'res', res
+    move_fibers_nonoverlap([0., 1., 0., 2.], [0., 0., 1., 0.], [1., 0.5, 0.5, 0.5], 2.0)
 
 if __name__ == '__main__':
     test()
