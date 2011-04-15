@@ -240,8 +240,9 @@ class Yarn2DModel(object):
             conc1_out_yarn = np.append(conc1_out_yarn, conc1_average_out)
             print 'mass conservative with two fibers', self.cal_mass_void(self.conc_tot_each,
                                                 self.cell_volume) / self.scaleL
-            if self.viewer is not None:
-                self.viewer.plot()
+            if i%10 == 0:                                    
+                if self.viewer is not None:
+                    self.viewer.plot()
         dump.write({'time_step': self.times, 'conc_out': conc1_out_yarn},
                                filename = filepath4, extension = '.gz')
            # raw_input("next time step <return>....")

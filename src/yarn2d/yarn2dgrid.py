@@ -266,7 +266,7 @@ class Yarn2dGrid(object):
                     rotate_theta = np.random.uniform(0,sp.pi * 2)
                     #begin to write the points
                     long_axis = self.all_radius_fibers[i_position_ellipse] * 0.98
-                    short_axis = self.all_radius_fibers[i_position_ellipse] / 2.
+                    short_axis = self.all_radius_fibers[i_position_ellipse] * 0.6
                     x_long_axis = long_axis * sp.cos(rotate_theta)
                     y_long_axis = long_axis * sp.sin(rotate_theta)
                     x_short_axis = short_axis * sp.sin(rotate_theta)
