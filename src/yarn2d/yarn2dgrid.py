@@ -45,6 +45,7 @@ import matplotlib
 import lib.utils.utils as utils
 from fipy import Gmsh2D
 from yarn2d.config import FIBERLAYOUTS
+from yarn2d.config import FIBERSHAPE
 
 #-------------------------------------------------------------------------
 #
@@ -62,7 +63,10 @@ class Yarn2dGrid(object):
         if not (self.fiberlayout in FIBERLAYOUTS):
             print 'ERROR: unkown fiber layout method %s' % self.fiberlayout
             sys.exit(0)
-        
+        self.fibershape = self.cfg.get('domain.fiber_shape')
+        if not (self.fibershape in FIBERSHAPE):
+            print 'ERROR:unknown fiber shape in the domain %s' %self.fibershape
+            sys.exit(0)
         self.Ry = self.cfg.get('domain.yarnradius')
         self.Rf = self.cfg.get('fiber.radius_fiber')
         self.scaleL = 1./self.Ry #get the scale factor for relative domain
@@ -149,6 +153,7 @@ class Yarn2dGrid(object):
                 sys.exit(0)
             self.x_position, self.y_position, self.all_radius_fibers, \
                         self.fiber_kind = layoutfun(ouroptions)
+            print 'fiber_kind', self.fiber_kind
             #write data to files
             self.circle_file = open(filepath, "w")
             index = 1
@@ -168,51 +173,164 @@ class Yarn2dGrid(object):
                                     self.x_central, self.y_central - self.radius_domain,
                                     self.z, self.cellsize_centre))
             index = index + 4
-            print self.cellsize_centre, self.cellSize
-            for i in sp.arange(1, self.number_fiber + 1, 1):
-                index = index + 1
-                self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
-                                    self.x_position[i-1], self.y_position[i-1], 
-                                    self.z, self.cellSize))
-                self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
-                        self.x_position[i-1] - self.all_radius_fibers[i-1],
-                        self.y_position[i-1], self.z, self.cellSize))
-                self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+2,
-                        self.x_position[i-1], 
-                        self.y_position[i-1] + self.all_radius_fibers[i-1],
-                        self.z, self.cellSize))
-                self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+3,
-                        self.x_position[i-1] + self.all_radius_fibers[i-1],
-                        self.y_position[i-1], self.z, self.cellSize))
-                self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+4,
-                        self.x_position[i-1], 
-                        self.y_position[i-1] - self.all_radius_fibers[i-1],
-                        self.z, self.cellSize))
-                index = index + 4
-            #above part is for generating the points of circle in the domain
-            if self.verbose:
-                print "all the points have been generated"
-            index_point_in_circle = 0 #the number of each point in Circle part
-            for i1 in sp.arange(0, self.number_fiber + 1, 1):
-                index = index + 1
-                if i1 == 0:
-                    index_point_in_circle = index_point_in_circle + 1
-                else:
-                    index_point_in_circle = index_point_in_circle + 5
-                t1 = index_point_in_circle + 1
-                t2 = index_point_in_circle + 2
-                t3 = index_point_in_circle + 3
-                t4 = index_point_in_circle + 4
-                self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index,
-                                    t1, index_point_in_circle, t2))
-                self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 1,
-                                    t2, index_point_in_circle, t3))
-                self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 2,
-                                    t3, index_point_in_circle, t4))
-                self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 3,
-                                    t4, index_point_in_circle, t1))
-                index = index + 3
+            #print self.cellsize_centre, self.cellSize
+            if self.fibershape == 'same':
+                for i in sp.arange(1, self.number_fiber + 1, 1):
+                    index = index + 1
+                    self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
+                                        self.x_position[i-1], self.y_position[i-1], 
+                                        self.z, self.cellSize))
+                    self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
+                            self.x_position[i-1] - self.all_radius_fibers[i-1],
+                            self.y_position[i-1], self.z, self.cellSize))
+                    self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+2,
+                            self.x_position[i-1], 
+                            self.y_position[i-1] + self.all_radius_fibers[i-1],
+                            self.z, self.cellSize))
+                    self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+3,
+                            self.x_position[i-1] + self.all_radius_fibers[i-1],
+                            self.y_position[i-1], self.z, self.cellSize))
+                    self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+4,
+                            self.x_position[i-1], 
+                            self.y_position[i-1] - self.all_radius_fibers[i-1],
+                            self.z, self.cellSize))
+                    index = index + 4
+                #above part is for generating the points of circle in the domain
+                if self.verbose:
+                    print "all the points have been generated"
+                index_point_in_circle = 0 #the number of each point in Circle part
+                for i1 in sp.arange(0, self.number_fiber + 1, 1):
+                    index = index + 1
+                    if i1 == 0:
+                        index_point_in_circle = index_point_in_circle + 1
+                    else:
+                        index_point_in_circle = index_point_in_circle + 5
+                    t1 = index_point_in_circle + 1
+                    t2 = index_point_in_circle + 2
+                    t3 = index_point_in_circle + 3
+                    t4 = index_point_in_circle + 4
+                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index,
+                                        t1, index_point_in_circle, t2))
+                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 1,
+                                        t2, index_point_in_circle, t3))
+                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 2,
+                                        t3, index_point_in_circle, t4))
+                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 3,
+                                        t4, index_point_in_circle, t1))
+                    index = index + 3
             #above part is for generating the circle part of the domain
+            #begin to generate two different fiber cross-section     
+            elif self.fibershape == 'different':
+                index_circle = sp.empty(self.number_fiber_blend[0])
+                i_circle_p = 0
+                index_ellipse = sp.empty(self.number_fiber_blend[-1])
+                i_ellipse = 0
+                #begin to account the number of each kind of fiber cross-section
+                for i_shape in sp.arange(0, len(self.fiber_kind)):
+                    if self.fiber_kind[i_shape] == 0:
+                        index_circle[i_circle_p] = i_shape
+                        i_circle_p += 1
+                    else:
+                        index_ellipse[i_ellipse] = i_shape
+                        i_ellipse += 1
+                #generate all the points for circle cross-section
+                for i_position_circle in index_circle:
+                    index += 1
+                    self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index,
+                                        self.x_position[i_position_circle], 
+                                        self.y_position[i_position_circle], 
+                                        self.z, self.cellSize))
+                    self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+1,
+                            self.x_position[i_position_circle] - \
+                            self.all_radius_fibers[i_position_circle],
+                            self.y_position[i_position_circle], self.z, self.cellSize))
+                    self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+2,
+                            self.x_position[i_position_circle], 
+                            self.y_position[i_position_circle] + \
+                            self.all_radius_fibers[i_position_circle],
+                            self.z, self.cellSize))
+                    self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+3,
+                            self.x_position[i_position_circle] + \
+                            self.all_radius_fibers[i_position_circle],
+                            self.y_position[i_position_circle], self.z, self.cellSize))
+                    self.circle_file.write("Point(%d) = {%g,%g,%g,%g};\n" %(index+4,
+                            self.x_position[i_position_circle], 
+                            self.y_position[i_position_circle] - \
+                            self.all_radius_fibers[i_position_circle],
+                            self.z, self.cellSize))
+                    index = index + 4
+                #generate all the points for ellipse cross-section
+                for i_position_ellipse in index_ellipse:
+                    index += 1
+                    #rotate each ellipse randomly
+                    rotate_theta = np.random.uniform(0,sp.pi * 2)
+                    #begin to write the points
+                    long_axis = self.all_radius_fibers[i_position_ellipse] * 0.98
+                    short_axis = self.all_radius_fibers[i_position_ellipse] / 2.
+                    x_long_axis = long_axis * sp.cos(rotate_theta)
+                    y_long_axis = long_axis * sp.sin(rotate_theta)
+                    x_short_axis = short_axis * sp.sin(rotate_theta)
+                    y_short_axis = short_axis * sp.cos(rotate_theta)
+                    
+                    self.circle_file.write("Point(%d) = {%g, %g, %g, %g};\n" %(index, 
+                                        self.x_position[i_position_ellipse], 
+                                        self.y_position[i_position_ellipse], 
+                                        self.z, self.cellSize))
+                    self.circle_file.write("Point(%d) = {%g, %g, %g, %g};\n" %(index + 1,
+                                        self.x_position[i_position_ellipse] + \
+                                        x_long_axis, self.y_position[i_position_ellipse] + 
+                                        y_long_axis, self.z, self.cellSize))
+                    self.circle_file.write("Point(%d) = {%g, %g, %g, %g};\n" %(index + 2,
+                                        self.x_position[i_position_ellipse] - \
+                                        x_short_axis, self.y_position[i_position_ellipse] +
+                                        y_short_axis, self.z, self.cellSize))
+                    self.circle_file.write("Point(%d) = {%g, %g, %g, %g};\n" %(index + 3, 
+                                        self.x_position[i_position_ellipse] - 
+                                        x_long_axis, self.y_position[i_position_ellipse] -
+                                        y_long_axis, self.z, self.cellSize))
+                    self.circle_file.write("Point(%d) = {%g, %g, %g, %g};\n" %(index + 4,
+                                        self.x_position[i_position_ellipse] +
+                                        x_short_axis, self.y_position[i_position_ellipse] -
+                                        y_short_axis, self.z, self.cellSize))
+                    index = index + 4
+                index_point_in_circle = 0
+                for i1 in sp.arange(0, len(index_circle) + 1, 1):
+                    index = index + 1
+                    if i1 == 0:
+                        index_point_in_circle = index_point_in_circle + 1
+                    else:
+                        index_point_in_circle = index_point_in_circle + 5
+                    t1 = index_point_in_circle + 1
+                    t2 = index_point_in_circle + 2
+                    t3 = index_point_in_circle + 3
+                    t4 = index_point_in_circle + 4
+                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index,
+                                        t1, index_point_in_circle, t2))
+                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 1,
+                                        t2, index_point_in_circle, t3))
+                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 2,
+                                        t3, index_point_in_circle, t4))
+                    self.circle_file.write("Circle(%d) = {%d,%d,%d};\n" %(index + 3,
+                                        t4, index_point_in_circle, t1))
+                    index = index + 3
+                index_point_in_ellipse = index_point_in_circle
+                for i2 in sp.arange(0, len(index_ellipse), 1):
+                    index += 1
+                    index_point_in_ellipse += 5
+                    t1 = index_point_in_ellipse + 1
+                    t2 = index_point_in_ellipse + 2
+                    t3 = index_point_in_ellipse + 3
+                    t4 = index_point_in_ellipse + 4
+                    self.circle_file.write("Ellipse(%d) = {%d, %d, %d, %d};\n" %(index,
+                                        t1, index_point_in_ellipse, t2, t2))
+                    self.circle_file.write("Ellipse(%d) = {%d, %d, %d, %d};\n" %(index + 1, 
+                                        t2, index_point_in_ellipse, t3, t3))
+                    self.circle_file.write("Ellipse(%d) = {%d, %d, %d, %d};\n" %(index + 2, 
+                                        t3, index_point_in_ellipse, t4, t4))
+                    self.circle_file.write("Ellipse(%d) = {%d, %d, %d, %d};\n" %(index + 3,
+                                        t4, index_point_in_ellipse, t1, t1))
+                    index += 3
+                #pass
             index_circle_for_loop = index - 4* (self.number_fiber + 1) 
             index = index + 1
             self.circle_file.write("Line Loop(%d)= {" %(index))
@@ -302,7 +420,8 @@ def randomfiberlayout(options):
                 'Give fibers in decreasing size in ini file'
         radius_fiber[sum(onumber_fiber_blend[:j]):sum(onumber_fiber_blend[:j+1])]\
             = oradius_fiber[j]
-        fiber_kind[onumber_fiber_blend[j-1]:onumber_fiber_blend[j]] = j
+        fiber_kind[onumber_fiber_blend[j-1]:onumber_fiber_blend[j] + onumber_fiber_blend[j-1]] = j
+    print 'the fiber kind value', fiber_kind
 
     for i in sp.arange(0, onumber_fiber, 1):
         #generate the position of fiber
@@ -721,6 +840,7 @@ def virtlocoverlaplayout(options):
     radius_fiber = sp.empty(onumber_fiber, float)
     fiber_kind = sp.empty(onumber_fiber, int)
     start = 0
+    fiber_kind[:onumber_fiber_blend[0]] = 0
     for ind in sp.arange(len(onumber_fiber_blend)):
         for (t1array, t2array, t3array)  in \
                 [(x_position, x_position_random, x_position_random_shift), 
@@ -733,7 +853,7 @@ def virtlocoverlaplayout(options):
     for j in range(len(onumber_fiber_blend)):
         radius_fiber[sum(onumber_fiber_blend[:j]):sum(onumber_fiber_blend[:j+1])]\
             = oradius_fiber[j]
-        fiber_kind[onumber_fiber_blend[j-1]:onumber_fiber_blend[j]] = j
+        fiber_kind[onumber_fiber_blend[j-1]:onumber_fiber_blend[j] + onumber_fiber_blend[j-1]] = j
     #plot starting overlap
     plot_yarn(x_position, y_position, radius_fiber)
 
@@ -873,6 +993,9 @@ def move_fibers_nonoverlap(xpos, ypos, radin, rad_yarn):
         if nrmoves == nrmovesmax:
             print 'ERROR: no good solution found, breaking loop'
             break
+        
+def blend_yarn(self, ):
+    pass
 
 def plot_yarn(x_position, y_position, radius_fiber):#, fiber_kind):
     """

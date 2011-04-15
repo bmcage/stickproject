@@ -56,6 +56,11 @@ FIBERLAYOUTS = {
     'virtlocoverlap': ('adapted virtual locations (different fiber size, overlap)',),
     }
 
+FIBERSHAPE = {
+    'same': ('all the fibers have the circle shape cross-section'),
+    'different': ('the cotton has ellipse cross-section'),
+    }
+
 #possible fiber materials, map to diff coeff of components
 YARN_MAT = {
     'YARN_1': ([0.015], ),
@@ -101,6 +106,7 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("domain.cellsize_fiber", 5.0e-2)
         self.register("domain.yarnradius", 1.)
         self.register("domain.fiberlayout_method", 'random')
+        self.register("domain.fiber_shape", 'same')
         self.register("domain.theta_value", 0.05)
         #self.register("domain.beta_value", 1.2)
         self.register("'domain.radius_first_center_virtloc", 0.)

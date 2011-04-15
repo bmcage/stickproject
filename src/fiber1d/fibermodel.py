@@ -82,10 +82,13 @@ class FiberModel(object):
             sys.exit(0)
         self.fiber_diff = self.cfg.get('fiber.internal_diffusion')
         self.time_period = self.cfg.get('time.time_period')
+        print 'the time period', self.time_period
         self.delta_t = self.cfg.get('time.dt')
+        print self.delta_t
         self.steps = (self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t
         self.times = sp.linspace(0, self.time_period, self.steps + 1)
-        self.delta_t = self.times[1] - self.times[0]
+        print 'the times', self.times
+        self.delta_t = 0.1#self.times[1] - self.times[0]
         #read the initial and boundary information for fiber
         self.n_edge = self.cfg.get('fiber.n_edge') #discretize the fiber radius
         self.bound_left = BOUND_TYPE[self.cfg.get('boundary.type_left')]
@@ -293,7 +296,7 @@ class FiberModel(object):
     
     def solve_odeint(self):
         initial_w = self.initial_c1 * self.grid
-        self.solv=odeint(self.f_conc1, initial_w, self.times)
+        self.solv=odeint(self.f_conc1, initial_w, self.times, rtol=1.0e-9, atol = 1.0e-10)
         self.conc1=self.solv/ self.grid
         self.view_sol(self.times, self.conc1)
         
@@ -407,8 +410,13 @@ class FiberModel(object):
             elif self.submethod == 'odeu':
                 self.solve_odeu()
         self.fiber_surface = sp.empty(len(self.times), float)
+        self.transfer_boundary = sp.empty(len(self.times), float)
+        print 'finish the calculation'
         for i in sp.arange(0,len(self.times),1):
             self.fiber_surface[i] = self.conc1[i][-1]
+            self.transfer_boundary[i] = self.boundary_transf_right * self.fiber_surface[i]
+        self.view_time(self.times, self.transfer_boundary)
+            
 
     def view_sol(self, times, conc):
         """
@@ -426,11 +434,24 @@ class FiberModel(object):
             #if time == 200.0:
             #    dump.write({'space_position': self.grid, 'conc1': con},
             #                filename = utils.OUTPUTDIR + os.sep + 'ode_t1.gz', extension = '.gz')
+    
+    def view_time(self, times, conc):
+        draw_time = times #/ 6. #/ 24.
+        draw_conc = conc *1.0e4
+        plt.figure()
+        plt.plot(draw_time, draw_conc, '-', color = 'red')
+        plt.xlim(0.0, 36.0)
+        plt.xlabel('Time (month)')
+        plt.ylabel('Flux of DEET ($\mathrm{mg\cdot cm/s}$)')
+        plt.draw()
 
     def dump_solution(self): 
         """write out the solution to disk for future use"""
         dump.write({'space_position': self.grid, 'conc': self.conc1},
             filename = utils.OUTPUTDIR + os.sep + 'sol_%s.gz' % self.submethod,
+            extension = '.gz')
+        dump.write({'time_step':self.times, 'flux':self.transfer_boundary},
+            filename = utils.OUTPUTDIR + os.sep + 'flux_boundary', 
             extension = '.gz')
 
     def run(self, wait=False, output=False):
