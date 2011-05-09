@@ -130,8 +130,8 @@ class Yarn2DModel(object):
         ##            mesh = self.mesh2d, value = self.init_conc)
         ##self.conc2 = CellVariable(name = "solution concentration2",
         ##            mesh = self.mesh2d, value = self.init_conc)
-        self.viewer = None
-        self.viewer = Viewer(vars = self.conc, datamin = 0., datamax =0.0005)
+##        self.viewer = None
+##        self.viewer = Viewer(vars = self.conc, datamin = 0., datamax =0.0005)
 
     def solve_fiber(self):
         """
@@ -243,8 +243,8 @@ class Yarn2DModel(object):
             print 'mass conservative with two fibers', self.cal_mass_void(self.conc_tot_each,
                                                 self.cell_volume) / self.scaleL
 ##            if i%10 == 0:                                    
-            if self.viewer is not None:
-                self.viewer.plot()
+##            if self.viewer is not None:
+##                self.viewer.plot()
 ##        dump.write({'time_step': self.times, 'conc_out': conc1_out_yarn},
 ##                               filename = filepath4, extension = '.gz')
         self.record_conc.close()
