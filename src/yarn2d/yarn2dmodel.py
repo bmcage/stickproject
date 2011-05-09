@@ -131,7 +131,7 @@ class Yarn2DModel(object):
         ##self.conc2 = CellVariable(name = "solution concentration2",
         ##            mesh = self.mesh2d, value = self.init_conc)
         self.viewer = None
-        #self.viewer = Viewer(vars = self.conc, datamin = 0., datamax =0.0005)
+        self.viewer = Viewer(vars = self.conc, datamin = 0., datamax =0.0005)
 
     def solve_fiber(self):
         """
@@ -173,7 +173,7 @@ class Yarn2DModel(object):
                     (sp.power(xfc,2) + sp.power(yfc,2) \
                         < (self.grid.radius_domain - self.grid.radius_boundlayer)**2))
         filepath3 = utils.OUTPUTDIR + os.sep + 'index_fiber.dat'
-        filepath4 = utils.OUTPUTDIR + os.sep + 'yarn_out.gz'
+        filepath4 = utils.OUTPUTDIR + os.sep + 'yarn_out.dat'
         self.fib_x = self.grid.x_position
         self.fib_y = self.grid.y_position
         self.all_fib_radius = self.grid.all_radius_fibers
@@ -217,6 +217,7 @@ class Yarn2DModel(object):
         conc1_out_yarn = []
         value_face_out = np.empty(len(face_ex), float)
         determine_out = np.empty(len(face_ex), bool)
+        self.record_conc = open(filepath4, "w")
         for i in sp.arange(0, self.steps, 1):
             BCs = []
             BCs.append(FixedFlux(face_ex, value = 0.0))
@@ -238,13 +239,15 @@ class Yarn2DModel(object):
             conc1_average_out = np.sum(value_out_record) / len(value_out_record)
             print 'average conccentration out', conc1_average_out
             conc1_out_yarn = np.append(conc1_out_yarn, conc1_average_out)
+            self.record_conc.write("%g, %g \n" %(self.times[i], conc1_out_yarn[-1]))
             print 'mass conservative with two fibers', self.cal_mass_void(self.conc_tot_each,
                                                 self.cell_volume) / self.scaleL
 ##            if i%10 == 0:                                    
-##                if self.viewer is not None:
-##                    self.viewer.plot()
-        dump.write({'time_step': self.times, 'conc_out': conc1_out_yarn},
-                               filename = filepath4, extension = '.gz')
+            if self.viewer is not None:
+                self.viewer.plot()
+##        dump.write({'time_step': self.times, 'conc_out': conc1_out_yarn},
+##                               filename = filepath4, extension = '.gz')
+        self.record_conc.close()
            # raw_input("next time step <return>....")
         raw_input("Finished <press return>.....")
     

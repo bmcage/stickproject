@@ -87,7 +87,7 @@ class FiberModel(object):
         print self.delta_t
         self.steps = (self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t
         self.times = sp.linspace(0, self.time_period, self.steps + 1)
-        print 'the times', self.times
+        #print 'the times', self.times
         self.delta_t = 0.1#self.times[1] - self.times[0]
         #read the initial and boundary information for fiber
         self.n_edge = self.cfg.get('fiber.n_edge') #discretize the fiber radius
@@ -344,7 +344,7 @@ class FiberModel(object):
         self.solution_fiber = CellVariable(name = "fiber concentration", 
                                 mesh = self.mesh_fiber,
                                 value = self.initial_c1 * self.porosity_domain, hasOld = 1)
-        #self.viewer =  Viewer(vars = self.solution_fiber / self.porosity_domain, datamin=0., datamax= 1.1)
+        self.viewer =  Viewer(vars = self.solution_fiber / self.porosity_domain, datamin=0., datamax= 1.1)
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
 
         if self.bound_left == FLUX and self.bound_right == FLUX:
@@ -426,11 +426,11 @@ class FiberModel(object):
         self.solution_view = CellVariable(name = "fiber concentration", 
                             mesh = self.mesh_fiber,
                             value = conc[0])
-        #self.viewer =  Viewer(vars = self.solution_view, datamin=0., datamax=conc[0].max())
-        #self.viewer.plot()
+        self.viewer =  Viewer(vars = self.solution_view, datamin=0., datamax=conc[0].max())
+        self.viewer.plot()
         for time, con in zip(times[1:], conc[1:]):
             self.solution_view.setValue(con)
-            #self.viewer.plot()
+            self.viewer.plot()
             #if time == 200.0:
             #    dump.write({'space_position': self.grid, 'conc1': con},
             #                filename = utils.OUTPUTDIR + os.sep + 'ode_t1.gz', extension = '.gz')
