@@ -72,7 +72,7 @@ YARN_MAT = {
 #
 #---------------------------------------------------------------
 
-class Yarn2dConfigManager(ConfigManager):
+class TestFiberConfigManager(ConfigManager):
 
     __instance = None
     
@@ -80,17 +80,17 @@ class Yarn2dConfigManager(ConfigManager):
         """ Use this function to get the instance of the ConfigManager 
         that will work on inifile
         """
-        if Yarn2dConfigManager.__instance is None:
-            Yarn2dConfigManager.__instance = 1 # Set to 1 for __init__()
-            Yarn2dConfigManager.__instance = Yarn2dConfigManager(inifile)
-        return Yarn2dConfigManager.__instance
+        if TestFiberConfigManager.__instance is None:
+            TestFiberConfigManager.__instance = 1 # Set to 1 for __init__()
+            TestFiberConfigManager.__instance = TestFiberConfigManager(inifile)
+        return TestFiberConfigManager.__instance
     get_instance = staticmethod(get_instance)
     
     def __init__(self, filename = INIFILE_DEFAULT):
         """ 
         A singleton implementation of config.ConfigManager
         """
-        if Yarn2dConfigManager.__instance is not 1:
+        if TestFiberConfigManager.__instance is not 1:
             raise Exception("This class is a singleton. "
                             "Use the get_instance() method")
         ConfigManager.__init__(self, filename)

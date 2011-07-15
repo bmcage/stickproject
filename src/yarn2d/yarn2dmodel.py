@@ -80,7 +80,8 @@ class Yarn2DModel(object):
         self.cfg = config
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
-        self.steps = (self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t
+        self.step = self.cfg.get('time.step')
+        self.steps = (self.time_period*(1.+self.step*1e-6)) // self.step #self.delta_t
         self.times = sp.linspace(0, self.time_period, self.steps + 1)
         self.delta_t = self.times[1] - self.times[0]
         self.Ry = self.cfg.get('domain.yarnradius')
@@ -92,6 +93,7 @@ class Yarn2DModel(object):
         self.blend = self.cfg.get('fiber.blend')
         self.scaleL = 1./self.Ry #get the scale factor for relative domain
         self.nrtypefiber = self.cfg.get('fiber.number_type')
+        self.fiber_edge_result = [0] * self.nrtypefiber
         assert self.nrtypefiber == len(self.blend) == len(self.Rf)
         #computational radius
         self.cfg_fiber = []
@@ -130,9 +132,32 @@ class Yarn2DModel(object):
         ##            mesh = self.mesh2d, value = self.init_conc)
         ##self.conc2 = CellVariable(name = "solution concentration2",
         ##            mesh = self.mesh2d, value = self.init_conc)
-##        self.viewer = None
-##        self.viewer = Viewer(vars = self.conc, datamin = 0., datamax =0.0005)
+        self.viewer = None
+        self.viewer = Viewer(vars = self.conc, datamin = 0., datamax =0.0005)
+    def solve_fiber_init(self):
+        for model in self.fiber_models:
+            model.run_init()
 
+    def solve_fiber_step(self, step):
+        """
+        Solve the diffusion process on the fiber for a single step, starting
+        from where we where last. 
+        &C/&t = 1/r * &(Dr&C/&r) / &r
+        The diffusion coefficient is constant. The finite volume method is used to
+        discretize the right side of equation. The mesh in this 1-D condition is 
+        uniform
+        """
+        for nyfib, model in enumerate(self.fiber_models):
+            #model.run_init()
+            print 'test', model.tot_edges
+            self.fiber_edge_result[nyfib] = model.run_step(step)[-1]
+            #times of the models must coincide at the moment as later on we do
+            #conc_on_fib[nyfib] = self.fiber_models[nyfib].fiber_surface[i+1]
+            #we should interpolate to avoid that
+            #assert len(self.times) == len(model.times), 'fiber and yarn model need same time steps'
+            #test = (sp.array(self.times) == sp.array(model.times))
+            #assert test.all(), 'fiber and yarn model need same time steps'
+            
     def solve_fiber(self):
         """
         Solve the diffusion process on the fiber. 
@@ -143,6 +168,7 @@ class Yarn2DModel(object):
         """
         for model in self.fiber_models:
             model.run()
+            #self.fiber_edge_result[nyfib] = model.run
             #times of the models must coincide at the moment as later on we do
             #conc_on_fib[nyfib] = self.fiber_models[nyfib].fiber_surface[i+1]
             #we should interpolate to avoid that
@@ -162,6 +188,9 @@ class Yarn2DModel(object):
         (2) When the DEET reaches surface, the evaporation happens. So the boundaries 
         of fiber and yarn are changed to constant flux (Neumann boundary condition)
         """
+        #self.solve_fiber()
+        self.solve_fiber_init()
+        #self.solve_fiber_step()
         self.diffusion_DEET = self.cfg.get('diffusion.diffusion_conc')
         #input the trsient equation of diffusion        
         self.eq = TransientTerm() == MyDiffusionTermNoCorrection(coeff = self.diffusion_DEET)
@@ -219,12 +248,14 @@ class Yarn2DModel(object):
         determine_out = np.empty(len(face_ex), bool)
         self.record_conc = open(filepath4, "w")
         for i in sp.arange(0, self.steps, 1):
+            self.solve_fiber_step(self.delta_t)
             BCs = []
             BCs.append(FixedFlux(face_ex, value = 0.0))
             for nyfib in sp.arange(self.nrtypefiber):
                 ## TODO, fix so that self.times need not be == model.times
-                conc_on_fib[nyfib] = (self.fiber_models[nyfib].fiber_surface[i] +
-                                self.fiber_models[nyfib].fiber_surface[i+1]) / 2
+##                conc_on_fib[nyfib] = (self.fiber_models[nyfib].fiber_surface[i] +
+##                                    self.fiber_models[nyfib].fiber_surface[i+1]) / 2.
+                conc_on_fib[nyfib] = self.fiber_edge_result[nyfib]
                 flux_in_fib[nyfib] = self.fiber_models[nyfib].boundary_transf_right * conc_on_fib[nyfib]
                 BCs.append(FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib]))#[nyfib + 1] = FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib])
             self.initial_t += self.delta_t
@@ -243,8 +274,8 @@ class Yarn2DModel(object):
             print 'mass conservative with two fibers', self.cal_mass_void(self.conc_tot_each,
                                                 self.cell_volume) / self.scaleL
 ##            if i%10 == 0:                                    
-##            if self.viewer is not None:
-##                self.viewer.plot()
+            if self.viewer is not None:
+                self.viewer.plot()
 ##        dump.write({'time_step': self.times, 'conc_out': conc1_out_yarn},
 ##                               filename = filepath4, extension = '.gz')
         self.record_conc.close()
@@ -264,5 +295,4 @@ class Yarn2DModel(object):
         self.create_mesh()
         if not self.cfg.onlymesh:
             self.initial_yarn2d()
-            self.solve_fiber()
             self.solve_single_component()

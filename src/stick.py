@@ -45,6 +45,7 @@ PROGS = {
     'fiber1d': 'fiber1d.fiberprog',
     'yarn1d': 'yarn1d.yarn1dprog',
     'yarn2d': 'yarn2d.yarn2dprog',
+    'test': 'test.testprog',
     }
 
 #-------------------------------------------------------------------------
