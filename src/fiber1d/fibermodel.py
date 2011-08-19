@@ -557,21 +557,19 @@ class FiberModel(object):
         self.create_mesh()
         self.initial_fiber()
         
-##    def run(self, wait=False, output=False):
-##        self.run_init()
-##        self.solve()
-##
-##        print 'end mass = ', self.calc_mass(self.conc1[-1])
-##        if output:
-##            self.dump_solution()
-##        if wait:
-##            raw_input("Finished fiber1d run")
+    def run(self, wait=False, output=False):
+        self.run_init()
+        if not self.initialized:
+            self.solve_init()
+        self.solve()
+
+        print 'end mass = ', self.calc_mass(self.conc1[-1])
+        if output:
+            self.dump_solution()
+        if wait:
+            raw_input("Finished fiber1d run")
 
     def run_step(self, step):
         if not self.initialized:
             self.solve_init()
         return self.solve_step(step)
-##        if output:
-##            self.dump_solution()
-##        if wait: 
-##            raw_input("Finished fiber1d run")
