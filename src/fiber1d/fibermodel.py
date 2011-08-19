@@ -543,7 +543,7 @@ class FiberModel(object):
         draw_conc = conc *1.0e4
         plt.figure()
         plt.plot(draw_time, draw_conc, '-', color = 'red')
-        plt.xlim(0.0, 36.0)
+        plt.xlim(0.0, 3.0)
         plt.xlabel('Time (month)')
         plt.ylabel('Flux of DEET ($\mathrm{mg\cdot cm/s}$)')
         plt.draw()

@@ -565,6 +565,7 @@ def virtlocoverlaplayout(options):
     filename = utils.OUTPUTDIR + os.sep + "combine.gz"
     # we now make sure the points are no longer overlapping, we detect overlap,
     # and use a dynamic scheme to correct the positions
+    
     move_fibers_nonoverlap(x_position, y_position, radius_fiber, oradius_yarn)
     dump.write({'x_position':x_position, 'y_position':y_position, 'radius_fiber':radius_fiber},
                 filename = filename, extension = '.gz')
@@ -680,6 +681,7 @@ def move_fibers_nonoverlap(xpos, ypos, radin, rad_yarn):
         if nrmoves == nrmovesmax:
             print 'ERROR: no good solution found, breaking loop'
             break
+
 
 def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib,):
     #divide the yarn zone to five concentric zones
@@ -980,6 +982,17 @@ def plot_yarn(x_position, y_position, radius_fiber):#, fiber_kind):
         circle = Circle((x_center, y_center), radii)
         patches.append(circle)
     #add the yarn
+    ax.xaxis.set_ticks(np.arange(-1., 1.1, 0.5))
+    ax.xaxis.set_ticklabels(["-$R$","-0.5$R$","0","0.5$R$", "R"])
+    ax.yaxis.set_ticks(np.arange(-1., 1.1, 0.5))
+    ax.yaxis.set_ticklabels(["-$R$","-0.5$R$","0","0.5$R$", "R"])
+##    fixup_subplot(ax.color)
+##    fig.get_gca()
+##    fig.clean()
+##    fig.set_xlim(-1.1, 1.1)
+##    fig.xticks([-1.0, -0.5, 0.0, 0.5, 1.0])
+##    fig.xticks_label('R')
+##    fig.axes.set_xlabel('$X$')
     circle = Circle((0., 0.), 1.0)
     patches.append(circle)
     p = PatchCollection(patches, cmap = matplotlib.cm.jet, alpha = 0.4)

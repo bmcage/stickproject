@@ -195,6 +195,10 @@ class Yarn2DModel(object):
         #input the trsient equation of diffusion        
         self.eq = TransientTerm() == MyDiffusionTermNoCorrection(coeff = self.diffusion_DEET)
         #get the position of the boundary faces
+        
+        conc_fib_out1 = sp.empty(self.steps)
+        conc_fib_out2 = sp.empty(self.steps)
+        
         xfc, yfc = self.mesh2d.getFaceCenters()
         xcc, ycc = self.mesh2d.getCellCenters()
         self.cell_volume = self.mesh2d.getCellVolumes()
@@ -203,6 +207,8 @@ class Yarn2DModel(object):
                         < (self.grid.radius_domain - self.grid.radius_boundlayer)**2))
         filepath3 = utils.OUTPUTDIR + os.sep + 'index_fiber.dat'
         filepath4 = utils.OUTPUTDIR + os.sep + 'yarn_out.dat'
+        filepath5 = utils.OUTPUTDIR + os.sep + 'conc_fib1.gz'
+        filepath6 = utils.OUTPUTDIR + os.sep + 'conc_fib2.gz'
         self.fib_x = self.grid.x_position
         self.fib_y = self.grid.y_position
         self.all_fib_radius = self.grid.all_radius_fibers
@@ -216,7 +222,6 @@ class Yarn2DModel(object):
         self.index_fiber = []
         for nyfib in sp.arange(self.nrtypefiber):
             self.index_fiber += [all_indexes[self.fibers[nyfib]]]
-
         #now determine boundaries
         #outside
         self.ext_bound = ((self.mesh2d.getExteriorFaces()) & 
@@ -256,8 +261,11 @@ class Yarn2DModel(object):
 ##                conc_on_fib[nyfib] = (self.fiber_models[nyfib].fiber_surface[i] +
 ##                                    self.fiber_models[nyfib].fiber_surface[i+1]) / 2.
                 conc_on_fib[nyfib] = self.fiber_edge_result[nyfib]
+                
                 flux_in_fib[nyfib] = self.fiber_models[nyfib].boundary_transf_right * conc_on_fib[nyfib]
                 BCs.append(FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib]))#[nyfib + 1] = FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib])
+            conc_fib_out1[i] = conc_on_fib[0]
+            conc_fib_out2[i] = conc_on_fib[-1]
             self.initial_t += self.delta_t
             self.eq.solve(var = self.conc, boundaryConditions = tuple(BCs), dt = self.delta_t, )
             print 'time = ', (i+1) * self.delta_t
@@ -280,6 +288,10 @@ class Yarn2DModel(object):
 ##                               filename = filepath4, extension = '.gz')
         self.record_conc.close()
            # raw_input("next time step <return>....")
+        dump.write({'time_step': self.times, 'conc_fib1': conc_fib_out1}, 
+                    filename = filepath5, extension = '.gz')
+        dump.write({'time_step': self.times, 'conc_fib2': conc_fib_out2},
+                    filename= filepath6, extension = '.gz')
         raw_input("Finished <press return>.....")
     
     def cal_mass_void(self, conc_void, cell_volume):
