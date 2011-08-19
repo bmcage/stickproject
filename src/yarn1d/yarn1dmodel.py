@@ -44,8 +44,8 @@ import time
 import lib.utils.utils as utils
 import lib.utils.gridutils as GridUtils
 import yarn2d.config as conf
-from fiberfipy.config import FiberfipyConfigManager
-from fiberfipy.fibermodel import FiberModel
+from fiber1d.config import Fiber1dConfigManager
+from fiber1d.fibermodel import FiberModel
 
 #-------------------------------------------------------------------------
 #
@@ -90,10 +90,11 @@ class Yarn1DModel(object):
             if not os.path.isabs(filename):
                 filename = os.path.normpath(os.path.join(
                             os.path.dirname(self.cfg.filename), filename))
-            self.cfg_fiber.append(FiberfipyConfigManager.get_instance(filename))
+            self.cfg_fiber.append(Fiber1dConfigManager.get_instance(filename))
             #set values from the yarn on this inifile
             self.cfg_fiber[-1].set("time.time_period", self.cfg.get("time.time_period"))
-        
+            if self.cfg_fiber[-1].get("time.dt") > self.cfg.get("time.time_period"):
+                self.cfg_fiber[-1].set("time.dt", self.cfg.get("time.time_period"))        
         #create fiber models
         self.fiber_models = []
         for cfg in self.cfg_fiber:
@@ -101,10 +102,11 @@ class Yarn1DModel(object):
         self.nr_models = len(self.fiber_models)
         
         self.verbose = self.cfg.get('general.verbose')
-        
+                
         #some memory
         self.cache_index_t_yarn = 0
         self.cache_index_t_fiber = [0] * self.nr_models
+        print "size cache index t fiber", size(self.cache_index_t_fiber)
 
     def create_mesh(self):
         """
@@ -134,7 +136,7 @@ class Yarn1DModel(object):
         self.init_conc = sp.ones(self.nr_edge-1, float)
         init_conc = self.cfg.get('initial.init_conc')
         self.init_conc *= init_conc
-        self.conc = CellVariable(name = "", 
+        self.conc = CellVariable(name = "Conc. Active Component", 
                    mesh = self.mesh_yarn, value = self.init_conc)
         #self.viewer = None
         self.viewer = Viewer(vars = self.conc, datamin = 0., datamax = None)
@@ -235,7 +237,7 @@ class Yarn1DModel(object):
             nr+=1
             
         self.source=sp.empty((self.steps,self.nr_edge-1),float) 
-        #source term is n*Cf(R,r_i+,t)/2pi=(m*delta(r**2)_i/Ry)*Cf(R,r_i+,t)/2pi with n the number of fibers in a shell,
+        #source term is n*Cf(R,r_i+,t)/2pi=(m*delta(r**2)_i/Ry**2)*Cf(R,r_i+,t)/2pi with n the number of fibers in a shell,
         #m the number of fibers per yarn.
         self.nr_fibers = self.cfg.get('fiber.number_fiber')
         grid_square=self.grid_edge**2
@@ -291,8 +293,8 @@ class Yarn1DModel(object):
     def solve_ode(self):
         self.initial_t = 0.
         endT = self.time_period
-        self.conc1 = np.empty((self.steps, self.nr_edge-1), float)
-        r = ode(self.f_conc1_ode).set_integrator('dvode', method = 'bdf')
+        self.conc1 = np.empty((len(self.times), len(self.init_conc)), float)
+        r = ode(self.f_conc1_ode).set_integrator('dvode', method = 'bdf', MF=23)
         r.set_initial_value(self.init_conc, self.initial_t)
         tstep = 0
         self.conc1[tstep][:] = self.init_conc[:]
@@ -300,7 +302,7 @@ class Yarn1DModel(object):
             r.integrate(r.t + self.delta_t)
             tstep += 1
             self.conc1[tstep][:] = r.y 
-            print r.t
+            print "r.t", r.t, "r.y", size(r.y)
         self.view_sol(self.times, self.conc1)
         
     def view_sol(self, times, conc):
