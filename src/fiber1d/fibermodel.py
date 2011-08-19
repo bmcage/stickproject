@@ -242,16 +242,17 @@ class FiberModel(object):
         Data is written to flux_edge, conc_r contains solution in the cell centers
         """
         if self.bound_left == FLUX:
-            flux_edge[0] = -self.boundary_fib_left
+            flux_edge[0] = -self.boundary_fib_left * self.grid_edge[0]
         else:
             print 'ERROR: boundary type left not implemented'
             sys.exit(0)
         if self.bound_right == FLUX:
-            flux_edge[-1] = self.boundary_fib_right
+            flux_edge[-1] = self.boundary_fib_right * self.grid_edge[-1]
         else:
             # a transfer coeff to the right
-            flux_edge[-1] = -self.boundary_transf_right * \
-                             self.porosity_domain[-1] * conc_r[-1] * self.grid[-1]
+            flux_edge[-1] = -self.boundary_transf_right * conc_r[-1] \
+                             * self.grid_edge[-1] * \
+                             self.porosity_domain[-1]
             #print 'flux', flux_edge[-1]
 
     def f_conc1_ode(self, t, w_rep):
