@@ -88,7 +88,7 @@ class Fiber1dConfigManager(ConfigManager):
         ConfigManager.__init__(self, filename)
 
     def register_defaults(self):
-        """default ini settings for a DiffusionIT problem"""
+        """default ini settings for a fiber1d problem"""
         self.register("general.read", False)
         self.register("general.verbose", False)
         self.register("general.method", 'FVM')
