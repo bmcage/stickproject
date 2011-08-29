@@ -32,9 +32,11 @@ import const
 import numpy as np
 import scipy as sp
 from scipy.integrate import ode
+from scipy.integrate import vode
 import matplotlib.pyplot as plt
 import sets
 import time
+
 
 #-------------------------------------------------------------------------
 #
@@ -138,8 +140,8 @@ class Yarn1DModel(object):
         self.init_conc *= init_conc
         self.conc = CellVariable(name = "Conc. Active Component", 
                    mesh = self.mesh_yarn, value = self.init_conc)
-        #self.viewer = None
-        self.viewer = Viewer(vars = self.conc, datamin = 0., datamax = None)
+        self.viewer = None
+        #self.viewer = Viewer(vars = self.conc, datamin = 0., datamax = None)
           
                 
 
@@ -258,7 +260,7 @@ class Yarn1DModel(object):
         return self.f_conc1(conc_r,t)
         
     def f_conc1(self, conc_r, t):
-        print 'concr', t, conc_r
+        #print 'concr', conc_r
         grid = self.grid
         n_cellcenters = len(grid)
         #get the sourceterm on time t
@@ -294,15 +296,15 @@ class Yarn1DModel(object):
         self.initial_t = 0.
         endT = self.time_period
         self.conc1 = np.empty((len(self.times), len(self.init_conc)), float)
-        r = ode(self.f_conc1_ode).set_integrator('dvode', method = 'bdf', MF=23)
+        r = ode(self.f_conc1_ode).set_integrator('vode', method = 'bdf', with_jacobian= False)
         r.set_initial_value(self.init_conc, self.initial_t)
         tstep = 0
         self.conc1[tstep][:] = self.init_conc[:]
         while r.successful() and r.t < endT - self.delta_t /10.:
             r.integrate(r.t + self.delta_t)
             tstep += 1
-            self.conc1[tstep][:] = r.y 
-            print "r.t", r.t, "r.y", size(r.y)
+            self.conc1[tstep][:] =  r.y
+            print "r.y", self.conc1[tstep][:]
         self.view_sol(self.times, self.conc1)
         
     def view_sol(self, times, conc):
@@ -319,13 +321,13 @@ class Yarn1DModel(object):
                             #mesh = self.mesh_fiber,
                             #value = conc[0])
         self.viewer =  Viewer(vars = self.conc, datamin=0., datamax=conc[0].max())
-        self.viewer.plot()
+        #self.viewer.plot()
         for time, con in zip(times[1:], conc[1:]):
             self.conc.setValue(con)
             self.viewer.plot()
-            if time == 200.0:
-                dump.write({'space_position': self.grid, 'conc1': con},
-                            filename = utils.OUTPUTDIR + os.sep + 'ode_t2.gz', extension = '.gz')
+            #if time == 200.0:
+             #   dump.write({'space_position': self.grid, 'conc1': con},
+              #              filename = utils.OUTPUTDIR + os.sep + 'ode_t2.gz', extension = '.gz')
     def run(self):        
         self.create_mesh()
         self.initial_yarn1d()
