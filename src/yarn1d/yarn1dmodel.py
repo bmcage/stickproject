@@ -282,20 +282,36 @@ class Yarn1DModel(object):
         
         #calculate flux rate in each edge of the domain
         diff_u_t = sp.empty(n_cellcenters, float)
-        concdiff=conc_r[1:]-conc_r[:-1]
-        deel1=self.grid_edge[1:-1]*concdiff
-        flux_edge[1:-1] = (2*self.diffusioncoeff*deel1)\
-                          /((self.delta_r[:-1]+self.delta_r[1:])*self.tortuosity)
-        diff_u_t=(flux_edge[1:]-flux_edge[:-1])/(2*self.grid_edge[:-1]*self.delta_r[:]+self.delta_r[:]**2)+self.source[self.index_t_yarn,:]
+        deel1=self.grid_edge[1:-1]*(conc_r[1:]-conc_r[:-1])
+        flux_edge[1:-1] = (2*(self.diffusioncoeff/self.tortuosity)*deel1)\
+                          /((self.delta_r[:-1]+self.delta_r[1:]))
+        diff_u_t=(flux_edge[1:]-flux_edge[:-1])/(self.grid_edge[:-1]*self.delta_r[:]+self.delta_r[:]**2/2)+self.source[self.index_t_yarn,:]
         return diff_u_t    
     #def solve_odeint(self):
         #self.conc1=odeint(self.f_conc1, initial_c1, self.times)
         #self.view_sol(self.times, self.conc1)
-
+        
+    #def jac(self):
+        #n=self.nr_edge-2
+        #m=2*(self.nr_edge-2)+1
+        #jaco = zeros((n,n))
+        #i=1
+        #j=0
+        #while i <= m-1 and j<=n:
+           # jaco[j,i-1]= self.grid_edge[(i+1)/2]/(self.delta_r[(i+1)/2]+self.delta_r[(i-1)/2])
+           # jaco[j,i+1]= - self.grid_edge[(i+3)/2]/(self.delta_r[(i+3)/2]+self.delta_r[(i+1)/2]) - self.grid_edge[(i+1)/2]/(self.delta_r[(i+1)/2]+self.delta_r[(i-1)/2])
+            #jaco[j,i+3]= self.grid_edge[(i+3)/2]/(self.delta_r[(i+3)/2]+self.delta_r[(i+1)/2])
+            #i+=1
+            #j+=1
+            #print i,j
+        #jaco = jaco*2*(self.diffusioncoeff/self.tortuosity)    
+        #return jaco 
+       
     def solve_ode(self):
         self.initial_t = 0.
         endT = self.time_period
         self.conc1 = np.empty((len(self.times), len(self.init_conc)), float)
+        #r = ode(self.f_conc1_ode,self.jac).set_integrator('vode', method = 'bdf', with_jacobian= True)
         r = ode(self.f_conc1_ode).set_integrator('vode', method = 'bdf', with_jacobian= False)
         r.set_initial_value(self.init_conc, self.initial_t)
         tstep = 0
