@@ -33,8 +33,6 @@ from matplotlib.patches import Circle, Wedge, Polygon
 from matplotlib.collections import PatchCollection
 import pylab
 import matplotlib
-import sympy
-from sympy.abc import x,y
 
 #-------------------------------------------------------------------------
 #
@@ -42,10 +40,10 @@ from sympy.abc import x,y
 #
 #-------------------------------------------------------------------------
 import lib.utils.utils as utils
+from lib.utils.arraycompare import fullcompare_array, circledist
 from fipy import Gmsh2D
 from fipy import *
-from yarn2d.config import FIBERLAYOUTS
-from yarn2d.config import FIBERSHAPE
+from yarn2d.config import FIBERLAYOUTS, FIBERSHAPE
 from virtlocgeom import *
 
 #-------------------------------------------------------------------------
@@ -399,10 +397,6 @@ def virtlocoverlaplayout(options):
          list of radius of fiber,
          list integers indicating kind of fiber)
     """
-    #pass
-    
-    NONTOUCH_FAC = 1.01
-
     x_central = options.get('x_central', 0.)
     y_central = options.get('y_central', 0.)
     onumber_fiber = options.get('number_fiber', 1)
@@ -600,98 +594,6 @@ def virtlocoverlaplayout(options):
     raw_input("wait")
     return (x_position, y_position, radius_fiber, fiber_kind)
 
-def fullcompare_array(a, b=None, func=None, funcdata_a=None,
-                      funcdata_b=None, chunk_size=None):
-    """
-    Compare every element of a with every element from b by running func.
-    Func should return None if there is no result, or the result. 
-    If b=None, a is compared with itself.
-    func should be func(a[i:i+n], b[j:j+n], funcdata_a[i:i+n], funcdata_b[j:j+n])
-    
-    returns array of tuple (ind, res) with 
-       ind of length a, with ind[i] containing the indexes in b that have result
-       res is an array of results, each of length a, with res[j][i] the corresponding results of func
-    """
-    #some argument checking
-    if len(a.shape) != 2:
-        raise Error, "a should be (m,n) matrix, m number of points, dim n"
-    if b is None:
-        b = a
-        funcdata_b = funcdata_a
-    if len(b.shape) != 2:
-        raise Error, "b should be (m,n) matrix, m number of points, dim n"
-    if b.shape[-1] != a.shape[-1]:
-        raise Error, "dimension of points in b should be the same as a"
-    
-    nrptna = a.shape[0]
-    nrptnb = b.shape[0]
-
-    ind = [None] * nrptna
-    res = None
-
-    if func is None:
-        def _equal(a, b, dataa, datab):
-            c = np.sum(a-b, axis=1) #square of distance
-            return c == 0, [c,]
-        func = lambda x1,x2,x3,x4: _equal(x1,x2,x3,x4)
-    if chunk_size is None:
-        chunk_size = a.shape[0]
-        nr_chunks = 1
-    else:
-        nr_chunks = int(round(nrptna / chunk_size + 0.5-1e-10))
-    tmp_funcdata_a = None
-    indices = sp.arange(nrptna)
-    #repeat b as many times as chunk_size
-    tmp_b_repeat = np.repeat(b.T, chunk_size, axis=0).reshape(
-                    (b.shape[1], chunk_size*b.shape[0])).T
-    tmp_funcdata_a = None
-    for chunk in range(nr_chunks):
-        chunk_indices = indices[chunk*chunk_size:(chunk+1)*chunk_size]
-        stchk = chunk*chunk_size
-        if chunk_size != len(chunk_indices):  #last length may be different
-            chunk_size = len(chunk_indices)
-            #repeat b as many times as chunk_size
-            tmp_b_repeat = np.repeat(b.T, chunk_size, axis=0).reshape(
-                    (b.shape[1], chunk_size*b.shape[0])).T
-        tmp_a = a.T[..., chunk_indices]
-        if funcdata_a is not None:
-            tmp_funcdata_a = funcdata_a[chunk_indices]
-        #repeat tmp_a as many times as nrptnb 
-        tmp_a_repeat  = np.repeat(tmp_a, nrptnb, axis=1).T
-        tind, tres = func(tmp_a_repeat, tmp_b_repeat, tmp_funcdata_a, funcdata_b)
-        print 'tind', tind
-        tind = tind.reshape((chunk_size, nrptnb))
-        for i,j in enumerate(tres):
-            tres[i] = j.reshape((chunk_size, nrptnb))
-        if res is None:
-            #first time, size as output of func
-            res = [None] * len(tres)
-            for i in range(len(tres)):
-                res[i] = [None] * nrptna
-        for chk in np.arange(chunk_size):
-            ind[stchk + chk] = indices[tind[chk]]
-            for i,j in enumerate(tres):
-                res[i][stchk + chk] = j[chk][tind[chk]]
-    return ind, res
-
-def circledist(a, b, rada, radb):
-    """
-    Compute distance between a and b and return those that do not overlap. 
-    a, b are arrays of length len(rada) * len(radb). a is repeated radb times
-    """
-    #substract both and calc distance of all pairs
-    tmp = a - b
-    tmp = np.sum(tmp*tmp, axis=1) #square of distance
-    tmp = tmp.reshape((len(rada), len(radb)))
-    distreqsqr = sp.empty(tmp.shape, float)
-    #print 'tmp', tmp
-    for i in range(len(rada)):
-        distreqsqr[i,:] = sp.power((1+(NONTOUCH_FAC-1)/2)*(rada[i] + radb[:]), 2)
-    #now determine all indices that overlap
-    result = (tmp < distreqsqr) # point itself is returned too!
-    #print 'circle', result.flatten(), [sp.sqrt(tmp), sp.sqrt(distreqsqr)]
-    return result.flatten(), [sp.sqrt(tmp), sp.sqrt(distreqsqr)]
-
 def determine_overlap(xpos, ypos, radin):
     """
     Determine if there is overlap between circles
@@ -700,7 +602,7 @@ def determine_overlap(xpos, ypos, radin):
     coord = sp.empty((len(xpos), 2))
     coord[:, 0] = xpos[:]
     coord[:, 1] = ypos[:]
-    ind, res = fullcompare_array(coord, func=circledist, funcdata_a=radin)
+    ind, res = fullcompare_array(coord, func=circledist, funcdata_a=radin*(1+(NONTOUCH_FAC-1)/2))
     return ind, res[0], res[1]
 
 def move_fibers_nonoverlap(xpos, ypos, radin, rad_yarn):
@@ -1085,15 +987,7 @@ def plot_yarn(x_position, y_position, radius_fiber):#, fiber_kind):
     pylab.draw()
 
 def test():
-    a = np.zeros((3,1), float)
-    a[0,0] = 1; a[1,0]=2; a[2,0]=1
-    print fullcompare_array(a)
-    
-    a = np.zeros((4,2), float)
-    a[0,0] = 1; a[1,0]=2; a[2,0]=1; a[3,0]=2
-    a[0,1] = 4; a[1,1]=5; a[2,1]=4; a[3,1]=6
-    print fullcompare_array(a)
-    print determine_overlap(a[:,0], a[:,1], np.array([0.5, 0.5, 0.5, 0.5]))
+    pass
 
 if __name__ == '__main__': 
     test()
