@@ -45,6 +45,7 @@ from fipy import Gmsh2D
 from fipy import *
 from yarn2d.config import FIBERLAYOUTS, FIBERSHAPE
 from virtlocgeom import *
+from arearatioprobability import *
 
 #-------------------------------------------------------------------------
 #
@@ -270,6 +271,8 @@ def virtloclayout(options):
         i_determine += 1
         circle_loop += 1
     #make the fiber reach the radius of yarn
+    i_type = len(onumber_fiber_blend)
+    ##if i_type == 1:
     while circle_loop < total_circles:
         obeta_value += obeta_value 
         print 'inc beta', obeta_value
@@ -565,32 +568,59 @@ def virtlocoverlaplayout(options):
     filename = utils.OUTPUTDIR + os.sep + "combine.gz"
     # we now make sure the points are no longer overlapping, we detect overlap,
     # and use a dynamic scheme to correct the positions
-    
+    x_position_alpha = sp.empty(len(x_position), float)
+    y_position_alpha = sp.empty(len(y_position), float)
+    x_position_alpha[:] = x_position[:]
+    y_position_alpha[:] = y_position[:]
+    move_fibers_alpha(x_position_alpha, y_position_alpha, radius_fiber, oradius_yarn)
     move_fibers_nonoverlap(x_position, y_position, radius_fiber, oradius_yarn)
+    
     dump.write({'x_position':x_position, 'y_position':y_position, 'radius_fiber':radius_fiber},
                 filename = filename, extension = '.gz')
-    plot_yarn(x_position, y_position, radius_fiber)
-    pylab.show()
+##    plot_yarn(x_position, y_position, radius_fiber)
+##    pylab.show()
+##    plot_yarn(x_position_alpha, y_position_alpha, radius_fiber)
+##    pylab.show()
     filename_2 = utils.OUTPUTDIR + os.sep + "proportion_vl_overlap.gz"
+    filename_3 = utils.OUTPUTDIR + os.sep + "proportion_vl_overlap_alpha.gz"
     zone_position_ov, ratio_vl_ov = calculate_proportion(oradius_yarn, radius_fiber, 
                                     x_position, y_position)
+    zone_position_ov_1, ratio_vl_ov_1 = calculate_proportion(oradius_yarn, radius_fiber,
+                                    x_position_alpha, y_position_alpha)
     dump.write({'zone_position': zone_position_ov, 'ratio_value':ratio_vl_ov},
                 filename = filename_2, extension = '.gz')
+    dump.write({'zone_position_alpha': zone_position_ov_1, 'ratio_value_alpha':
+                ratio_vl_ov_1}, filename = filename_3, extension = '.gz')
     for i_kind in range(len(onumber_fiber_blend)):
         x_each_kind = []
         y_each_kind = []
+        x_each_kind_alpha = []
+        y_each_kind_alpha = []
         radius_each_kind = []
+        radius_each_kind_alpha = []
         for i_fiber in range(len(fiber_kind)):
             if fiber_kind[i_fiber] == i_kind:
                 x_each_kind.append(x_position[i_fiber])
                 y_each_kind.append(y_position[i_fiber])
                 radius_each_kind.append(radius_fiber[i_fiber])
+                ##for the alpha value is equal to -1
+                x_each_kind_alpha.append(x_position_alpha[i_fiber])
+                y_each_kind_alpha.append(y_position_alpha[i_fiber])
+                radius_each_kind_alpha.append(radius_fiber[i_fiber])
         x_each_kind = sp.array(x_each_kind)
         y_each_kind = sp.array(y_each_kind)
+        x_each_kind_alpha = sp.array(x_each_kind_alpha)
+        y_each_kind_alpha = sp.array(y_each_kind_alpha)
         zone_position_ov, ratio_vl_ov = calculate_proportion(oradius_yarn, 
                                         radius_each_kind, x_each_kind, y_each_kind)
+        zone_position_ov_alpha, ratio_ov_alpha = calculate_proportion(oradius_yarn, 
+                                        radius_each_kind_alpha, x_each_kind_alpha,
+                                        y_each_kind_alpha)
         dump.write({'zone_position':zone_position_ov, 'ratio_value': ratio_vl_ov},
                     filename = utils.OUTPUTDIR + os.sep + "each_kind_ratio_%g"%(i_kind), 
+                    extension = '.gz')
+        dump.write({'zone_position': zone_position_ov_alpha, 'ratio_value':ratio_ov_alpha},
+                    filename = utils.OUTPUTDIR + os.sep + "each_kind_ratio_alpha_%g"%(i_kind),
                     extension = '.gz')
     raw_input("wait")
     return (x_position, y_position, radius_fiber, fiber_kind)
@@ -670,7 +700,6 @@ def move_fibers_nonoverlap(xpos, ypos, radin, rad_yarn):
         if ok:
             print 'Good fiber layout found after', nrmoves, 'moves'
             break
-        
         FRACVAL = 1.05 # a good value ??
         for ind in sp.arange(len(tooclose)):
             lambda_value = np.random.uniform(0,0.001)
@@ -682,294 +711,81 @@ def move_fibers_nonoverlap(xpos, ypos, radin, rad_yarn):
             print 'ERROR: no good solution found, breaking loop'
             break
 
+def move_fibers_alpha(xpos, ypos, radin, rad_yarn):
+    ##change the alpha value
+    ok = False
+    nrmoves = 0
+    nrmovesmax = 500
+    nrmovesmaxyarn = 1000
+    while not ok:
+        ok = True
+        nrmoves += 1
+        (tooclose, dist, distreq) = determine_overlap(xpos, ypos, 
+                                    radin)
+        vx = sp.zeros(len(tooclose), float)
+        vy = sp.zeros(len(tooclose), float)
+        for ind in sp.arange(len(tooclose)):
+            for ov_ind, ov_distreal, ov_distreq in zip(tooclose[ind],
+                                dist[ind], distreq[ind]):
+                if ov_ind == ind:
+                    continue
+                #see if overlap is sufficiently small
+                if (ov_distreq - ov_distreal)/ov_distreq > (NONTOUCH_FAC-1)/2:
+                    #sufficient separation to fit in a fiber
+                    ok = False
+                if ov_distreal == 0.:
+                    if ind < ov_ind:
+                        delta_dir_x = xpos[ov_ind] / sp.sqrt(sp.power(xpos[ov_ind], 2.) + 
+                                                    sp.power(ypos[ov_ind], 2.))
+                        delta_dir_y = ypos[ov_ind] / sp.sqrt(sp.power(xpos[ov_ind], 2.) + 
+                                                    sp.power(ypos[ov_ind], 2.))
+                    else:
+                        delta_dir_x = -xpos[ov_ind] / sp.sqrt(sp.power(xpos[ov_ind], 2.) + 
+                                                    sp.power(ypos[ov_ind], 2.))
+                        delta_dir_y = -ypos[ov_ind] / sp.sqrt(sp.power(xpos[ov_ind], 2.) + 
+                                                    sp.power(ypos[ov_ind], 2.))
+                    dirx = (ov_distreal - ov_distreq) * \
+                            (1. / 2.)* \
+                            delta_dir_x
+                    diry = (ov_distreal - ov_distreq) * \
+                            (1. / 2.)* \
+                            delta_dir_y
+                else:
+                    dirx = (ov_distreal - ov_distreq) * \
+                            (1. / 2.)* \
+                            (xpos[ov_ind] - xpos[ind])/ (ov_distreal)
+                    diry = (ov_distreal - ov_distreq) * \
+                            (1. / 2.)* \
+                            (ypos[ov_ind] - ypos[ind])/ (ov_distreal)
+                
+                vx[ind] += dirx
+                vy[ind] += diry
+            distance_central = sp.sqrt(xpos[ind]**2 + 
+                                ypos[ind]**2)
+            if distance_central > rad_yarn-radin[ind]:
+                ok = False
+                delta_central =  rad_yarn - radin[ind] - distance_central
+                dirx = delta_central * xpos[ind] / sp.sqrt(xpos[ind]**2
+                        + ypos[ind]**2.)
+                diry = delta_central * ypos[ind] / sp.sqrt(xpos[ind]**2 + 
+                        ypos[ind]**2)
+                vx[ind] += dirx
+                vy[ind] += diry
+        
+        if ok:
+            print 'After changing the Alpha value, Good fiber layout found after', nrmoves, 'moves'
+            break
+        FRACVAL = 1.05 # a good value ??
+        for ind in sp.arange(len(tooclose)):
+            lambda_value = np.random.uniform(0,0.001)
+            xpos[ind] = xpos[ind] + vx[ind] * (FRACVAL + lambda_value)
+            ypos[ind] = ypos[ind] + vy[ind] * (FRACVAL + lambda_value)
+        
+        #break if too many iterations
+        if nrmoves == nrmovesmax:
+            print 'ERROR: no good solution found, breaking loop'
+            break
 
-def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib,):
-    #divide the yarn zone to five concentric zones
-    zone_radius = sp.zeros(6, float)
-    zone_width = sp.zeros(6, float)
-    width_zone = rad_yarn / 6.
-    print rad_yarn
-    for i_circle in sp.arange(len(zone_radius)):
-        zone_radius[i_circle] += width_zone * (i_circle + 1)
-        zone_width[i_circle] = width_zone
-    total_zone = sum(zone_width)
-    zone_radius[-1] = rad_yarn * NONTOUCH_FAC
-    zone_width[-1] = zone_width[-1] + rad_yarn * (NONTOUCH_FAC -1.)
-    print 'the sum of five zones', total_zone
-    if total_zone > 1.0:
-        assert False
-    while abs(rad_yarn - total_zone) > 1.0e-4:
-        diff = abs(rad_yarn - total_zone)
-        if rad_yarn > total_zone:
-            zone_radius[:] = zone_radius[:] + diff / 5.0
-        else:
-            zone_radius[:] = zone_radius[:] - diff / 5.0
-    #count how many virtual locations in each zone
-    #calculate the area of fiber cross section in each domain
-    print 'zone_radius value', zone_radius
-    distan_fib_central = sp.sqrt(x_fib**2. + y_fib**2.)
-    print 'the distance from fibre to central', distan_fib_central
-    area_fib_zone = sp.zeros(len(zone_radius))
-    count_number = 0
-    filename = utils.OUTPUTDIR + os.sep + "proportion_value.gz"
-    for i_circle in sp.arange(len(zone_radius)):
-        print 'GOING %g th zone' %(i_circle)
-        if i_circle == 0:
-            for i_fib in sp.arange(len(distan_fib_central)):
-                if distan_fib_central[i_fib] + rad_fib[i_fib] <= zone_radius[i_circle]:
-                    print 'the central point x', x_fib[i_fib]
-                    print 'the central point y', y_fib[i_fib]
-                    print 'the distance to the central', distan_fib_central[i_fib]
-                    print 'begin to calculate the aera,the whole part in the domain'
-                    area_fib_zone[i_circle] += sp.pi * sp.power(rad_fib[i_fib], 2.0)
-                elif distan_fib_central[i_fib] < zone_radius[i_circle] and (distan_fib_central[i_fib] + rad_fib[i_fib]) > zone_radius[i_circle]:
-                    print 'begin to calculate more than half aera'
-                    print 'the central point x', x_fib[i_fib]
-                    print 'the central point y', y_fib[i_fib]
-                    print 'the distance to the central', distan_fib_central[i_fib]
-                    print 'the value of zone radius', zone_radius[i_circle]
-                    solution_points = intersect_circles(x_fib[i_fib],y_fib[i_fib],
-                                zone_radius[i_circle],rad_fib[i_fib])
-                    x_in_one = float(solution_points[0][0])
-                    print 'the first solution', x_in_one
-                    x_in_secon = float(solution_points[1][0])
-                    print 'the second solution', x_in_secon
-                    y_in_one = float(solution_points[0][1])
-                    print 'the first solution for y', y_in_one
-                    y_in_secon = float(solution_points[1][1])
-                    print 'the second solution for y', y_in_secon
-                    square_distan = (x_in_one - x_in_secon)**2. + \
-                                    (y_in_one - y_in_secon)**2.
-                    print 'the square of the distance', square_distan
-                    distan_two_points = sp.sqrt(square_distan)
-                    alpha_r = sp.arccos((2. * sp.power(rad_fib[i_fib], 2.) - sp.power(distan_two_points, 2.))
-                     / (2.* sp.power(rad_fib[i_fib], 2.)))
-                    beta_r_zone = sp.arccos((2. * sp.power(zone_radius[i_circle], 2.) - sp.power(distan_two_points, 2.)) / (2.* sp.power(zone_radius[i_circle], 2.)))
-                    print 'the beta_r_zone', beta_r_zone
-                    area_circ = (2. * sp.pi - alpha_r) / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
-                    area_triangle = 1./2. * sp.sin(alpha_r) * sp.power(rad_fib[i_fib], 2.)
-                    area_curve = beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.) - \
-                        1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
-##                    print 'the angle part value', beta_r_zone / (2. * sp.pi)
-##                    print 'the sin function value', sp.sin(beta_r_zone)
-##                    print 'the power value', sp.power(zone_radius[i_circle], 2.)
-##                    print 'the curve cirle area', beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.)
-##                    print 'the curve area substract part', 1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
-##                    print 'the value of the curve', area_curve
-                    area_fib_zone[i_circle] = area_fib_zone[i_circle] + area_circ + area_triangle + \
-                        area_curve
-                    part_fib = area_circ + area_triangle + area_curve 
-                    area_fib_zone[i_circle +1] += sp.pi * sp.power(rad_fib[i_fib], 2.) - part_fib  
-                elif distan_fib_central[i_fib] > zone_radius[i_circle] and distan_fib_central[i_fib] \
-                        - rad_fib[i_fib] < zone_radius[i_circle]:
-                    print 'the central point x', x_fib[i_fib]
-                    print 'the central point y', y_fib[i_fib]
-                    print 'the distance to the central', distan_fib_central[i_fib]
-                    print 'begin to calculate less than have in area'
-                    solution_points = intersect_circles(x_fib[i_fib],y_fib[i_fib],
-                                zone_radius[i_circle],rad_fib[i_fib])
-                    x_in_one = solution_points[0][0]
-                    print 'the first solution', x_in_one
-                    x_in_secon = solution_points[1][0]
-                    print 'the second solution', x_in_secon
-                    y_in_one = solution_points[0][1]
-                    print 'the first solution for y', y_in_one
-                    y_in_secon = solution_points[1][1]
-                    print 'the second solution for y', y_in_secon
-                    #print 'the distance value',(x_in_one - x_in_secon)**2. + (y_in_one - y_in_secon)**2.
-                    square_distan = (x_in_one - x_in_secon)**2+ \
-                                    (y_in_one - y_in_secon)**2
-                    #print 'the square of the distance', square_distan
-                    square_distan = float(square_distan)
-                    distan_two_points = sp.sqrt(square_distan)
-                    print 'the distance between two points', distan_two_points
-                    alpha_r = sp.arccos((2. * sp.power(rad_fib[i_fib], 2.) - sp.power(distan_two_points, 2.))
-                     / (2.* sp.power(rad_fib[i_fib], 2.)))
-                    beta_r_zone = sp.arccos((2. * sp.power(zone_radius[i_circle], 2.) - sp.power(distan_two_points, 2.))/
-                        (2. * sp.power(zone_radius[i_circle], 2.)))
-                    sp.power(rad_fib[i_fib], 2.)
-                    area_circ = alpha_r / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
-                    area_triangle = 1./2. * sp.sin(alpha_r) * sp.power(rad_fib[i_fib], 2.)
-                    area_curve = beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.0) - \
-                        1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
-##                    print 'the value in beta_r_zone 1', sp.power(rad_fib[i_fib], 2.)
-##                    print 'the value in beta_r_zone 2', sp.power(distan_two_points, 2.)
-##
-##                    print 'the angle part value', beta_r_zone / (2. * sp.pi)
-##                    print 'the sin function value', sp.sin(beta_r_zone)
-##                    print 'the power value', sp.power(zone_radius[i_circle], 2.)
-##                    print 'the curve cirle area', beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.)
-##                    print 'the curve area substract part', 1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
-##                    print 'the value of the curve', area_curve
-                    area_fib_zone[i_circle] = area_fib_zone[i_circle] + area_circ - area_triangle + \
-                        area_curve
-                    part_fib = area_circ - area_triangle + area_curve
-                    area_fib_zone[i_circle + 1] += sp.pi * sp.power(rad_fib[i_fib], 2.) - part_fib
-                elif distan_fib_central[i_fib] == zone_radius[i_circle]:
-                    print 'begin to calculate nearly half in the area'
-                    print 'the central point x', x_fib[i_fib]
-                    print 'the central point y', y_fib[i_fib]
-                    print 'the distance to the central', distan_fib_central[i_fib]
-                    solution_points = intersect_circles(x_fib[i_fib],y_fib[i_fib],
-                                zone_radius[i_circle],rad_fib[i_fib])
-                    x_in_one = solution_points[0][0]
-                    x_in_secon = solution_points[1][0]
-                    y_in_one = solution_points[0][1]
-                    y_in_secon = solution_points[1][1]
-                    square_distan = (x_in_one - x_in_secon)**2. + \
-                                    (y_in_one - y_in_secon)**2.
-                    #square_distan = float(square_distan)
-                    distan_two_points = sp.sqrt(square_distan)
-                    alpha_r = sp.arccos((2. * sp.power(rad_fib[i_fib], 2.) - sp.power(distan_two_points, 2.))
-                     / (2.* sp.power(rad_fib[i_fib], 2.)))
-                    beta_r_zone = sp.arccos((2. * sp.power(zone_radius[i_circle], 2.) - sp.power(distan_two_points, 2.))
-                    / (2.*sp.power(zone_radius[i_circle, 2.])))
-                    sp.power(rad_fib[i_fib], 2.)
-                    area_circ = (2. * sp.pi - alpha_r) / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
-                    area_triangle = 1./2. * sp.sin(alpha_r) * sp.power(rad_fib[i_fib], 2.)
-                    area_curve = beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.0) - \
-                        1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
-                    area_fib_zone[i_circle] = area_fib_zone[i_circle] + area_circ - area_triangle + \
-                        area_curve
-                    part_fib = area_circ - area_triangle + area_curve 
-                    area_fib_zone[i_circle +1] += sp.pi * sp.power(rad_fib[i_fib], 2.) - part_fib
-        else:
-            for i_fib in sp.arange(len(distan_fib_central)):
-                if distan_fib_central[i_fib] - rad_fib[i_fib]>= zone_radius[i_circle -1] and \
-                    distan_fib_central[i_fib] + rad_fib[i_fib] <= zone_radius[i_circle]:
-                    print 'begin to calculate the aera, whole in the domain'
-                    print 'the central point x', x_fib[i_fib]
-                    print 'the central point y', y_fib[i_fib]
-                    print 'the distance to the central', distan_fib_central[i_fib]
-                    area_fib_zone[i_circle] += sp.pi * sp.power(rad_fib[i_fib], 2.)
-                    print 'the value in the zone area', area_fib_zone[i_circle]
-                elif distan_fib_central[i_fib] < zone_radius[i_circle] and \
-                    (distan_fib_central[i_fib] + rad_fib[i_fib]) > zone_radius[i_circle]:
-                    print 'begin to calculate the aera, most in the domain'
-                    print 'the central point x', x_fib[i_fib]
-                    print 'the central point y', y_fib[i_fib]
-                    print 'the distance to the central', distan_fib_central[i_fib]
-                    solution_points = intersect_circles(x_fib[i_fib],y_fib[i_fib],
-                                zone_radius[i_circle],rad_fib[i_fib])
-                    x_in_one = float(solution_points[0][0])
-                    print 'the first solution', x_in_one
-                    x_in_secon = float(solution_points[1][0])
-                    print 'the second solution', x_in_secon
-                    y_in_one = float(solution_points[0][1])
-                    print 'the first solution for y', y_in_one
-                    y_in_secon = float(solution_points[1][1])
-                    print 'the second solution for y', y_in_secon
-                    square_distan = (x_in_one - x_in_secon)**2. + \
-                                    (y_in_one - y_in_secon)**2.
-                    print 'the square of the distance', square_distan
-                    print 'the square of the distance', square_distan
-                    distan_two_points = sp.sqrt(square_distan)
-                    alpha_r = sp.arccos((2. * sp.power(rad_fib[i_fib], 2.) - sp.power(distan_two_points, 2.))
-                     / (2.* sp.power(rad_fib[i_fib], 2.)))
-                    beta_r_zone = sp.arccos((2. * sp.power(zone_radius[i_circle], 2.) 
-                                - sp.power(distan_two_points, 2.)) / (2.* 
-                                sp.power(zone_radius[i_circle], 2.)))
-                    print 'the beta_r_zone', beta_r_zone
-                    area_circ = (2. * sp.pi - alpha_r) / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
-                    area_triangle = 1./2. * sp.sin(alpha_r) * sp.power(rad_fib[i_fib], 2.)
-                    area_curve = beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.) - \
-                        1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
-                    area_fib_zone[i_circle] = area_fib_zone[i_circle] + area_circ + area_triangle + \
-                        area_curve
-                    part_fib = area_circ + area_triangle + area_curve 
-                    area_fib_zone[i_circle +1] += sp.pi * sp.power(rad_fib[i_fib], 2.) - part_fib
-                    print 'the value in the zone area', area_fib_zone[i_circle]  
-                elif distan_fib_central[i_fib] > zone_radius[i_circle] and distan_fib_central[i_fib] \
-                        - rad_fib[i_fib] < zone_radius[i_circle]:
-                    print 'begin to calculate the aera less half in the domain'
-                    print 'the central point x', x_fib[i_fib]
-                    print 'the central point y', y_fib[i_fib]
-                    print 'the distance to the central', distan_fib_central[i_fib]
-                    solution_points = intersect_circles(x_fib[i_fib],y_fib[i_fib],
-                                zone_radius[i_circle],rad_fib[i_fib])
-                    x_in_one = solution_points[0][0]
-                    print 'the first solution', x_in_one
-                    x_in_secon = solution_points[1][0]
-                    print 'the second solution', x_in_secon
-                    y_in_one = solution_points[0][1]
-                    print 'the first solution', y_in_one
-                    y_in_secon = solution_points[1][1]
-                    print 'the sceond solution', y_in_secon
-                    #print 'the distance value',(x_in_one - x_in_secon)**2. + (y_in_one - y_in_secon)**2.
-                    square_distan = (x_in_one - x_in_secon)**2.+ \
-                                    (y_in_one - y_in_secon)**2.
-                    #print 'the square of the distance', square_distan
-                    square_distan = float(square_distan)
-                    distan_two_points = sp.sqrt(square_distan)
-                    alpha_r = sp.arccos((2. * sp.power(rad_fib[i_fib], 2.) - sp.power(distan_two_points, 2.))
-                     / (2.* sp.power(rad_fib[i_fib], 2.)))
-                    beta_r_zone = sp.arccos((2. * sp.power(zone_radius[i_circle], 2.) - sp.power(distan_two_points, 2.))/
-                        (2. * sp.power(zone_radius[i_circle], 2.)))
-                    sp.power(rad_fib[i_fib], 2.)
-                    area_circ = alpha_r / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
-                    area_triangle = 1./2. * sp.sin(alpha_r) * sp.power(rad_fib[i_fib], 2.)
-                    area_curve = beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.0) - \
-                        1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
-
-                    area_fib_zone[i_circle] = area_fib_zone[i_circle] + area_circ - area_triangle + \
-                        area_curve
-                    part_fib = area_circ - area_triangle + area_curve
-                    area_fib_zone[i_circle + 1] += sp.pi * sp.power(rad_fib[i_fib], 2.) - part_fib
-                    print 'the value in the zone area', area_fib_zone[i_circle]
-                elif distan_fib_central[i_fib] == zone_radius[i_circle]:
-                    print 'begin to calculate the aera half in the domain'
-                    print 'the central point x', x_fib[i_fib]
-                    print 'the central point y', y_fib[i_fib]
-                    print 'the distance to the central', distan_fib_central[i_fib]
-                    solution_points = intersect_circles(x_fib[i_fib],y_fib[i_fib],
-                                zone_radius[i_circle],rad_fib[i_fib])
-                    x_in_one = solution_points[0][0]
-                    print 'the first solution', x_in_one
-                    x_in_secon = solution_points[1][0]
-                    print 'the second solution', x_in_secon
-                    y_in_one = solution_points[0][1]
-                    print 'the first solution', y_in_one
-                    y_in_secon = solution_points[1][1]
-                    print 'the second solution', y_in_secon
-                    square_distan = (x_in_one - x_in_secon)**2. + \
-                                    (y_in_one - y_in_secon)**2.
-                    #square_distan = float(square_distan)
-                    distan_two_points = sp.sqrt(square_distan)
-                    alpha_r = sp.arccos((2. * sp.power(rad_fib[i_fib], 2.) - sp.power(distan_two_points, 2.))
-                     / (2.* sp.power(rad_fib[i_fib], 2.)))
-                    beta_r_zone = sp.arccos((2. * sp.power(zone_radius[i_circle], 2.) - sp.power(distan_two_points, 2.))
-                    / (2.*sp.power(zone_radius[i_circle, 2.])))
-                    sp.power(rad_fib[i_fib], 2.)
-                    area_circ = (2. * sp.pi - alpha_r) / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
-                    area_triangle = 1./2. * sp.sin(alpha_r) * sp.power(rad_fib[i_fib], 2.)
-                    area_curve = beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.0) - \
-                        1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
-                    area_fib_zone[i_circle] = area_fib_zone[i_circle] + area_circ - area_triangle + \
-                        area_curve
-                    part_fib = area_circ - area_triangle + area_curve 
-                    area_fib_zone[i_circle +1] += sp.pi * sp.power(rad_fib[i_fib], 2.) - part_fib
-                    print 'the value in the zone area', area_fib_zone[i_circle]
-    print 'the value of area of fiber in each zone', area_fib_zone
-    #calculate the area value of each concentric zone
-    zone_area = sp.zeros(len(zone_radius), float)
-    for i_zone in sp.arange(len(zone_radius)):
-        if i_zone == 0:
-            zone_area[i_zone] = sp.pi * sp.power(zone_radius[i_zone], 2.)
-        else:
-            zone_area[i_zone] = sp.pi * sp.power((zone_radius[i_zone] + rad_fib[0]), 2.) - \
-                                sp.sum(zone_area[:i_zone])#sp.pi * sp.power(zone_radius[i_zone - 1], 2.)
-    ratio_each = area_fib_zone / zone_area
-    print 'the value of zone area is', zone_area
-    print 'the ratio value in each zone', ratio_each
-    zone_point = sp.zeros(len(zone_radius))
-    for i_circle in sp.arange(len(zone_radius)):
-        zone_point[i_circle] = width_zone / 2. + i_circle * width_zone
-    print 'the zone central point value', zone_point
-    #i_zone[:] = i_zone[:] + 1
-##    dump.write({'zone_number': zone_point, 'ratio_value': ratio_each}, filename = 
-##                filename, extension = '.gz')
-    return (zone_point, ratio_each)
-                    
 def plot_yarn(x_position, y_position, radius_fiber):#, fiber_kind):
     """
     Function to make a nice plot of the yarn with all the fibers
