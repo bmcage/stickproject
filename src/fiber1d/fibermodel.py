@@ -506,14 +506,16 @@ class FiberModel(object):
         Initialize the solvers so they can be solved stepwize
         """
         if self.submethod == 'fipy':
-            self.solve_fipy_init()
+            self.solve_fipy()
         else:            
             if self.submethod == 'odeintw':
                 raise Exception, 'Not supported to step for odeint'
+                self.solve()
             elif  self.submethod == 'odew':
                 self.solve_ode_init()
             elif self.submethod == 'odeintu':
                 raise Exception, 'Not supported to step for odeint'
+                self.solve()
             elif self.submethod == 'odeu':
                 self.solve_ode_init()
 
