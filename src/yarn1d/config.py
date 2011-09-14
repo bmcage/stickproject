@@ -64,27 +64,28 @@ YARN_MAT = {
 
 class Yarn1dConfigManager(ConfigManager):
 
-    __instance = None
+    __instance = {}
+    
     
     def get_instance(inifile):
         """ Use this function to get the instance of the ConfigManager 
         that will work on inifile
         """
-        if Yarn1dConfigManager.__instance is None:
-            Yarn1dConfigManager.__instance = 1 # Set to 1 for __init__()
-            Yarn1dConfigManager.__instance = Yarn1dConfigManager(inifile)
-        return Yarn1dConfigManager.__instance
+        if not (inifile in Yarn1dConfigManager.__instance):
+            Yarn1dConfigManager.__instance[inifile] = None # Set for __init__()
+            Yarn1dConfigManager.__instance[inifile] = Yarn1dConfigManager(inifile)
+        return Yarn1dConfigManager.__instance[inifile]
     get_instance = staticmethod(get_instance)
     
     def __init__(self, filename = INIFILE_DEFAULT):
         """ 
         A singleton implementation of config.ConfigManager
         """
-        if Yarn1dConfigManager.__instance is not 1:
-            raise Exception("This class is a singleton. "
+        if filename not in Yarn1dConfigManager.__instance:
+            raise Exception("This class is a singleton per filename. "
                             "Use the get_instance() method")
         ConfigManager.__init__(self, filename)
-
+    
     def register_defaults(self):
         """default ini settings for a DiffusionIT problem"""
         self.register("general.read", False)
