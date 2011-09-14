@@ -84,7 +84,8 @@ class FiberModel(object):
         self.time_period = self.cfg.get('time.time_period')
         print 'the time period', self.time_period
         self.delta_t = self.cfg.get('time.dt')
-        self.steps = (self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t
+        #self.steps = (self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t
+        self.steps = self.time_period/self.delta_t
         self.times = sp.linspace(0, self.time_period, self.steps + 1)
         self.delta_t = self.times[1]-self.times[0]
         print "Timestep used in fiber model:", self.delta_t
@@ -433,6 +434,7 @@ class FiberModel(object):
                             self.porosity_domain) 
         tstep = 0
         self.conc1[tstep][:] = self.initial_c1[:]
+        print 'solving for times', self.times[1:]
         for time in self.times[1:]:
             self.solve_fipy_sweep()
 ##            if self.viewer is not None:
@@ -441,7 +443,7 @@ class FiberModel(object):
             tstep += 1
             self.conc1[tstep][:] = self.solution_fiber.getValue()
             self.fiber_surface[tstep] = self.conc1[tstep][-1]
-            self.transfer_boundary[tstep] = self.boundary_transf_right * self.fiber_surface[tstep]
+            self.transfer_boundary[tstep] = -self.boundary_transf_right * self.fiber_surface[tstep]
             #if time == 200.0:
             #    dump.write({'space_position': self.grid, 'conc1': self.conc1[tstep][:]},
             #            filename = utils.OUTPUTDIR + os.sep + 'fipy_t1.gz', extension = '.gz')
