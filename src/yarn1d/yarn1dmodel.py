@@ -94,9 +94,11 @@ class Yarn1DModel(object):
                             os.path.dirname(self.cfg.filename), filename))
             self.cfg_fiber.append(Fiber1dConfigManager.get_instance(filename))
             #set values from the yarn on this inifile
-            self.cfg_fiber[-1].set("time.time_period", self.cfg.get("time.time_period"))
-            if self.cfg_fiber[-1].get("time.dt") > self.cfg.get("time.time_period"):
-                self.cfg_fiber[-1].set("time.dt", self.cfg.get("time.time_period"))        
+            self.cfg_fiber[-1].set("time.time_period", self.time_period)
+            #if self.cfg_fiber[-1].get("time.dt") > self.cfg.get("time.time_period"):
+                #self.cfg_fiber[-1].set("time.dt", self.cfg.get("time.time_period"))
+            self.cfg_fiber[-1].set("time.dt", self.delta_t)    
+                       
         #create fiber models
         self.fiber_models = []
         for cfg in self.cfg_fiber:
@@ -337,24 +339,16 @@ class Yarn1DModel(object):
             print "r.y", self.conc1[tstep][:]
         self.view_sol(self.times, self.conc1)
         raw_input("view solution")
-        
+  
     def view_sol(self, times, conc):
         """
         Show the solution in conc with times.
         conc[i][:] contains solution at time times[i]
         """
-        #self.conc = CellVariable(name = "", 
-                    #mesh = self.mesh_yarn, value = self.init_conc)
-        #self.mesh_fiber = CylindricalGrid1D(dr=tuple(self.delta_r))
-        #self.mesh_fiber.periodicBC = False
-        #self.mesh_fiber = self.mesh_fiber + (self.beginning_point,)
-        #self.solution_fiber = CellVariable(name = "fiber concentration", 
-                            #mesh = self.mesh_fiber,
-                            #value = conc[0])
-        self.viewer =  Viewer(vars = self.conc, datamin=0., datamax=conc[0].max())
-        #self.viewer.plot()
+        self.solution_view = CellVariable(name = "yarn concentration", mesh = self.mesh_yarn, value = conc[0])
+        self.viewer =  Viewer(vars = self.solution_view, datamin=0., datamax=conc.max())
         for time, con in zip(times[1:], conc[1:]):
-            self.conc.setValue(con)
+            self.solution_view.setValue(con)
             self.viewer.plot()
             #if time == 200.0:
              #   dump.write({'space_position': self.grid, 'conc1': con},
