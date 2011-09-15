@@ -282,9 +282,9 @@ class FiberModel(object):
                             sp.exp(-self.diffusion_exp_fact[:-1] * w_rep[:-1]/self.grid[:-1]) \
                          + self.porosity_domain[1:] * self.diffusion_coeff[1:] * 
                             sp.exp(-self.diffusion_exp_fact[1:] * w_rep[1:]/self.grid[1:]))/2.\
-                    * self.grid_edge[1:-1] \
-                    * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
-                    / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
+                        * self.grid_edge[1:-1] \
+                        * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
+                        / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
         diff_w_t[:]=(flux_edge[1:]-flux_edge[:-1])/self.delta_r[:] / self.porosity_domain[:]
         return diff_w_t
     
@@ -305,9 +305,9 @@ class FiberModel(object):
                             sp.exp(-self.diffusion_exp_fact[:-1] * conc_r[:-1]) \
                          + self.porosity_domain[1:] * self.diffusion_coeff[1:] * 
                             sp.exp(-self.diffusion_exp_fact[1:] * conc_r[1:]))/2.\
-                    * self.grid_edge[1:-1] \
-                    * (conc_r[1:] - conc_r[:-1])\
-                    / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
+                        * self.grid_edge[1:-1] \
+                        * (conc_r[1:] - conc_r[:-1])\
+                        / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
         diff_u_t[:] = 2.*((flux_edge[1:]-flux_edge[:-1])
                         /(self.grid_edge[1:]**2-self.grid_edge[:-1]**2)
                         / self.porosity_domain[:])
