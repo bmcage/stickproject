@@ -87,7 +87,7 @@ class FiberModel(object):
         #self.steps = (self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t
         self.steps = self.time_period/self.delta_t
         self.times = sp.linspace(0, self.time_period, self.steps + 1)
-        self.delta_t = self.times[1]-self.times[0]
+        #self.delta_t = self.times[1]-self.times[0]
         print "Timestep used in fiber model:", self.delta_t
         #storage for output
         self.fiber_surface = sp.empty(len(self.times), float)
@@ -234,8 +234,8 @@ class FiberModel(object):
         if self.bound_right == FLUX:
             flux_edge[-1] = self.boundary_fib_right * self.grid_edge[-1]
         else:
-            flux_edge[-1] = -self.boundary_transf_right * w_rep[-1] * \
-                            self.porosity_domain[-1]
+            flux_edge[-1] = self.boundary_transf_right * w_rep[-1]  \
+                            *self.porosity_domain[-1]
 
     def _set_bound_fluxu(self, flux_edge, conc_r):
         """
@@ -251,9 +251,9 @@ class FiberModel(object):
             flux_edge[-1] = self.boundary_fib_right * self.grid_edge[-1]
         else:
             # a transfer coeff to the right
-            flux_edge[-1] = -self.boundary_transf_right * conc_r[-1] \
-                             * self.grid_edge[-1] * \
-                             self.porosity_domain[-1]
+            flux_edge[-1] = self.boundary_transf_right * conc_r[-1] \
+                             * self.grid_edge[-1]  \
+                             * self.porosity_domain[-1]
             #print 'flux', flux_edge[-1]
 
     def f_conc1_ode(self, t, w_rep):
@@ -287,6 +287,7 @@ class FiberModel(object):
                         / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
         diff_w_t[:]=(flux_edge[1:]-flux_edge[:-1])/self.delta_r[:] / self.porosity_domain[:]
         return diff_w_t
+        
     
     def f_conc1_odeu(self, t, conc_r):
         return self.f_conc1u(conc_r, t)
@@ -391,7 +392,7 @@ class FiberModel(object):
         self.initial_t = self.times[0]
         endT = self.times[-1]
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
-        r = ode(self.f_conc1_odeu).set_integrator('vode', method = 'bdf')
+        r = ode(self.f_conc1_odeu).set_integrator('vode', method = 'bdf',nsteps = 10000)
         r.set_initial_value(self.initial_c1, self.initial_t)#.set_f_params(2.0)
         tstep = 0
         self.conc1[tstep][:] = self.initial_c1
@@ -443,7 +444,7 @@ class FiberModel(object):
             tstep += 1
             self.conc1[tstep][:] = self.solution_fiber.getValue()
             self.fiber_surface[tstep] = self.conc1[tstep][-1]
-            self.transfer_boundary[tstep] = -self.boundary_transf_right * self.fiber_surface[tstep]
+            self.transfer_boundary[tstep] = self.boundary_transf_right * self.fiber_surface[tstep]
             #if time == 200.0:
             #    dump.write({'space_position': self.grid, 'conc1': self.conc1[tstep][:]},
             #            filename = utils.OUTPUTDIR + os.sep + 'fipy_t1.gz', extension = '.gz')
@@ -528,10 +529,9 @@ class FiberModel(object):
         """
         self.solution_view = CellVariable(name = "fiber concentration", 
                             mesh = self.mesh_fiber,
-                            value = conc[0])
-        self.viewer =  Viewer(vars = self.solution_view, datamin=0., datamax=conc[0].max())
-        self.viewer.plot()
-        for time, con in zip(times[1:], conc[1:]):
+                            value = conc[0][:])
+        self.viewer =  Viewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.20*conc.max())
+        for time, con in zip(times[1:], conc[1:][:]):
             self.solution_view.setValue(con)
             self.viewer.plot()
             #if time == 200.0:
@@ -539,7 +539,7 @@ class FiberModel(object):
             #                filename = utils.OUTPUTDIR + os.sep + 'ode_t1.gz', extension = '.gz')
     
     def view_time(self, times, conc):
-        draw_time = times #/ 6. #/ 24.
+        draw_time = times#/(3600.*24.*30.) 
         draw_conc = conc *1.0e4
         plt.figure()
         plt.plot(draw_time, draw_conc, '-', color = 'red')
