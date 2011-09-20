@@ -97,7 +97,8 @@ class Yarn1DModel(object):
             self.cfg_fiber[-1].set("time.time_period", self.time_period)
             #if self.cfg_fiber[-1].get("time.dt") > self.cfg.get("time.time_period"):
                 #self.cfg_fiber[-1].set("time.dt", self.cfg.get("time.time_period"))
-            self.cfg_fiber[-1].set("time.dt", self.delta_t)    
+            self.cfg_fiber[-1].set("time.dt", self.delta_t)  
+            
                        
         #create fiber models
         self.fiber_models = []
@@ -345,8 +346,8 @@ class Yarn1DModel(object):
         Show the solution in conc with times.
         conc[i][:] contains solution at time times[i]
         """
-        self.solution_view = CellVariable(name = "yarn concentration", mesh = self.mesh_yarn, value = conc[0])
-        self.viewer =  Viewer(vars = self.solution_view, datamin=0., datamax=conc.max())
+        self.solution_view = CellVariable(name = "yarn concentration", mesh = self.mesh_yarn, value = conc[0][:])
+        self.viewer =  Viewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.2*conc.max())
         for time, con in zip(times[1:], conc[1:]):
             self.solution_view.setValue(con)
             self.viewer.plot()
