@@ -117,7 +117,14 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("fiber.blend", [100.0])
         self.register("fiber.radius_fiber", [0.0117])
         self.register("fiber.beta_value", [0.02])
+        self.register("fiber.mean_deviation", [0.00955, 0.00549])
         self.register("fiber.fiber_config", ['../fiber/defaultfiber.ini'])
+        
+        self.register("coefficients.poly_four", [0.0])
+        self.register("coefficients.poly_third", [0.0])
+        self.register("coefficients.poly_second", [0.0])
+        self.register("coefficients.poly_first", [0.0])
+        self.register("coefficients.poly_zero", [0.0])
         
         self.register("initial.init_conc", 0.)
         

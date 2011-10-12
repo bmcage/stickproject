@@ -85,11 +85,19 @@ class Yarn2dGrid(object):
         self.cellSize = self.cfg.get('domain.cellsize_fiber')
         self.number_fiber = self.cfg.get('fiber.number_fiber')
         self.blend = self.cfg.get('fiber.blend')
+        print 'self.blend', len(self.blend)
         self.number_fiber_blend = [int(round(val/100*self.number_fiber)) for val in self.blend]
         self.number_fiber_blend[-1] = self.number_fiber - sum(self.number_fiber_blend[:-1])
         print 'fibers per blend', self.number_fiber_blend,' total', self.number_fiber
         self.theta_value = self.cfg.get('domain.theta_value')
         self.beta_value = self.cfg.get('fiber.beta_value')
+        self.mean_deviation = self.cfg.get('fiber.mean_deviation')
+        print 'the length of self.mean', len(self.mean_deviation)
+        self.poly_four = self.cfg.get('coefficients.poly_four')
+        self.poly_third = self.cfg.get('coefficients.poly_third')
+        self.poly_second = self.cfg.get('coefficients.poly_second')
+        self.poly_first = self.cfg.get('coefficients.poly_first')
+        self.poly_zero = self.cfg.get('coefficients.poly_zero')
         
         self.verbose = self.cfg.get('general.verbose')
         
@@ -136,6 +144,12 @@ class Yarn2dGrid(object):
                     'radius_yarn' : self.radius_yarn,
                     'theta_value' : self.theta_value,
                     'beta_value' : self.beta_value,
+                    'mean_deviation': self.mean_deviation,
+                    'poly_four': self.poly_four,
+                    'poly_third': self.poly_third,
+                    'poly_second': self.poly_second,
+                    'poly_first': self.poly_first,
+                    'poly_zero': self.poly_zero,
                     }
                 ouroptions['radius_first_center'] = self.cfg.get('domain.radius_first_center_virtloc')
 
@@ -150,6 +164,12 @@ class Yarn2dGrid(object):
                     'radius_yarn' : self.radius_yarn,
                     'theta_value' : self.theta_value,
                     'beta_value' : self.beta_value,
+                    'mean_deviation': self.mean_deviation,
+                    'poly_four': self.poly_four,
+                    'poly_third': self.poly_third,
+                    'poly_second': self.poly_second,
+                    'poly_first': self.poly_first,
+                    'poly_zero': self.poly_zero,
                     }
                 ouroptions['radius_first_center'] = self.cfg.get('domain.radius_first_center_virtloc')
                 
@@ -271,6 +291,7 @@ class Yarn2dGrid(object):
                     #rotate each ellipse randomly
                     rotate_theta = np.random.uniform(0,sp.pi * 2)
                     #begin to write the points
+                    print 'index of ellipse', i_position_ellipse
                     long_axis = self.all_radius_fibers[i_position_ellipse] * 0.98
                     short_axis = self.all_radius_fibers[i_position_ellipse] * 0.6
                     x_long_axis = long_axis * sp.cos(rotate_theta)
