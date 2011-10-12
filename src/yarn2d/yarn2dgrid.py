@@ -87,7 +87,7 @@ class Yarn2dGrid(object):
         self.blend = self.cfg.get('fiber.blend')
         print 'self.blend', len(self.blend)
         self.number_fiber_blend = [int(round(val/100*self.number_fiber)) for val in self.blend]
-        self.number_fiber_blend[-1] = self.number_fiber - sum(self.number_fiber_blend[:-1])
+        self.number_fiber_blend[-1] = self.number_fiber - np.sum(self.number_fiber_blend[:-1])
         print 'fibers per blend', self.number_fiber_blend,' total', self.number_fiber
         self.theta_value = self.cfg.get('domain.theta_value')
         self.beta_value = self.cfg.get('fiber.beta_value')

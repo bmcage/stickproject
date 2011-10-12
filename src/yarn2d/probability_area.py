@@ -118,7 +118,7 @@ def calculation_area_proportion(rad_yarn, rad_fib, x_fib, y_fib, mean_value):
     ax.add_collection(p_1)
     ax.add_collection(p_2)
     
-    pylab.show()
+    pylab.draw()
     for i_circle in sp.arange(total_area_zone_num - 1):
         if i_circle == 0:
             fib_area_zone[i_circle] = sp.pi * sp.power(each_zone_radius[i_circle],
@@ -139,22 +139,21 @@ def calculation_area_proportion(rad_yarn, rad_fib, x_fib, y_fib, mean_value):
                                     each_zone_radius[i_circle - 1],rad_fib[i_fib])
                     print 'solution for the smalller circle', solution_points_1
                     x_first_1 = solution_points_1[0][0]
-                    x_secon_1 = solution_points_1[0][1]
-                    y_first_1 = solution_points_1[1][0]
+                    x_secon_1 = solution_points_1[1][0]
+                    y_first_1 = solution_points_1[0][1]
                     y_secon_1 = solution_points_1[1][1]
                     #intersection point with ith ring
                     solution_points_2 = intersect_circles(x_fib[i_fib], y_fib[i_fib],
                                     each_zone_radius[i_circle], rad_fib[i_fib])
                     print 'solution for the current ring', solution_points_2
                     x_first_2 = solution_points_2[0][0]
-                    x_secon_2 = solution_points_2[0][1]
-                    y_first_2 = solution_points_2[1][0]
+                    x_secon_2 = solution_points_2[1][0]
+                    y_first_2 = solution_points_2[0][1]
                     y_secon_2 = solution_points_2[1][1]
-
-                    distance_sq_1 = sp.power((x_first_1 - x_secon_1), 2.) + \
-                                    sp.power((y_first_1 - y_secon_1), 2.) 
-                    distance_sq_2 = sp.power((x_first_2 - x_secon_2), 2.) + \
-                                    sp.power((y_first_2 - y_secon_2), 2.) 
+                    distance_sq_1 = (x_first_1 - x_secon_1)**2 + \
+                                    (y_first_1 - y_secon_1)**2 
+                    distance_sq_2 = (x_first_2 - x_secon_2)**2 + \
+                                    (y_first_2 - y_secon_2)**2 
                                     
                     alpha_r_1 = sp.arccos((2 * sp.power(rad_fib[i_fib], 2.) - distance_sq_1) /\
                                 (2 * sp.power(rad_fib[i_fib], 2.)))
@@ -178,7 +177,7 @@ def calculation_area_proportion(rad_yarn, rad_fib, x_fib, y_fib, mean_value):
                                 [i_circle], 2.) - 1./ 2. * sp.sin(beta_ring_2) * sp. power(
                                 each_zone_radius[i_circle], 2.)
                     total_piece_2 = piece_ring_2 - piece_fib_2
-                    area_in_zone = sp.pi * sp.power(rad_fib[i_fib], 2.) - (total_piece_1 + 
+                    area_in_zone = sp.pi * sp.power(rad_fib[i_fib], 2.) - (rad_fib[i_fib] + 
                                     total_piece_2)
                     print 'the area in the zone', area_in_zone
                     fib_area_zone[i_circle] = fib_area_zone[i_circle] + area_in_zone
@@ -198,7 +197,7 @@ def calculation_area_proportion(rad_yarn, rad_fib, x_fib, y_fib, mean_value):
     print 'the value of proportion in each ring zone', proportion_value_zone
     pylab.figure()
     pylab.plot(each_zone_center, proportion_value_zone, '-')
-    pylab.show()
+    pylab.draw()
     return (proportion_value_zone, each_zone_area, fib_area_zone, each_zone_center)
 
 def calculation_area_pro_shift(rad_yarn, rad_fib, x_fib, y_fib, 
