@@ -72,6 +72,7 @@ def main(argv=None):
     inifile = conf.INIFILE_DEFAULT
     outputdir = const.DATA_DIR
     onlymesh = False
+    writeini = False
     for opt_ix in range(len(options)):
         option, value = options[opt_ix]
         if option in ( '-i', '--inifile'):
@@ -80,18 +81,17 @@ def main(argv=None):
             outputdir = value
         elif option in ('--mesh'):
             onlymesh = True
+        elif option in ('--write-ini'):
+            writeini = True
     
     #Parse ini file to obtain parameters.
-    print inifile
     cfg = conf.Yarn2dConfigManager.get_instance(inifile)
-    if not hasattr(cfg, 'onlymesh'):
-        cfg.onlymesh = onlymesh
-    
+
     #create outputdir if not existing
     if not os.path.isdir(outputdir):
         os.mkdir(outputdir)
     #create outputdir for this run, remove if existing
-    outputdir = outputdir + os.sep + os.path.basename(inifile)
+    outputdir = outputdir + os.sep + os.path.basename(inifile)    
     #determine whether we make a new file for yarn2d or read the old file; the
     #default value is 'False', which means the new file will be generated when
     #the programme runs
@@ -108,6 +108,14 @@ def main(argv=None):
     else:
         set_outputdir(outputdir)
         print "ready to read the old file"
+        
+    if writeini:
+        print "Writing out ini file cleaned.ini to outputdir %s" % outputdir
+        cfg.save(outputdir + os.sep + 'cleaned.ini')
+        sys.exit()
+    if not hasattr(cfg, 'onlymesh'):
+        cfg.onlymesh = onlymesh
+
     
     #create the correct model, and run it
     from yarn2d.yarn2dmodel import Yarn2DModel

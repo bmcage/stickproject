@@ -123,6 +123,7 @@ class ConfigManager(object):
         self.filename = filename
         self.callbacks = {}
         self.default = {}
+        self.help = {}
         self.data = {}
         self.reset()
         self.register_defaults()
@@ -201,10 +202,11 @@ class ConfigManager(object):
         else:
             raise ValueError, 'The file %s cannot be found' % self.filename
 
-    def save(self, filename = None):
+    def save(self, filename=None, helpafter=False):
         """
         Saves the current section/settings to an .ini file. Optional filename
         will override the default filename to save to, if given.
+        help is by default under the option, if helpafter=True, it is behind.
         """
         if filename is None:
             filename = const.INIFILE_DEFAULT
@@ -216,7 +218,7 @@ class ConfigManager(object):
                 if exp.errno != errno.EEXIST:
                     raise
             key_file = open(filename, "w")
-            key_file.write(";; YarnSim key file\n")
+            key_file.write(";; StickProject key file\n")
             key_file.write((";; Automatically created at %s" % 
                       time.strftime("%Y/%m/%d %H:%M:%S")) + "\n\n")
             sections = sorted(self.data)
@@ -224,16 +226,28 @@ class ConfigManager(object):
                 key_file.write(("[%s]\n") % section)
                 keys = sorted(self.data[section])
                 for key in keys:
+                    help = ""
                     value = self.data[section][key]
                     default = ""
                     if self.has_default("%s.%s" % (section, key)):
+                        help = self.help[section][key]
                         if value == self.get_default("%s.%s" % (section, key)):
                             default = ";;"
                         else:
                             default = ""
                     if isinstance(value, long):
                         value = int(value)
-                    key_file.write(("%s%s=%s\n")% (default, key, repr(value)))
+                    if (help and helpafter) or default:
+                        key_file.write(("%s%s=%s")% (default, key, repr(value)))
+                    else:
+                        key_file.write(("%s%s=%s\n")% (default, key, repr(value)))
+                    
+                    if help and default:
+                        key_file.write(" ;; %s\n" % help)
+                    elif help:
+                        key_file.write(";; %s\n" % help)
+                    elif default:
+                        key_file.write('\n')
                 key_file.write("\n")
             key_file.close()
         # else, no filename given; nothing to save so do nothing quietly
@@ -316,9 +330,10 @@ class ConfigManager(object):
                                  (section, setting))
         return self.default[section][setting]
 
-    def register(self, key, default):
+    def register(self, key, default, help=''):
         """
         Register a section.setting, and set the default.
+        help is an optional help text
         Will overwrite any previously set default, and set setting if not one.
         The default value deterimines the type of the setting.
         """
@@ -331,6 +346,8 @@ class ConfigManager(object):
             self.data[section] = {}
         if section not in self.default:
             self.default[section] = {}
+        if section not in self.help:
+            self.help[section] = {}
         if section not in self.callbacks:
             self.callbacks[section] = {}
         if setting not in self.callbacks[section]:
@@ -340,6 +357,8 @@ class ConfigManager(object):
             self.data[section][setting] = default
         # Set the default, regardless:
         self.default[section][setting] = default
+        # Set the help text
+        self.help[section][setting] = help
 
     def connect(self, key, func):
         """

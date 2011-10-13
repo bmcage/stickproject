@@ -44,7 +44,6 @@ import lib.utils.gridutils as GridUtils
 import yarn2d.config as conf
 from mycorrection import MyDiffusionTermNoCorrection
 from yarn2dgrid import Yarn2dGrid
-#from yarn2d_overlap import Yarn2DOverlapping
 from fiber1d.config import Fiber1dConfigManager
 from fiber1d.fibermodel import FiberModel
 
@@ -90,7 +89,6 @@ class Yarn2DModel(object):
         self.eps_value = self.cfg.get('fiber.eps_value')
         self.number_fiber = self.cfg.get('fiber.number_fiber')
         self.blend = self.cfg.get('fiber.blend')
-        self.scaleL = 1./self.Ry #get the scale factor for relative domain
         self.nrtypefiber = self.cfg.get('fiber.number_type')
         self.fiber_edge_result = [0] * self.nrtypefiber
         assert self.nrtypefiber == len(self.blend) == len(self.Rf)
