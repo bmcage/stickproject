@@ -110,6 +110,15 @@ class FiberModel(object):
 
         self.verbose = self.cfg.get('general.verbose')
 
+    def radius(self):
+        """ method that returns the total radius of the fiber
+        """
+        rad = self.cfg.get('fiber.radius_pure_fiber')
+        for i in range(self.cfg.get('fiber.nrlayers')):
+            section = 'fiberlayer_%i' % i
+            rad += self.cfg.get(section + '.thickness')
+        return rad
+
     def create_mesh(self):
         """
         Create a mesh for use in the model.

@@ -49,6 +49,8 @@ from fipy import Gmsh2D
 from fipy import *
 from yarn2d.config import FIBERLAYOUTS
 from yarn2d.config import FIBERSHAPE
+from fiber1d.config import Fiber1dConfigManager
+
 from virtlocgeom import *
 from fiber_layout import *
 #from calcuprop import *
@@ -65,6 +67,7 @@ NONTOUCH_FAC = 1.01
 class Yarn2dGrid(object):
     def __init__(self, cfg):
         self.cfg = cfg
+        self.verbose = self.cfg.get('general.verbose')
         self.fiberlayout = self.cfg.get('domain.fiberlayout_method')
         if not (self.fiberlayout in FIBERLAYOUTS):
             print 'ERROR: unkown fiber layout method %s' % self.fiberlayout
@@ -74,32 +77,46 @@ class Yarn2dGrid(object):
             print 'ERROR:unknown fiber shape in the domain %s' %self.fibershape
             sys.exit(0)
         self.Ry = self.cfg.get('domain.yarnradius')
-        self.Rf = self.cfg.get('fiber.radius_fiber')
         self.scaleL = 1./self.Ry #get the scale factor for relative domain
         #computational radius
         self.radius_yarn = self.scaleL * self.Ry
-        self.radius_fiber =  [self.scaleL * rad for rad in self.Rf]
-        self.radius_boundlayer = max(self.radius_fiber)/2.
-        self.radius_domain = self.radius_yarn + self.radius_boundlayer
         self.cellsize_centre = self.cfg.get('domain.cellsize_centre')
         self.cellSize = self.cfg.get('domain.cellsize_fiber')
         self.number_fiber = self.cfg.get('fiber.number_fiber')
         self.blend = self.cfg.get('fiber.blend')
-        print 'self.blend', len(self.blend)
+        if self.verbose:
+            print 'Blend used:', len(self.blend)
         self.number_fiber_blend = [int(round(val/100*self.number_fiber)) for val in self.blend]
         self.number_fiber_blend[-1] = self.number_fiber - np.sum(self.number_fiber_blend[:-1])
-        print 'fibers per blend', self.number_fiber_blend,' total', self.number_fiber
+        if self.verbose:
+            print 'Fibers per blend', self.number_fiber_blend,' total', self.number_fiber
         self.theta_value = self.cfg.get('domain.theta_value')
-        self.beta_value = self.cfg.get('fiber.beta_value')
-        self.mean_deviation = self.cfg.get('fiber.mean_deviation')
-        print 'the length of self.mean', len(self.mean_deviation)
+        if self.verbose:
+            print 'the length of self.mean', len(self.mean_deviation)
         self.poly_four = self.cfg.get('coefficients.poly_four')
         self.poly_third = self.cfg.get('coefficients.poly_third')
         self.poly_second = self.cfg.get('coefficients.poly_second')
         self.poly_first = self.cfg.get('coefficients.poly_first')
         self.poly_zero = self.cfg.get('coefficients.poly_zero')
         
-        self.verbose = self.cfg.get('general.verbose')
+        #obtain size of fibers
+        self.Rf = []
+        self.beta_value = [] #self.cfg.get('fiber.beta_value')
+        self.mean_deviation = [] #self.cfg.get('fiber.mean_deviation')
+        for filename in self.cfg.get('fiber.fiber_config'):
+            if not os.path.isabs(filename):
+                filename = os.path.normpath(os.path.join(
+                            os.path.dirname(self.cfg.filename), filename))
+            cfg_fiber = Fiber1dConfigManager.get_instance(filename)
+            self.Rf.append(cfg_fiber.get('fiber.radius_pure_fiber'))
+            for i in range(cfg_fiber.get('fiber.nrlayers')):
+                section = 'fiberlayer_%i' % i
+                self.Rf[-1] += cfg_fiber.get(section + '.thickness')
+            self.beta_value.append(cfg_fiber.get('fiber.beta_value'))
+            self.mean_deviation.append(cfg_fiber.get('fiber.mean_deviation'))
+        self.radius_fiber =  [self.scaleL * rad for rad in self.Rf]
+        self.radius_boundlayer = max(self.radius_fiber)/2.
+        self.radius_domain = self.radius_yarn + self.radius_boundlayer
         
     def create_circle_domain_gmsh(self, filename='yarn.geo', 
             layoutfile = 'layout.dat', regenerate=True, plotyarn=False):

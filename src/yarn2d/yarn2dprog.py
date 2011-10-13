@@ -116,7 +116,6 @@ def main(argv=None):
     if not hasattr(cfg, 'onlymesh'):
         cfg.onlymesh = onlymesh
 
-    
     #create the correct model, and run it
     from yarn2d.yarn2dmodel import Yarn2DModel
     model = Yarn2DModel(cfg)

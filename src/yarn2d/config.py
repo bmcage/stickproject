@@ -129,9 +129,6 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("fiber.eps_value", 0.001)
         self.register("fiber.blend", [100.0], 
             "Blend distribution over the fiber types")
-        self.register("fiber.radius_fiber", [0.0117])
-        self.register("fiber.beta_value", [0.02])
-        self.register("fiber.mean_deviation", [0.00955])
         self.register("fiber.fiber_config", ['../fiber/defaultfiber.ini'])
         #coef section
         self.register("coefficients.poly_four", [0.0])

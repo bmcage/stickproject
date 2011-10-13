@@ -84,15 +84,13 @@ class Yarn2DModel(object):
         self.delta_t = self.times[1] - self.times[0]
         self.Ry = self.cfg.get('domain.yarnradius')
         self.scaleL = 1./self.Ry #get the scale factor for relative domain
-        self.Rf = self.cfg.get('fiber.radius_fiber')
-        self.radius_fiber =  [self.scaleL * rad for rad in self.Rf]
         self.eps_value = self.cfg.get('fiber.eps_value')
         self.number_fiber = self.cfg.get('fiber.number_fiber')
         self.blend = self.cfg.get('fiber.blend')
         self.nrtypefiber = self.cfg.get('fiber.number_type')
         self.fiber_edge_result = [0] * self.nrtypefiber
-        assert self.nrtypefiber == len(self.blend) == len(self.Rf)
-        #computational radius
+        assert self.nrtypefiber == len(self.blend) == len(self.cfg.get('fiber.fiber_config'))
+
         self.cfg_fiber = []
         for filename in self.cfg.get('fiber.fiber_config'):
             if not os.path.isabs(filename):
@@ -109,6 +107,13 @@ class Yarn2DModel(object):
         for cfg in self.cfg_fiber:
             self.fiber_models.append(FiberModel(cfg))
 
+        #obtain some fiber data for quick reference
+        self.Rf = []
+        for fmodel in self.fiber_models:
+            self.Rf.append(fmodel.radius())
+        print self.Rf
+        self.radius_fiber =  [self.scaleL * rad for rad in self.Rf]
+        
         self.verbose = self.cfg.get('general.verbose')
     
     def create_mesh(self):
