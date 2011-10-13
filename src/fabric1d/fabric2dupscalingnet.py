@@ -43,7 +43,6 @@ import lib.utils.gridutils as GridUtils
 import yarn2d.config as conf
 from mycorrection import MyDiffusionTermNoCorrection
 from yarn2dgrid import Yarn2dGrid
-from yarn2dgridnew import Yarn2dNewGrid
 from yarn2dfiber import Yarn2dFiber
 from fiberfipy.config import FiberfipyConfigManager
 from fiberfipy.fibermodel import FiberModel
