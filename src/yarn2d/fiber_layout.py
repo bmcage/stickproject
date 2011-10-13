@@ -872,7 +872,9 @@ def virtlocoverlaplayout(options):
     p_2 = PatchCollection(patches_2, facecolor = 'black', cmap = matplotlib.cm.jet, alpha = 0.4)
     ax.add_collection(p_1)
     ax.add_collection(p_2)
-    pylab.show()
+    pylab.ioff()
+    pylab.draw()
+    pylab.ion()
     for i_kind in range(len(onumber_fiber_blend)):
         x_each_kind = []
         y_each_kind = []
@@ -1121,7 +1123,9 @@ def plot_yarn(x_position, y_position, radius_fiber):#, fiber_kind):
     #patches.append(circle)
     p = PatchCollection(patches, cmap = matplotlib.cm.jet, alpha = 0.4)
     ax.add_collection(p)
-    pylab.show()
+    pylab.ioff()
+    pylab.draw()
+    pylab.ion()
 
 def test():
     pass

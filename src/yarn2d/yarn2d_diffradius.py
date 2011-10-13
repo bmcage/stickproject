@@ -196,8 +196,3 @@ class Yarn2dNewGridRadius(object):
             sys.exit(0)
         
         #distribute two kinds of fibers in the yarn domain
-        
-        
-        
-
-        
