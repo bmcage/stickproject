@@ -97,27 +97,31 @@ class Yarn2dConfigManager(ConfigManager):
 
     def register_defaults(self):
         """default ini settings for a DiffusionIT problem"""
+        #general section
         self.register("general.read", False,
             "Set True to read fiber-yarn layout data from the output"
             " directory instead of regenerating")
         self.register("general.verbose", False)
         self.register("general.method", 'FVM', 
-                "Solution method to use, one of " + ",".join(METHOD.keys()))
-        self.register("general.submethod", 'fipy', "Solution submethod to use")
-        
+            "Solution method to use, one of " + ",".join(METHOD.keys()))
+        self.register("general.submethod", 'fipy', 
+            "Solution submethod to use")
+        #domain section
         self.register("domain.cellsize_centre", 5.0e-2, 
-                        "preferred edge length of each mesh for yarn")
+            "preferred edge length of each mesh for yarn")
         self.register("domain.cellsize_fiber", 5.0e-2,
-                        "preferred edge length of each mesh for fiber")
+            "preferred edge length of each mesh for fiber")
         self.register("domain.yarnradius", 1.,
-                        "radius of yarn domain")
+            "radius of yarn domain")
         self.register("domain.fiberlayout_method", 'random',
-         "Method for the fiber layout, one of " + ",".join(FIBERLAYOUTS.keys()))
+            "Method for the fiber layout, one of " 
+            + ",".join(FIBERLAYOUTS.keys()))
         self.register("domain.fiber_shape", 'same',
-         "Cross section type of fiber, one of " + ",".join(FIBERSHAPE.keys()))
+            "Cross section type of fiber, one of " 
+            + ",".join(FIBERSHAPE.keys()))
         self.register("domain.theta_value", 0.05)
         self.register("domain.radius_first_center_virtloc", 0.)
-
+        #fiber section
         self.register("fiber.number_type", 1, 
             "Number of fiber types present")
         self.register("fiber.number_fiber", 60, 
@@ -129,13 +133,13 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("fiber.beta_value", [0.02])
         self.register("fiber.mean_deviation", [0.00955])
         self.register("fiber.fiber_config", ['../fiber/defaultfiber.ini'])
-        
+        #coef section
         self.register("coefficients.poly_four", [0.0])
         self.register("coefficients.poly_third", [0.0])
         self.register("coefficients.poly_second", [0.0])
         self.register("coefficients.poly_first", [0.0])
         self.register("coefficients.poly_zero", [0.0])
-        
+        #initial section
         self.register("initial.init_conc", 0., 
             "Initial concentration of tracked compound in the yarn")
         
@@ -145,7 +149,7 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("boundary.boundary_interior", 1.0)
         self.register("boundary.transfer_conc1", 5.3e-9,
             "tracked compound exterior transfer coef, so flux D dC/dx = - transfer_conc1 C")
-
+        #size_hole section
         self.register("size_hole.net_width", 1.0e-3,
             "the width of the hole of the bed net (mm)")
         self.register("size_hole.net_length", 2.0e-3,
@@ -155,11 +159,10 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("size_hole.domain_effect", 0.02,
             "the domain of repelling the mosquito")
         self.register("size_hole.dis_effect", 4)
-        
+        #time section
         self.register("time.time_period", 4000.,
             "the time domain for the simulation (s)")
         self.register("time.dt", 5.0,
             "the time step to use in the simulation")
         self.register("time.step", 10.0)
-        
         
