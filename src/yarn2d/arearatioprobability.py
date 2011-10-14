@@ -45,8 +45,6 @@ import matplotlib
 import lib.utils.utils as utils
 from fipy import Gmsh2D
 from fipy import *
-from yarn2d.config import FIBERLAYOUTS
-from yarn2d.config import FIBERSHAPE
 from virtlocgeom import *
 
 NONTOUCH_FAC = 1.01

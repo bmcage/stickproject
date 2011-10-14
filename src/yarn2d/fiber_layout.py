@@ -43,7 +43,7 @@ import lib.utils.utils as utils
 from lib.utils.arraycompare import fullcompare_array, circledist
 from fipy import Gmsh2D
 from fipy import *
-from yarn2d.config import FIBERLAYOUTS, FIBERSHAPE
+from yarn2d.config import FIBERLAYOUTS
 from virtlocgeom import *
 from arearatioprobability import *
 from probability_area import *

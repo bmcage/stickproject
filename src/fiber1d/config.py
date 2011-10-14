@@ -58,6 +58,13 @@ BOUND_TYPE = {
     'transfer': TRANSFER,
     }
 
+CIRCLE  = 0
+ELLIPSE = 1
+FIBER_FORM = {
+    'circle': CIRCLE,
+    'ellipse': ELLIPSE
+    }
+
 #---------------------------------------------------------------
 #
 # DiffitConfigManager class
@@ -97,6 +104,12 @@ class Fiber1dConfigManager(ConfigManager):
 
         self.register("fiber.radius_pure_fiber", 0.01,
             "radius of the fiber without coatings in mm")
+        self.register("fiber.form", "circle",
+            "Form of the fiber, one of " + ",".join(FIBER_FORM.keys()))
+        self.register("fiber.eccentricity", 1.,
+            "If form is ellipse, then radius_pure_fiber is the radius of the "
+            "long axis, and radius short axis is (1-e^2)R^2, with e the "
+            "eccentricity (>0,<1)")
         self.register("fiber.nrlayers", 1)
         self.register("fiber.internal_diffusion", False)
         self.register("fiber.diffusion_coef", 0.)

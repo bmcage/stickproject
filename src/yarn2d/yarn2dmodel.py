@@ -44,7 +44,7 @@ import lib.utils.gridutils as GridUtils
 import yarn2d.config as conf
 from mycorrection import MyDiffusionTermNoCorrection
 from yarn2dgrid import Yarn2dGrid
-from fiber1d.config import Fiber1dConfigManager
+from fiber1d.config import Fiber1dConfigManager, CIRCLE
 from fiber1d.fibermodel import FiberModel
 
 #-------------------------------------------------------------------------
@@ -126,7 +126,7 @@ class Yarn2DModel(object):
         self.mesh2d = self.grid.mesh_2d_generate(filename='yarn.geo',
                                 regenerate=not self.cfg.get('general.read'))
         if self.cfg.onlymesh and self.verbose:
-            raw_input("Finished Mesh generation, press Enter to continue")
+            print "Finished Mesh generation"
     
     def initial_yarn2d(self):
         self.init_conc = self.cfg.get('initial.init_conc')
@@ -203,6 +203,9 @@ class Yarn2DModel(object):
                      < (self.grid.radius_domain - self.grid.radius_boundlayer)**2))
         #we need to determine which nodes in the mesh are surface of 
         #of a certain fiber kind and create the inner boundary
+        for form in self.grid.Rf_form:
+            if form != CIRCLE:
+                raise Exception, 'ERROR, not supported to define boundary conditions on ellipse'
         eps_fib = [val * self.eps_value for val in self.radius_fiber]
         self.int_bound = []
         for nyfib in sp.arange(self.nrtypefiber):

@@ -43,8 +43,6 @@ import matplotlib
 import lib.utils.utils as utils
 from fipy import Gmsh2D
 from fipy import *
-from yarn2d.config import FIBERLAYOUTS
-from yarn2d.config import FIBERSHAPE
 from virtlocgeom import *
 
 def calculation_area_proportion(rad_yarn, rad_fib, x_fib, y_fib, mean_value):

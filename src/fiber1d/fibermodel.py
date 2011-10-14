@@ -41,7 +41,8 @@ import time
 #-------------------------------------------------------------------------
 import lib.utils.utils as utils
 import lib.utils.gridutils as GridUtils
-from fiber1d.config import METHOD, FLUX, TRANSFER, BOUND_TYPE
+from fiber1d.config import (METHOD, FLUX, TRANSFER, BOUND_TYPE, FIBER_FORM,
+                    CIRCLE, ELLIPSE)
 
 #-------------------------------------------------------------------------
 #
@@ -107,17 +108,49 @@ class FiberModel(object):
         
         #data for stepwise operation
         self.initialized = False
+        
+        self.__Rf_pure = None
+        self.__Rf = None
+        
 
         self.verbose = self.cfg.get('general.verbose')
-
+        
+    def radius_pure(self):
+        """method that returns the radius of the fiber seen as a circle,
+           without coatings
+        """
+        if self.__Rf_pure:
+            return self.__Rf_pure
+        rad = self.cfg.get('fiber.radius_pure_fiber')
+        form = FIBER_FORM[self.cfg.get('fiber.form')]
+        if form == CIRCLE:
+            pass
+        elif form == ELLIPSE:
+            #radius_pure_fiber is the long axis
+            ecc = self.cfg.get('fiber.eccentricity')
+            if not (ecc>0. and ecc <= 1.):
+                raise Exception, 'Eccentricity must be between 0 and 1'
+            #we determine radius of the fiber with same surface area
+            #pi a b = pi r**2
+            a = rad
+            b = sqrt(a**2 * (1-ecc**2))
+            rad = sqrt(a*b)
+        else:
+            raise Exception, 'Fiber form is not supported for a 1D fiber model'
+        self.__Rf_pure = rad
+        return self.__Rf_pure
+    
     def radius(self):
         """ method that returns the total radius of the fiber
         """
-        rad = self.cfg.get('fiber.radius_pure_fiber')
+        if self.__Rf:
+            return self.__Rf
+        rad = self.radius_pure()
         for i in range(self.cfg.get('fiber.nrlayers')):
             section = 'fiberlayer_%i' % i
             rad += self.cfg.get(section + '.thickness')
-        return rad
+        self.__Rf = rad
+        return self.__Rf
 
     def create_mesh(self):
         """
@@ -139,7 +172,7 @@ class FiberModel(object):
             self.ind_first_zone = 0
         self.nrlayers = self.cfg.get('fiber.nrlayers')
         self.surf_begin = [0.]
-        self.surf = [self.cfg.get('fiber.radius_pure_fiber')]
+        self.surf = [self.radius_pure()]
         for i in range(self.nrlayers):
             section = 'fiberlayer_%i' % i
             n_edge += [self.cfg.get(section + '.n_edge')]
