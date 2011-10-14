@@ -76,12 +76,15 @@ class Yarn2DModel(object):
         """
         self.datatime = []
         self.cfg = config
+
+        self.verbose = self.cfg.get('general.verbose')
+        #time data
         self.time_period = self.cfg.get('time.time_period')
-        self.delta_t = self.cfg.get('time.dt')
-        self.step = self.cfg.get('time.step')
-        self.steps = (self.time_period*(1.+self.step*1e-6)) // self.step #self.delta_t
+        step = self.cfg.get('time.dt')
+        self.steps = (self.time_period*(1. + step*1e-6)) // step #self.delta_t
         self.times = sp.linspace(0, self.time_period, self.steps + 1)
         self.delta_t = self.times[1] - self.times[0]
+
         self.Ry = self.cfg.get('domain.yarnradius')
         self.scaleL = 1./self.Ry #get the scale factor for relative domain
         self.eps_value = self.cfg.get('fiber.eps_value')
@@ -113,8 +116,6 @@ class Yarn2DModel(object):
             self.Rf.append(fmodel.radius())
         print self.Rf
         self.radius_fiber =  [self.scaleL * rad for rad in self.Rf]
-        
-        self.verbose = self.cfg.get('general.verbose')
     
     def create_mesh(self):
         """
@@ -135,6 +136,9 @@ class Yarn2DModel(object):
                         datamax =self.cfg.get("plot.maxval"))
 
     def solve_fiber_init(self):
+        """
+        Initialize the solvers that do the fiber simulation
+        """
         for model in self.fiber_models:
             model.run_init()
 
@@ -148,8 +152,6 @@ class Yarn2DModel(object):
         uniform
         """
         for nyfib, model in enumerate(self.fiber_models):
-            #model.run_init()
-            print 'test', model.tot_edges
             self.fiber_edge_result[nyfib] = model.run_step(step)[-1]
             #times of the models must coincide at the moment as later on we do
             #conc_on_fib[nyfib] = self.fiber_models[nyfib].fiber_surface[i+1]
@@ -193,18 +195,15 @@ class Yarn2DModel(object):
         #self.solve_fiber_step()
         self.diffusion_DEET = self.cfg.get('diffusion.diffusion_conc')
         #input the trsient equation of diffusion        
-        self.eq = TransientTerm() == MyDiffusionTermNoCorrection(coeff = self.diffusion_DEET)
+        self.eq = TransientTerm() == MyDiffusionTermNoCorrection(
+                                                coeff = self.diffusion_DEET)
         #get the position of the boundary faces
-        
         conc_fib_out1 = sp.empty(self.steps)
         conc_fib_out2 = sp.empty(self.steps)
         
         xfc, yfc = self.mesh2d.getFaceCenters()
         xcc, ycc = self.mesh2d.getCellCenters()
         self.cell_volume = self.mesh2d.getCellVolumes()
-        face_in = ((self.mesh2d.getExteriorFaces()) & 
-                    (sp.power(xfc,2) + sp.power(yfc,2) \
-                        < (self.grid.radius_domain - self.grid.radius_boundlayer)**2))
         filepath3 = utils.OUTPUTDIR + os.sep + 'index_fiber.dat'
         filepath4 = utils.OUTPUTDIR + os.sep + 'yarn_out.dat'
         filepath5 = utils.OUTPUTDIR + os.sep + 'conc_fib1.gz'
@@ -222,12 +221,11 @@ class Yarn2DModel(object):
         self.index_fiber = []
         for nyfib in sp.arange(self.nrtypefiber):
             self.index_fiber += [all_indexes[self.fibers[nyfib]]]
+
         #now determine boundaries
-        #outside
-        self.ext_bound = ((self.mesh2d.getExteriorFaces()) & 
+        face_in = ((self.mesh2d.getExteriorFaces()) & 
                     (sp.power(xfc,2) + sp.power(yfc,2) \
                         < (self.grid.radius_domain - self.grid.radius_boundlayer)**2))
-        
         #we need to determine which nodes in the mesh are surface of 
         #of a certain fiber kind and create the inner boundary
         eps_fib = [val * self.eps_value for val in self.radius_fiber]
@@ -239,23 +237,23 @@ class Yarn2DModel(object):
                     (sp.power(xfc - self.fib_x[fib], 2) + sp.power(yfc - self.fib_y[fib], 2)\
                     <= (self.radius_fiber[nyfib] + eps_fib[nyfib])**2)) | (tmp))
             self.int_bound.append(tmp)
-        face_ex = (~face_in) & (self.mesh2d.getExteriorFaces())
-        self.initial_t = 0.
-        filename1 = 'concentration_out.gz'
-        filepath1 = utils.OUTPUTDIR + os.sep + filename1
+        self.ext_bound = (~face_in) & (self.mesh2d.getExteriorFaces())
+        
+        #data structures to hold data
         conc1_out_yarn = sp.zeros(self.steps, float)
         conc_on_fib = sp.empty(self.nrtypefiber)
         flux_in_fib = sp.empty(self.nrtypefiber)
 
+        self.initial_t = 0.
         ## TODO: IMPROVE THIS BC
         conc1_out_yarn = []
-        value_face_out = np.empty(len(face_ex), float)
-        determine_out = np.empty(len(face_ex), bool)
+        value_face_out = np.empty(len(self.ext_bound), float)
+        determine_out = np.empty(len(self.ext_bound), bool)
         self.record_conc = open(filepath4, "w")
         for i in sp.arange(0, self.steps, 1):
             self.solve_fiber_step(self.delta_t)
             BCs = []
-            BCs.append(FixedFlux(face_ex, value = 0.0))
+            BCs.append(FixedFlux(self.ext_bound, value = 0.0))
             for nyfib in sp.arange(self.nrtypefiber):
                 ## TODO, fix so that self.times need not be == model.times
 ##                conc_on_fib[nyfib] = (self.fiber_models[nyfib].fiber_surface[i] +
@@ -271,9 +269,9 @@ class Yarn2DModel(object):
             print 'time = ', (i+1) * self.delta_t
             self.conc_tot_each = self.conc.getValue()
             self.conc_face_ex = self.conc.getArithmeticFaceValue()
-            for i_out in sp.arange(len(face_ex)):
+            for i_out in sp.arange(len(self.ext_bound)):
                 value_face_out[i_out] = float(self.conc_face_ex[i_out])
-                determine_out[i_out] = face_ex[i_out]
+                determine_out[i_out] = self.ext_bound[i_out]
             value_out_record = value_face_out[determine_out]
             conc1_average_out = np.sum(value_out_record) / len(value_out_record)
             print 'average conccentration out', conc1_average_out

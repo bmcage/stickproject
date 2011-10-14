@@ -159,9 +159,8 @@ class Yarn2dConfigManager(ConfigManager):
         #time section
         self.register("time.time_period", 4000.,
             "the time domain for the simulation (s)")
-        self.register("time.dt", 5.0,
+        self.register("time.dt", 1.0,
             "the time step to use in the simulation")
-        self.register("time.step", 10.0)
         #plot section
         self.register("plot.maxval", 0.0005,
             "When plotting tracked compound, set a max value for vertical axis")
