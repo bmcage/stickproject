@@ -112,7 +112,7 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("domain.cellsize_fiber", 5.0e-2,
             "preferred edge length of each mesh for fiber")
         self.register("domain.yarnradius", 1.,
-            "radius of yarn domain")
+            "radius of yarn domain in mm")
         self.register("domain.fiberlayout_method", 'random',
             "Method for the fiber layout, one of " 
             + ",".join(FIBERLAYOUTS.keys()))

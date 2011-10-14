@@ -91,8 +91,6 @@ class Yarn2dGrid(object):
         if self.verbose:
             print 'Fibers per blend', self.number_fiber_blend,' total', self.number_fiber
         self.theta_value = self.cfg.get('domain.theta_value')
-        if self.verbose:
-            print 'the length of self.mean', len(self.mean_deviation)
         self.poly_four = self.cfg.get('coefficients.poly_four')
         self.poly_third = self.cfg.get('coefficients.poly_third')
         self.poly_second = self.cfg.get('coefficients.poly_second')
@@ -101,8 +99,8 @@ class Yarn2dGrid(object):
         
         #obtain size of fibers
         self.Rf = []
-        self.beta_value = [] #self.cfg.get('fiber.beta_value')
-        self.mean_deviation = [] #self.cfg.get('fiber.mean_deviation')
+        self.beta_value = [] 
+        self.mean_deviation = []
         for filename in self.cfg.get('fiber.fiber_config'):
             if not os.path.isabs(filename):
                 filename = os.path.normpath(os.path.join(
@@ -113,7 +111,8 @@ class Yarn2dGrid(object):
                 section = 'fiberlayer_%i' % i
                 self.Rf[-1] += cfg_fiber.get(section + '.thickness')
             self.beta_value.append(cfg_fiber.get('fiber.beta_value'))
-            self.mean_deviation.append(cfg_fiber.get('fiber.mean_deviation'))
+            #scaled mean deviation of the fiber
+            self.mean_deviation.append(self.scaleL * cfg_fiber.get('fiber.mean_deviation'))
         self.radius_fiber =  [self.scaleL * rad for rad in self.Rf]
         self.radius_boundlayer = max(self.radius_fiber)/2.
         self.radius_domain = self.radius_yarn + self.radius_boundlayer

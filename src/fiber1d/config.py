@@ -95,7 +95,8 @@ class Fiber1dConfigManager(ConfigManager):
         self.register("general.submethod", 'odew')
         self.register("general.fiber_kind", 'polyester')
 
-        self.register("fiber.radius_pure_fiber", 0.01)
+        self.register("fiber.radius_pure_fiber", 0.01,
+            "radius of the fiber without coatings in mm")
         self.register("fiber.nrlayers", 1)
         self.register("fiber.internal_diffusion", False)
         self.register("fiber.diffusion_coef", 0.)
@@ -105,10 +106,12 @@ class Fiber1dConfigManager(ConfigManager):
         self.register("fiber.porosity_in", 0.2)
         self.register("fiber.percentage_active", 1.0)
         self.register("fiber.beta_value", 0.04)
-        self.register("fiber.mean_deviation", 0.00355)
+        self.register("fiber.mean_deviation", 0.00355,
+            "Mean deviation of the fiber radius in mm")
 
         self.register("fiberlayer_0.n_edge", 41)
-        self.register("fiberlayer_0.thickness", 0.0017)
+        self.register("fiberlayer_0.thickness", 0.0017,
+            "thickness/width of the coating in mm")
         self.register("fiberlayer_0.diffusion_coef", 5.2e-9)
         self.register("fiberlayer_0.init_conc", 'lambda x: 0.70')
         self.register("fiberlayer_0.porosity_layer", 1.0)
