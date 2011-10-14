@@ -123,19 +123,17 @@ class Yarn2DModel(object):
         self.grid = Yarn2dGrid(self.cfg)
         self.mesh2d = self.grid.mesh_2d_generate(filename='yarn.geo',
                                 regenerate=not self.cfg.get('general.read'))
-        if self.cfg.onlymesh:
+        if self.cfg.onlymesh and self.verbose:
             raw_input("Finished Mesh generation, press Enter to continue")
     
     def initial_yarn2d(self):
         self.init_conc = self.cfg.get('initial.init_conc')
         self.conc = CellVariable(name = "Conc. Active Component", 
                     mesh = self.mesh2d, value = self.init_conc)
-        ##self.conc1 = CellVariable(name = "solution concentration1",
-        ##            mesh = self.mesh2d, value = self.init_conc)
-        ##self.conc2 = CellVariable(name = "solution concentration2",
-        ##            mesh = self.mesh2d, value = self.init_conc)
         self.viewer = None
-        self.viewer = Viewer(vars = self.conc, datamin = 0., datamax =0.0005)
+        self.viewer = Viewer(vars = self.conc, datamin = 0., 
+                        datamax =self.cfg.get("plot.maxval"))
+
     def solve_fiber_init(self):
         for model in self.fiber_models:
             model.run_init()
@@ -306,6 +304,9 @@ class Yarn2DModel(object):
         
     
     def run(self):
+        """
+        Method that is called to do a full model run
+        """
         self.create_mesh()
         if not self.cfg.onlymesh:
             self.initial_yarn2d()
