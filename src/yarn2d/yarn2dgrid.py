@@ -142,6 +142,7 @@ class Yarn2dGrid(object):
             return '\n'.join(circledef)
 
         #first set options that define the layout algorithm
+        print 'rad', self.radius_fiber, self.radius_yarn
         ouroptions = {
                 'x_central' : self.x_central,
                 'y_central' : self.y_central,

@@ -101,9 +101,10 @@ def randomfiberlayout(options):
         radius_fiber[sum(onumber_fiber_blend[:j]):sum(onumber_fiber_blend[:j+1])]\
             = oradius_fiber[j]
         fiber_kind[onumber_fiber_blend[j-1]:onumber_fiber_blend[j] + onumber_fiber_blend[j-1]] = j
-    print 'the fiber kind value', fiber_kind
 
+    print 'Putting', onumber_fiber, 'fibers'
     for i in sp.arange(0, onumber_fiber, 1):
+        
         #generate the position of fiber
         a = np.random.uniform(-1, 1)
         b = np.random.uniform(-1, 1)
@@ -127,6 +128,7 @@ def randomfiberlayout(options):
         else:
             x_position[i] = a
             y_position[i] = b
+        print i
     plot_yarn(x_position, y_position, radius_fiber)
     return (x_position, y_position, radius_fiber, fiber_kind)
 

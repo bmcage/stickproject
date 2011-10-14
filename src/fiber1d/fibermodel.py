@@ -85,9 +85,10 @@ class FiberModel(object):
         self.time_period = self.cfg.get('time.time_period')
         print 'the time period', self.time_period
         self.delta_t = self.cfg.get('time.dt')
-        #self.steps = (self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t
-        self.steps = self.time_period/self.delta_t
+        self.steps = int((self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t)
         self.times = sp.linspace(0, self.time_period, self.steps + 1)
+        self.initial_t = self.times[0]
+        self.step_old_time = self.initial_t
         #self.delta_t = self.times[1]-self.times[0]
         print "Timestep used in fiber model:", self.delta_t
         #storage for output

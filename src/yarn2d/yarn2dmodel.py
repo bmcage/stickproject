@@ -81,7 +81,7 @@ class Yarn2DModel(object):
         #time data
         self.time_period = self.cfg.get('time.time_period')
         step = self.cfg.get('time.dt')
-        self.steps = (self.time_period*(1. + step*1e-6)) // step #self.delta_t
+        self.steps = int((self.time_period*(1. + step*1e-6)) // step)
         self.times = sp.linspace(0, self.time_period, self.steps + 1)
         self.delta_t = self.times[1] - self.times[0]
 
@@ -221,9 +221,7 @@ class Yarn2DModel(object):
         conc1_out_yarn = sp.zeros(self.steps, float)
         conc_on_fib = sp.empty(self.nrtypefiber)
         flux_in_fib = sp.empty(self.nrtypefiber)
-        conc_fib_out = [0] *  self.nrtypefiber
-        for i in arange(self.nrtypefiber):
-            conc_fib_out[i] = sp.empty(self.steps)
+        conc_fib_out = [0] *  self.steps
         self.initial_t = 0.
         conc1_out_yarn = []
         value_face_out = np.empty(len(self.ext_bound), float)
@@ -231,7 +229,7 @@ class Yarn2DModel(object):
         self.record_conc = open(filepath4, "w")
         ## TODO: IMPROVE THIS BC
         extBC = FixedFlux(self.ext_bound, value = 0.0)
-        for i in sp.arange(0, self.steps, 1):
+        for i in sp.arange(0, self.steps, 1, dtype=int):
             #advance fiber solution one step
             self.solve_fiber_step(self.times[i+1])
             #update BC with new fiber solution
@@ -255,7 +253,7 @@ class Yarn2DModel(object):
                 determine_out[i_out] = self.ext_bound[i_out]
             value_out_record = value_face_out[determine_out]
             conc1_average_out = np.sum(value_out_record) / len(value_out_record)
-            if verbose:
+            if self.verbose:
                 print 'average concentration out', conc1_average_out
             conc1_out_yarn = np.append(conc1_out_yarn, conc1_average_out)
             self.record_conc.write("%g, %g \n" %(self.times[i], conc1_out_yarn[-1]))
