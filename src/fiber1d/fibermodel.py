@@ -506,11 +506,11 @@ class FiberModel(object):
             if self.submethod == 'odeintw':
                 raise Exception, 'Not supported'
             elif  self.submethod == 'odew':
-                res = self.solve_ode_step()
+                res = self.solve_ode_step(step)
             elif self.submethod == 'odeintu':
                 raise Exception, 'Not supported'
             elif self.submethod == 'odeu':
-                res = self.solve_ode_step(step)
+                raise Exception, 'Not supported'
         return res
 
     def solve_init(self):
