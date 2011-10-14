@@ -249,8 +249,9 @@ class Yarn2DModel(object):
 
             if self.writeoutcount == 0:
                 conc_tot_each = self.conc.getValue()
+                conc_face_ex = self.conc.getArithmeticFaceValue()
                 for i_out in sp.arange(len(self.ext_bound)):
-                    value_face_out[i_out] = float(self.conc_face_ex[i_out])
+                    value_face_out[i_out] = float(conc_face_ex[i_out])
                     determine_out[i_out] = self.ext_bound[i_out]
                 value_out_record = value_face_out[determine_out]
                 conc1_average_out = np.sum(value_out_record) / len(value_out_record)
