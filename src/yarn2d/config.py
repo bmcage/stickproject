@@ -158,4 +158,6 @@ class Yarn2dConfigManager(ConfigManager):
             "When plotting tracked compound, set a max value for vertical axis")
         self.register("plot.plotevery", 10,
             "When plotting over time, indicate how many steps dt to skip before plotting again")
-        
+        #writeout section
+        self.register("writeout.writeevery", 100,
+            "When writing data out over time, indicate how many steps dt to skip")

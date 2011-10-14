@@ -117,6 +117,8 @@ class Yarn2DModel(object):
         self.radius_fiber =  [self.scaleL * rad for rad in self.Rf]
         
         self.plotevery = self.cfg.get("plot.plotevery")
+        self.writeevery = self.cfg.get("writeout.writeevery")
+        self.writeoutcount = 0
     
     def create_mesh(self):
         """
@@ -218,14 +220,12 @@ class Yarn2DModel(object):
         self.ext_bound = (~face_in) & (self.mesh2d.getExteriorFaces())
         
         #data structures to hold data
-        conc1_out_yarn = sp.zeros(self.steps, float)
         conc_on_fib = sp.empty(self.nrtypefiber)
         flux_in_fib = sp.empty(self.nrtypefiber)
         conc_fib_out = [0] *  self.steps
         self.initial_t = 0.
-        conc1_out_yarn = []
-        value_face_out = np.empty(len(self.ext_bound), float)
-        determine_out = np.empty(len(self.ext_bound), bool)
+        value_face_out = np.zeros(len(self.ext_bound), float)
+        determine_out = np.zeros(len(self.ext_bound), bool)
         self.record_conc = open(filepath4, "w")
         ## TODO: IMPROVE THIS BC
         extBC = FixedFlux(self.ext_bound, value = 0.0)
@@ -246,26 +246,28 @@ class Yarn2DModel(object):
             self.eq.solve(var = self.conc, boundaryConditions = tuple(BCs), 
                           dt = self.times[i+1] - self.times[i])
             print 'Solution obtained at time = ', self.times[i+1]
-            self.conc_tot_each = self.conc.getValue()
-            self.conc_face_ex = self.conc.getArithmeticFaceValue()
-            for i_out in sp.arange(len(self.ext_bound)):
-                value_face_out[i_out] = float(self.conc_face_ex[i_out])
-                determine_out[i_out] = self.ext_bound[i_out]
-            value_out_record = value_face_out[determine_out]
-            conc1_average_out = np.sum(value_out_record) / len(value_out_record)
-            if self.verbose:
-                print 'average concentration out', conc1_average_out
-            conc1_out_yarn = np.append(conc1_out_yarn, conc1_average_out)
-            self.record_conc.write("%g, %g \n" %(self.times[i], conc1_out_yarn[-1]))
-            print 'mass conservative with two fibers', self.cal_mass_void(self.conc_tot_each,
-                                                self.cell_volume) / self.scaleL
 
+            if self.writeoutcount == 0:
+                conc_tot_each = self.conc.getValue()
+                for i_out in sp.arange(len(self.ext_bound)):
+                    value_face_out[i_out] = float(self.conc_face_ex[i_out])
+                    determine_out[i_out] = self.ext_bound[i_out]
+                value_out_record = value_face_out[determine_out]
+                conc1_average_out = np.sum(value_out_record) / len(value_out_record)
+                if self.verbose:
+                    print 'average concentration out', conc1_average_out
+                self.record_conc.write("%g, %g \n" %(self.times[i], conc1_average_out))
+                print 'mass conservative with two fibers', self.cal_mass_void(conc_tot_each,
+                                                    self.cell_volume) / self.scaleL
+            self.writeoutcount += 1
+            self.writeoutcount = self.writeoutcount % self.writeevery
+                
             if self.viewer is not None:
                 if self.viewerplotcount == 0:
                     self.viewer.plot()
                 self.viewerplotcount += 1
                 self.viewerplotcount = self.viewerplotcount % self.plotevery
-                
+
         self.record_conc.close()
         dump.write({'time_step': self.times, 'conc_fib': conc_fib_out}, 
                     filename = filepath5, extension = '.gz')

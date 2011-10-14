@@ -303,7 +303,7 @@ class FiberModel(object):
         return self.f_conc1(w_rep, t)
 
     def f_conc1(self, w_rep, t):
-        print 'w_rep', w_rep
+        #print 'w_rep', w_rep
         grid = self.grid
         n_cell = len(grid)
         #Initialize the left side of ODE equations
@@ -313,14 +313,14 @@ class FiberModel(object):
         self._set_bound_flux(flux_edge, w_rep)
         #Diffusion coefficient changes with the concentration changing
         #calculate flux rate in each edge of the domain
-        print (len(self.porosity_domain[:-1]), 
-            len(self.diffusion_coeff[:-1]),
-            len(self.diffusion_exp_fact[:-1]), 
-            len(w_rep[:-1]), 
-            len(self.grid[:-1]), 
-            len(self.grid_edge[1:-1]), 
-            len(self.grid[:-1]), 
-            )
+##        print (len(self.porosity_domain[:-1]), 
+##            len(self.diffusion_coeff[:-1]),
+##            len(self.diffusion_exp_fact[:-1]), 
+##            len(w_rep[:-1]), 
+##            len(self.grid[:-1]), 
+##            len(self.grid_edge[1:-1]), 
+##            len(self.grid[:-1]), 
+##            )
         flux_edge[1:-1] = (self.porosity_domain[:-1] * self.diffusion_coeff[:-1] * 
                             sp.exp(-self.diffusion_exp_fact[:-1] * w_rep[:-1]/self.grid[:-1]) \
                          + self.porosity_domain[1:] * self.diffusion_coeff[1:] * 
@@ -395,15 +395,15 @@ class FiberModel(object):
             raise Exception, 'Solver ode not initialized'
         self.solve_ode_reinit()
         curt = self.solver.t
-        print 'curt value', curt
+        #print 'curt value', curt
         while self.solver.successful() and self.solver.t < curt + step - self.delta_t /10. and \
         self.solver.t < self.step_old_time + step - self.delta_t /10.:
-            print 'length of solution', len(self.solver.y)
-            print 'length of grid', len(self.grid)
+            #print 'length of solution', len(self.solver.y)
+            #print 'length of grid', len(self.grid)
             self.solver.integrate(self.solver.t + self.delta_t)
             self.tstep += 1
             self.conc1[self.tstep][:] = self.solver.y / self.grid
-            print 'conc1', self.conc1[self.tstep][:]
+            #print 'conc1', self.conc1[self.tstep][:]
             self.fiber_surface[self.tstep] = self.conc1[self.tstep][-1]
             self.transfer_boundary[self.tstep] = self.boundary_transf_right * self.fiber_surface[self.tstep]
             #print 'mass = ', self.calc_mass(self.conc1[tstep])
