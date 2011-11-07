@@ -89,7 +89,8 @@ class FiberModel(object):
         self.times = sp.linspace(0, self.time_period, self.steps + 1)
         self.initial_t = self.times[0]
         self.step_old_time = self.initial_t
-        #self.delta_t = self.times[1]-self.times[0]
+        #set correct delta_t
+        self.delta_t = self.times[1]-self.times[0]
         print "Timestep used in fiber model:", self.delta_t
         #storage for output
         self.fiber_surface = sp.empty(len(self.times), float)
@@ -377,6 +378,7 @@ class FiberModel(object):
         self.step_old_time = self.initial_t
         self.step_old_sol = self.initial_w1
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
+        self.conc1[0][:] = self.initial_c1
         self.tstep = 0
         self.initialized = True
 
@@ -388,13 +390,14 @@ class FiberModel(object):
         self.solver = ode(self.f_conc1_ode).set_integrator('vode', method = 'bdf')
         self.solver.set_initial_value(self.step_old_sol, self.step_old_time)
 
-    def solve_ode_step(self, step):
+    def solve_ode_step(self, step, needreinit=True):
         """Solve the fibermodel for one step, continuing from the present
            state, return the concentration after step
         """
         if not self.initialized:
             raise Exception, 'Solver ode not initialized'
-        self.solve_ode_reinit()
+        if needreinit:
+            self.solve_ode_reinit()
         curt = self.solver.t
         #print 'curt value', curt
         while self.solver.successful() and self.solver.t < curt + step - self.delta_t /10. and \
@@ -518,6 +521,24 @@ class FiberModel(object):
                 self.solve_odeint()
             elif  self.submethod == 'odew':
                 self.solve_ode()
+            elif  self.submethod == 'odew_step':
+                self.solve_ode_init()
+                self.solve_ode_reinit()
+                self.solution_view = CellVariable(name = "fiber concentration", 
+                            mesh = self.mesh_fiber,
+                            value = self.conc1[0][:])
+                self.viewer =  Matplotlib1DViewer(vars = self.solution_view, 
+                                        datamin=0., 
+                                        datamax=1.2 * self.conc1[0].max())
+                self.viewerplotcount = 1
+                for nrt, time in enumerate(self.times[1:]):
+                    res = self.solve_ode_step(self.delta_t, needreinit=False)
+                    if self.viewerplotcount == 0:
+                        self.solution_view.setValue(self.conc1[nrt+1])
+                        self.viewer.plot()
+                        self.viewer.axes.set_title('time %s' %str(time))
+                    self.viewerplotcount += 1
+                    self.viewerplotcount = self.viewerplotcount % self.plotevery
             elif self.submethod == 'odeintu':
                 self.solve_odeintu()
             elif self.submethod == 'odeu':
