@@ -137,3 +137,7 @@ class Fiber1dConfigManager(ConfigManager):
         
         self.register("time.time_period", 500.)
         self.register("time.dt", 5.0)
+        #plot section
+        self.register("plot.plotevery", 10,
+            "When plotting over time, indicate how many steps dt to skip before plotting again")
+

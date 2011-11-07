@@ -112,8 +112,9 @@ class FiberModel(object):
         
         self.__Rf_pure = None
         self.__Rf = None
-        
 
+        self.plotevery = self.cfg.get("plot.plotevery")
+        
         self.verbose = self.cfg.get('general.verbose')
         
     def radius_pure(self):
@@ -573,13 +574,15 @@ class FiberModel(object):
         self.solution_view = CellVariable(name = "fiber concentration", 
                             mesh = self.mesh_fiber,
                             value = conc[0][:])
-        self.viewer =  Viewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.20*conc.max())
+        self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.20*conc.max())
+        self.viewerplotcount = 1
         for time, con in zip(times[1:], conc[1:][:]):
-            self.solution_view.setValue(con)
-            self.viewer.plot()
-            #if time == 200.0:
-            #    dump.write({'space_position': self.grid, 'conc1': con},
-            #                filename = utils.OUTPUTDIR + os.sep + 'ode_t1.gz', extension = '.gz')
+            if self.viewerplotcount == 0:
+                self.solution_view.setValue(con)
+                self.viewer.plot()
+                self.viewer.axes.set_title('time %s' %str(time))
+            self.viewerplotcount += 1
+            self.viewerplotcount = self.viewerplotcount % self.plotevery
     
     def view_time(self, times, conc):
         draw_time = times#/(3600.*24.*30.) 
