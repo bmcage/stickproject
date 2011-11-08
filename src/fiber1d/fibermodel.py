@@ -318,17 +318,15 @@ class FiberModel(object):
 ##            len(self.grid_edge[1:-1]), 
 ##            len(self.grid[:-1]), 
 ##            )
-        flux_edge[1:-1] = (self.porosity_domain[:-1] * self.diffusion_coeff[:-1] * 
+        flux_edge[1:-1] = -(self.porosity_domain[:-1] * self.diffusion_coeff[:-1] * 
                             sp.exp(-self.diffusion_exp_fact[:-1] * w_rep[:-1]/self.grid[:-1]) \
                          + self.porosity_domain[1:] * self.diffusion_coeff[1:] * 
                             sp.exp(-self.diffusion_exp_fact[1:] * w_rep[1:]/self.grid[1:]))/2.\
                         * self.grid_edge[1:-1] \
                         * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
                         / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
-        diff_w_t[:]=(flux_edge[1:]-flux_edge[:-1])/self.delta_r[:] / self.porosity_domain[:]
-        print flux_edge[-2],flux_edge[-1], diff_w_t[-1]
+        diff_w_t[:]=(flux_edge[:-1]-flux_edge[1:])/self.delta_r[:] / self.porosity_domain[:]
         return diff_w_t
-        
     
     def f_conc1_odeu(self, t, conc_r):
         return self.f_conc1u(conc_r, t)
@@ -343,14 +341,14 @@ class FiberModel(object):
         self._set_bound_fluxu(flux_edge, conc_r)
         #Diffusion coefficient changes with the concentration changing
         #calculate flux rate in each edge of the domain
-        flux_edge[1:-1] = (self.porosity_domain[:-1] * self.diffusion_coeff[:-1] * 
+        flux_edge[1:-1] = -(self.porosity_domain[:-1] * self.diffusion_coeff[:-1] * 
                             sp.exp(-self.diffusion_exp_fact[:-1] * conc_r[:-1]) \
                          + self.porosity_domain[1:] * self.diffusion_coeff[1:] * 
                             sp.exp(-self.diffusion_exp_fact[1:] * conc_r[1:]))/2.\
                         * self.grid_edge[1:-1] \
                         * (conc_r[1:] - conc_r[:-1])\
                         / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
-        diff_u_t[:] = 2.*((flux_edge[1:]-flux_edge[:-1])
+        diff_u_t[:] = 2.*((flux_edge[:-1]-flux_edge[1:])
                         /(self.grid_edge[1:]**2-self.grid_edge[:-1]**2)
                         / self.porosity_domain[:])
         return diff_u_t
