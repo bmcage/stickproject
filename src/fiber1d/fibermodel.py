@@ -105,8 +105,6 @@ class FiberModel(object):
         self.boundary_fib_left = self.cfg.get('boundary.boundary_fib_left')
         self.boundary_fib_right = self.cfg.get('boundary.boundary_fib_right')
         self.boundary_transf_right = self.cfg.get('boundary.transfer_right')
-        #self.porosity_in = self.cfg.get('fiber.porosity_in')
-        self.porosity_layer = self.cfg.get('fiberlayer_0.porosity_layer')
         
         #data for stepwise operation
         self.initialized = False
@@ -167,12 +165,14 @@ class FiberModel(object):
             self.diff_exp_fact = [0.]
             self.init_conc = [lambda x: 0.0 ]
             self.ind_first_zone = 1
+            self.porosity = [0.]
         else:
             n_edge = [self.cfg.get('fiber.n_edge')]
             self.diff_coef = [self.cfg.get('fiber.diffusion_coef')]
             self.diff_exp_fact = [self.cfg.get('fiber.diffusion_polymer_exp_factor')]
             self.init_conc = [eval(self.cfg.get('fiber.init_conc')) ]
             self.ind_first_zone = 0
+            self.porosity = [self.cfg.get('fiber.porosity_in')]
         self.nrlayers = self.cfg.get('fiber.nrlayers')
         self.surf_begin = [0.]
         self.surf = [self.radius_pure()]
@@ -184,6 +184,7 @@ class FiberModel(object):
             self.diff_coef += [self.cfg.get(section + '.diffusion_coef')]
             self.diff_exp_fact += [self.cfg.get(section + '.diffusion_polymer_exp_factor')]
             self.init_conc += [eval(self.cfg.get(section + '.init_conc')) ]
+            self.porosity += [self.cfg.get(section + '.porosity_layer')]
 
         #we now construct the full edge grid
         self.tot_edges = 0
@@ -217,6 +218,7 @@ class FiberModel(object):
         self.grid = (self.grid_edge[:-1] + self.grid_edge[1:])/2.
         #obtain cell sizes
         self.delta_r = self.grid_edge[1:] - self.grid_edge[:-1]
+        print 'mesh', self.grid, self.grid_edge, self.delta_r
         #create a fipy mesh for visualization and fipy computation
         self.mesh_fiber = CylindricalGrid1D(dx=tuple(self.delta_r))
         self.mesh_fiber.periodicBC = False
@@ -226,8 +228,6 @@ class FiberModel(object):
     def initial_fiber(self):
         """ initial concentration over the domain"""
         if self.fiber_diff:
-            #porosity value of cotton fiber
-            self.porosity_in = self.cfg.get('fiber.porosity_in')
             #percentage of active component
             self.percentage_active = self.cfg.get('fiber.percentage_active')
         print 'TOT EDGES', self.tot_edges
@@ -243,19 +243,14 @@ class FiberModel(object):
                 surf = self.surf[st]
             if st == 0:
                 self.initial_c1[i] = self.init_conc[st](pos) * \
-                                            (self.porosity_in) * \
+                                            (self.porosity[st]) * \
                                             (self.percentage_active / 100.)
             else:
-                self.initial_c1[i] = self.init_conc[st](pos)
+                self.initial_c1[i] = self.init_conc[st](pos) * self.porosity[st]
             self.diffusion_coeff[i] = self.diff_coef[st]
             self.diffusion_exp_fact[i] = self.diff_exp_fact[st]
+            self.porosity_domain[i] = self.porosity[st]
         self.initial_w1 = self.initial_c1 * self.grid
-        for i in sp.arange(len(self.grid)):
-            determine_porosity = (i + 1) * self.grid[i]
-            if determine_porosity < self.surf[0]:
-                self.porosity_domain[i] = self.porosity_in
-            else:
-                self.porosity_domain[i] = self.porosity_layer
         print 'initial mass = ', self.calc_mass(self.initial_c1)
 
     def calc_mass(self, conc_r):
@@ -331,6 +326,7 @@ class FiberModel(object):
                         * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
                         / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
         diff_w_t[:]=(flux_edge[1:]-flux_edge[:-1])/self.delta_r[:] / self.porosity_domain[:]
+        print flux_edge[-2],flux_edge[-1], diff_w_t[-1]
         return diff_w_t
         
     
@@ -610,11 +606,11 @@ class FiberModel(object):
             self.viewerplotcount = self.viewerplotcount % self.plotevery
     
     def view_time(self, times, conc):
-        draw_time = times#/(3600.*24.*30.) 
+        draw_time = times/(3600.*24.*30.) # convert seconds to months
         draw_conc = conc *1.0e4
         plt.figure()
         plt.plot(draw_time, draw_conc, '-', color = 'red')
-        plt.xlim(0.0, 3.0)
+        #plt.xlim(0.0, 3.0)
         plt.xlabel('Time (month)')
         plt.ylabel('Flux of DEET ($\mathrm{mg\cdot cm/s}$)')
         plt.draw()
