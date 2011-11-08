@@ -380,6 +380,7 @@ class FiberModel(object):
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
         self.conc1[0][:] = self.initial_c1
         self.tstep = 0
+        self.solve_ode_reinit()
         self.initialized = True
 
     def solve_ode_reinit(self):
@@ -387,7 +388,9 @@ class FiberModel(object):
         Reinitialize the ode solver to start again
         """
         self.initial_t = self.times[0]
-        self.solver = ode(self.f_conc1_ode).set_integrator('vode', method = 'bdf')
+        self.solver = ode(self.f_conc1_ode).set_integrator('vode', 
+                            method = 'bdf',
+                            nsteps=5000)
         self.solver.set_initial_value(self.step_old_sol, self.step_old_time)
 
     def solve_ode_step(self, step, needreinit=True):
@@ -523,20 +526,21 @@ class FiberModel(object):
                 self.solve_ode()
             elif  self.submethod == 'odew_step':
                 self.solve_ode_init()
-                self.solve_ode_reinit()
                 self.solution_view = CellVariable(name = "fiber concentration", 
                             mesh = self.mesh_fiber,
                             value = self.conc1[0][:])
                 self.viewer =  Matplotlib1DViewer(vars = self.solution_view, 
                                         datamin=0., 
                                         datamax=1.2 * self.conc1[0].max())
+                self.viewer.axes.set_title('time 0.0')
+                self.viewer.plot()
                 self.viewerplotcount = 1
                 for nrt, time in enumerate(self.times[1:]):
                     res = self.solve_ode_step(self.delta_t, needreinit=False)
                     if self.viewerplotcount == 0:
                         self.solution_view.setValue(self.conc1[nrt+1])
-                        self.viewer.plot()
                         self.viewer.axes.set_title('time %s' %str(time))
+                        self.viewer.plot()
                     self.viewerplotcount += 1
                     self.viewerplotcount = self.viewerplotcount % self.plotevery
             elif self.submethod == 'odeintu':
