@@ -82,6 +82,9 @@ class FiberModel(object):
             print 'ERROR: unkown solution submethod %s' % self.submethod
             sys.exit(0)
         self.fiber_diff = self.cfg.get('fiber.internal_diffusion')
+        if self.fiber_diff and (self.cfg.get('fiber.diffusion_coef') == 0.):
+            raise Exception, 'Internal diffusion requires diff coeff > 0.'
+
         self.time_period = self.cfg.get('time.time_period')
         print 'the time period', self.time_period
         self.delta_t = self.cfg.get('time.dt')
@@ -250,7 +253,9 @@ class FiberModel(object):
             self.diffusion_coeff[i] = self.diff_coef[st]
             self.diffusion_exp_fact[i] = self.diff_exp_fact[st]
             self.porosity_domain[i] = self.porosity[st]
+        
         self.initial_w1 = self.initial_c1 * self.grid
+        self.volume = self.calc_volume()
         print 'initial mass = ', self.calc_mass(self.initial_c1)
 
     def calc_mass(self, conc_r):
@@ -259,14 +264,25 @@ class FiberModel(object):
         
         conc_r: concentration in self.grid
         """
-        return sp.sum(conc_r * self.grid* self.delta_r * self.porosity_domain) * 2. * sp.pi 
-        
+        return sp.sum(conc_r * (sp.power(self.grid_edge[1:],2) - 
+                                sp.power(self.grid_edge[:-1],2)) 
+                            * self.porosity_domain) * 2. * sp.pi 
+
+    def calc_volume(self):
+        """calculate the volume over which the compound can move. We have
+           Cavg = mass/volume
+        """
+        return sp.sum((sp.power(self.grid_edge[1:],2) - 
+                            sp.power(self.grid_edge[:-1],2)) 
+                        * self.porosity_domain) * 2. * sp.pi 
+
     def _set_bound_flux(self, flux_edge, w_rep):
         """
         Method that takes BC into account to set flux on edge
         Data is written to flux_edge, w_rep contains solution in the cell centers
         """
         if self.bound_left == FLUX:
+            #dC/dn = k, so dC/dr=k on a circle, hence 
             flux_edge[0] = -self.boundary_fib_left * self.grid_edge[0]
         else:
             print 'ERROR: boundary type left not implemented'
@@ -283,11 +299,10 @@ class FiberModel(object):
         the BC
         """
         if self.bound_right == FLUX:
-            return self.boundary_fib_right * self.grid_edge[-1]
+            return self.boundary_fib_right 
         else:
             # a transfer coeff to the right
             return self.boundary_transf_right * conc_r \
-                             * self.grid_edge[-1]  \
                              * self.porosity_domain[-1]
         
     def _set_bound_fluxu(self, flux_edge, conc_r):
@@ -296,7 +311,7 @@ class FiberModel(object):
         Data is written to flux_edge, conc_r contains solution in the cell centers
         """
         if self.bound_left == FLUX:
-            flux_edge[0] = -self.boundary_fib_left * self.grid_edge[0]
+            flux_edge[0] = -self.boundary_fib_left
         else:
             print 'ERROR: boundary type left not implemented'
             sys.exit(0)
@@ -437,7 +452,51 @@ class FiberModel(object):
             #print 'mass = ', self.calc_mass(self.conc1[tstep])
 
         self.view_sol(self.times, self.conc1)
-        
+
+    def solve_simple(self):
+        """
+        A simplified solution of the problem in which diffusion is neglected,
+        so with M = C * V the mass: dM/dt = - flux_out, so
+        M(t_e) = M(0) - int(flux_out, t=0..t_e)
+        For the transfer condition we have
+            dM/dt = - k M
+              M(t) = M(0)*exp(-k*t/V)
+        If also fluxout is removed as flux:
+            M(t) = fluxout/k+(M0-fluxout/k)*exp(-k*t)
+        fluxout is the amount over an edge, so it is 2 pi fluxout(r) * r_surf porosity_edge
+        """
+        V = self.volume
+        M0 = self.simple_sol[0]
+        k = 0.
+        flux_out = 0.
+        if self.bound_left == FLUX:
+            flux_out += -2*sp.pi * self.grid_edge[-1]*self.porosity_domain[-1] \
+                        * self.boundary_fib_left
+        else:
+            raise Exception, 'ERROR: boundary type left not implemented'
+        if self.bound_right == FLUX:
+            flux_out += 2*sp.pi * self.grid_edge[-1]*self.porosity_domain[-1] \
+                        * self.boundary_fib_right 
+        elif self.bound_right == TRANSFER:
+            #flux in C is dC/dr=kC = k M/V, so flux in mass is this integrated
+            # over edge, which gives 2 pi porosity_edge r_edge / V * k * M
+            # which gives us the rate k in terms of M of:
+            k = 2 * sp.pi * self.boundary_transf_right * self.grid_edge[-1] \
+                    * self.porosity_domain[-1] / V
+        else:
+            raise Exception, 'ERROR: boundary type right not implemented'
+        tstep = 0
+        for time in self.times[1:]:
+            tstep += 1
+            if k:
+                self.simple_sol[tstep] = flux_out/k+(M0-flux_out/k)*exp(-k*time)
+            else:
+                self.simple_sol[tstep] = flux_out * time + M0
+            #convert the mass to the average concentration valid over domain
+            self.fiber_surface[tstep] = self.simple_sol[tstep] / V
+            self.flux_at_surface[tstep] = self.fiber_surface[tstep]
+        self.view_time(self.times, self.simple_sol, 'mass in cross section fiber')
+
     def solve_odeu(self):
         self.initial_t = self.times[0]
         endT = self.times[-1]
@@ -509,6 +568,28 @@ class FiberModel(object):
                                         boundaryConditions = self.BCs_fiber)
         self.solution_fiber.updateOld()
 
+    def solve_simple_init(self):
+        """
+        Initialize the simple solver
+        """
+        self.initial_t = self.times[0]
+        self.step_old_time = self.initial_t
+        self.step_old_sol = self.initial_w1
+        self.simple_sol = np.empty(len(self.times), float)
+        self.simple_sol[0] = self.calc_mass(self.initial_c1)
+        self.tstep = 0
+        self.initialized = True
+
+    def solve_ode_reinit(self):
+        """
+        Reinitialize the ode solver to start again
+        """
+        self.initial_t = self.times[0]
+        self.solver = ode(self.f_conc1_ode).set_integrator('vode', 
+                            method = 'bdf',
+                            nsteps=5000)
+        self.solver.set_initial_value(self.step_old_sol, self.step_old_time)
+
     def solve(self):
         """
         Solve the diffusion process in the fiber. 
@@ -517,38 +598,44 @@ class FiberModel(object):
         discretize the right side of equation. The mesh in this 1-D condition is 
         uniform
         """
-        if self.submethod == 'fipy':
-            self.solve_fipy()
-        else:            
-            if self.submethod == 'odeintw':
-                self.solve_odeint()
-            elif  self.submethod == 'odew':
-                self.solve_ode()
-            elif  self.submethod == 'odew_step':
-                self.solve_ode_init()
-                self.solution_view = CellVariable(name = "fiber concentration", 
-                            mesh = self.mesh_fiber,
-                            value = self.conc1[0][:])
-                self.viewer =  Matplotlib1DViewer(vars = self.solution_view, 
-                                        datamin=0., 
-                                        datamax=1.2 * self.conc1[0].max())
-                self.viewer.axes.set_title('time 0.0')
-                self.viewer.plot()
-                self.viewerplotcount = 1
-                for nrt, time in enumerate(self.times[1:]):
-                    res = self.solve_ode_step(self.delta_t, needreinit=False)
-                    if self.viewerplotcount == 0:
-                        self.solution_view.setValue(self.conc1[nrt+1])
-                        self.viewer.axes.set_title('time %s' %str(time))
-                        self.viewer.plot()
-                    self.viewerplotcount += 1
-                    self.viewerplotcount = self.viewerplotcount % self.plotevery
-            elif self.submethod == 'odeintu':
-                self.solve_odeintu()
-            elif self.submethod == 'odeu':
-                self.solve_odeu()
+        if self.method == 'FVM':
+            if self.submethod == 'fipy':
+                self.solve_fipy()
+            else:            
+                if self.submethod == 'odeintw':
+                    self.solve_odeint()
+                elif  self.submethod == 'odew':
+                    self.solve_ode()
+                elif  self.submethod == 'odew_step':
+                    self.solve_ode_init()
+                    self.solution_view = CellVariable(name = "fiber concentration", 
+                                mesh = self.mesh_fiber,
+                                value = self.conc1[0][:])
+                    self.viewer =  Matplotlib1DViewer(vars = self.solution_view, 
+                                            datamin=0., 
+                                            datamax=1.2 * self.conc1[0].max())
+                    self.viewer.axes.set_title('time 0.0')
+                    self.viewer.plot()
+                    self.viewerplotcount = 1
+                    for nrt, time in enumerate(self.times[1:]):
+                        res = self.solve_ode_step(self.delta_t, needreinit=False)
+                        if self.viewerplotcount == 0:
+                            self.solution_view.setValue(self.conc1[nrt+1])
+                            self.viewer.axes.set_title('time %s' %str(time))
+                            self.viewer.plot()
+                        self.viewerplotcount += 1
+                        self.viewerplotcount = self.viewerplotcount % self.plotevery
+                elif self.submethod == 'odeintu':
+                    self.solve_odeintu()
+                elif self.submethod == 'odeu':
+                    self.solve_odeu()
+            print 'end mass = ', self.calc_mass(self.conc1[-1])
+        elif self.method == 'SIMPLE':
+            self.solve_simple()
+        else:
+            raise NotImplementedError, 'Method %s is not implemented' % self.method
         print 'finished the fiber calculation'
-        self.view_time(self.times, self.flux_at_surface)
+        self.view_time(self.times, self.flux_at_surface, 'Flux of DEET ($\mathrm{mg\cdot cm/s}$)')
 
     def solve_step(self, step):
         """
@@ -577,19 +664,25 @@ class FiberModel(object):
         """
         Initialize the solvers so they can be solved stepwize
         """
-        if self.submethod == 'fipy':
-            self.solve_fipy()
-        else:            
-            if self.submethod == 'odeintw':
-                raise Exception, 'Not supported to step for odeint'
-                self.solve()
-            elif  self.submethod == 'odew':
-                self.solve_ode_init()
-            elif self.submethod == 'odeintu':
-                raise Exception, 'Not supported to step for odeint'
-                self.solve()
-            elif self.submethod == 'odeu':
-                self.solve_ode_init()
+        if self.method == 'FVM':
+            if self.submethod == 'fipy':
+                self.solve_fipy()
+            else:            
+                if self.submethod == 'odeintw':
+                    raise Exception, 'Not supported to step for odeint'
+                elif  self.submethod in ['odew', 'odew_step']:
+                    self.solve_ode_init()
+                elif self.submethod == 'odeintu':
+                    raise Exception, 'Not supported to step for odeint'
+                    self.solve()
+                elif self.submethod == 'odeu':
+                    self.solve_ode_init()
+                else:
+                    raise NotImplementedError
+        elif self.method == 'SIMPLE':
+            self.solve_simple_init()
+        else:
+            raise NotImplementedError, 'Method %s is not implemented' % self.method
 
     def view_sol(self, times, conc):
         """
@@ -609,21 +702,22 @@ class FiberModel(object):
             self.viewerplotcount += 1
             self.viewerplotcount = self.viewerplotcount % self.plotevery
     
-    def view_time(self, times, conc):
+    def view_time(self, times, conc, title=None):
         draw_time = times/(3600.*24.*30.) # convert seconds to months
         draw_conc = conc *1.0e4
         plt.figure()
         plt.plot(draw_time, draw_conc, '-', color = 'red')
         #plt.xlim(0.0, 3.0)
         plt.xlabel('Time (month)')
-        plt.ylabel('Flux of DEET ($\mathrm{mg\cdot cm/s}$)')
+        plt.ylabel(title)
         plt.draw()
 
     def dump_solution(self): 
         """write out the solution to disk for future use"""
-        dump.write({'space_position': self.grid, 'conc': self.conc1},
-            filename = utils.OUTPUTDIR + os.sep + 'sol_%s.gz' % self.submethod,
-            extension = '.gz')
+        if self.method == 'FVM':
+            dump.write({'space_position': self.grid, 'conc': self.conc1},
+                filename = utils.OUTPUTDIR + os.sep + 'sol_%s.gz' % self.submethod,
+                extension = '.gz')
         dump.write({'time_step':self.times, 'flux': self.flux_at_surface},
             filename = utils.OUTPUTDIR + os.sep + 'flux_boundary', 
             extension = '.gz')
@@ -638,7 +732,6 @@ class FiberModel(object):
             self.solve_init()
         self.solve()
 
-        print 'end mass = ', self.calc_mass(self.conc1[-1])
         if output:
             self.dump_solution()
         if wait:

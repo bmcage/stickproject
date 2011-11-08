@@ -49,6 +49,8 @@ SHORTOPTS = "i:o"
 METHOD = {
     'FVM': ('Finite Volume Method discretization', 
             ['odew', 'odeintw', 'odeu', 'odeintu', 'fipy', 'odew_step']),
+    'SIMPLE': ('A constant mass approximation: dM/dt = - flux_surface',
+            ['standard']),
     }
 
 FLUX = 0
