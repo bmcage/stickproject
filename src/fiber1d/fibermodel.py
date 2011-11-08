@@ -94,7 +94,7 @@ class FiberModel(object):
         print "Timestep used in fiber model:", self.delta_t
         #storage for output
         self.fiber_surface = sp.empty(len(self.times), float)
-        self.transfer_boundary = sp.empty(len(self.times), float)
+        self.flux_at_surface = sp.empty(len(self.times), float)
         
         #print 'the times', self.times
         #self.delta_t = 0.1#self.times[1] - self.times[0]
@@ -277,6 +277,19 @@ class FiberModel(object):
             flux_edge[-1] = self.boundary_transf_right * w_rep[-1]  \
                             *self.porosity_domain[-1]
 
+    def _bound_flux_u(self, conc_r):
+        """
+        Calculate the flux on the surface from concentration on surface with
+        the BC
+        """
+        if self.bound_right == FLUX:
+            return self.boundary_fib_right * self.grid_edge[-1]
+        else:
+            # a transfer coeff to the right
+            return self.boundary_transf_right * conc_r \
+                             * self.grid_edge[-1]  \
+                             * self.porosity_domain[-1]
+        
     def _set_bound_fluxu(self, flux_edge, conc_r):
         """
         Method that takes BC into account to set flux on edge
@@ -287,14 +300,7 @@ class FiberModel(object):
         else:
             print 'ERROR: boundary type left not implemented'
             sys.exit(0)
-        if self.bound_right == FLUX:
-            flux_edge[-1] = self.boundary_fib_right * self.grid_edge[-1]
-        else:
-            # a transfer coeff to the right
-            flux_edge[-1] = self.boundary_transf_right * conc_r[-1] \
-                             * self.grid_edge[-1]  \
-                             * self.porosity_domain[-1]
-            #print 'flux', flux_edge[-1]
+        flux_edge[-1] = self._bound_flux_u(conc_r[-1])
 
     def f_conc1_ode(self, t, w_rep):
         return self.f_conc1(w_rep, t)
@@ -406,7 +412,7 @@ class FiberModel(object):
             self.conc1[self.tstep][:] = self.solver.y / self.grid
             #print 'conc1', self.conc1[self.tstep][:]
             self.fiber_surface[self.tstep] = self.conc1[self.tstep][-1]
-            self.transfer_boundary[self.tstep] = self.boundary_transf_right * self.fiber_surface[self.tstep]
+            self.flux_at_surface[self.tstep] = self._bound_flux_u(self.conc1[self.tstep][-1])
             #print 'mass = ', self.calc_mass(self.conc1[tstep])
         #return the concentration after step
         #self.initial_w1 = self.initial_c1 * self.grid
@@ -427,7 +433,7 @@ class FiberModel(object):
             tstep += 1
             self.conc1[tstep][:] = self.solver.y / self.grid
             self.fiber_surface[tstep] = self.conc1[tstep][-1]
-            self.transfer_boundary[tstep] = self.boundary_transf_right * self.fiber_surface[tstep]
+            self.flux_at_surface[tstep] = self._bound_flux_u(self.conc1[tstep][-1])
             #print 'mass = ', self.calc_mass(self.conc1[tstep])
 
         self.view_sol(self.times, self.conc1)
@@ -445,7 +451,7 @@ class FiberModel(object):
             tstep += 1
             self.conc1[tstep][:] = r.y 
             self.fiber_surface[tstep] = self.conc1[tstep][-1]
-            self.transfer_boundary[tstep] = self.boundary_transf_right * self.fiber_surface[tstep]
+            self.flux_at_surface[tstep] = self._bound_flux_u(self.conc1[tstep][-1])
             #print 'mass = ', self.calc_mass(self.conc1[tstep])
         self.view_sol(self.times, self.conc1)
 
@@ -488,7 +494,7 @@ class FiberModel(object):
             tstep += 1
             self.conc1[tstep][:] = self.solution_fiber.getValue()
             self.fiber_surface[tstep] = self.conc1[tstep][-1]
-            self.transfer_boundary[tstep] = self.boundary_transf_right * self.fiber_surface[tstep]
+            self.flux_at_surface[tstep] = self._bound_flux_u(self.conc1[tstep][-1])
             #if time == 200.0:
             #    dump.write({'space_position': self.grid, 'conc1': self.conc1[tstep][:]},
             #            filename = utils.OUTPUTDIR + os.sep + 'fipy_t1.gz', extension = '.gz')
@@ -542,7 +548,7 @@ class FiberModel(object):
             elif self.submethod == 'odeu':
                 self.solve_odeu()
         print 'finished the fiber calculation'
-        self.view_time(self.times, self.transfer_boundary)
+        self.view_time(self.times, self.flux_at_surface)
 
     def solve_step(self, step):
         """
@@ -618,7 +624,7 @@ class FiberModel(object):
         dump.write({'space_position': self.grid, 'conc': self.conc1},
             filename = utils.OUTPUTDIR + os.sep + 'sol_%s.gz' % self.submethod,
             extension = '.gz')
-        dump.write({'time_step':self.times, 'flux':self.transfer_boundary},
+        dump.write({'time_step':self.times, 'flux': self.flux_at_surface},
             filename = utils.OUTPUTDIR + os.sep + 'flux_boundary', 
             extension = '.gz')
 
