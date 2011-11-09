@@ -266,7 +266,7 @@ class FiberModel(object):
         """
         return sp.sum(conc_r * (sp.power(self.grid_edge[1:],2) - 
                                 sp.power(self.grid_edge[:-1],2)) 
-                            * self.porosity_domain) * 2. * sp.pi 
+                            * self.porosity_domain) * sp.pi 
 
     def calc_volume(self):
         """calculate the volume over which the compound can move. We have
@@ -274,7 +274,7 @@ class FiberModel(object):
         """
         return sp.sum((sp.power(self.grid_edge[1:],2) - 
                             sp.power(self.grid_edge[:-1],2)) 
-                        * self.porosity_domain) * 2. * sp.pi 
+                        * self.porosity_domain) * sp.pi 
 
     def _set_bound_flux(self, flux_edge, w_rep):
         """
@@ -494,7 +494,7 @@ class FiberModel(object):
                 self.simple_sol[tstep] = flux_out * time + M0
             #convert the mass to the average concentration valid over domain
             self.fiber_surface[tstep] = self.simple_sol[tstep] / V
-            self.flux_at_surface[tstep] = self.fiber_surface[tstep]
+            self.flux_at_surface[tstep] = self._bound_flux_u(self.fiber_surface[tstep])
         self.view_time(self.times, self.simple_sol, 'mass in cross section fiber')
 
     def solve_odeu(self):
@@ -705,12 +705,15 @@ class FiberModel(object):
     def view_time(self, times, conc, title=None):
         draw_time = times/(3600.*24.*30.) # convert seconds to months
         draw_conc = conc *1.0e4
-        plt.figure()
+        plt.ion()
+        plt.figure(num=None)
+        print 'fig', title
         plt.plot(draw_time, draw_conc, '-', color = 'red')
         #plt.xlim(0.0, 3.0)
         plt.xlabel('Time (month)')
         plt.ylabel(title)
-        plt.draw()
+        plt.show()
+        plt.ioff()
 
     def dump_solution(self): 
         """write out the solution to disk for future use"""
