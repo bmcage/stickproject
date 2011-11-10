@@ -299,14 +299,15 @@ class FiberModel(object):
         Method that takes BC into account to set flux on edge
         Data is written to flux_edge, w_rep contains solution in the cell centers
         """
-        #calculate normal val with w_rep = C*r, instead of C:
-        self._set_bound_fluxu(flux_edge, w_rep, t)
-        #and correct if needed
         if self.bound_left == FLUX:
-            #dC/dn = k, so dC/dr=k on a circle, hence 
-            flux_edge[0] *= self.grid_edge[0]
-        if self.bound_right in [FLUX, EVAP]:
-            flux_edge[-1] *= self.grid_edge[-1]
+            flux_edge[0] = -self.boundary_fib_left * self.grid_edge[0]
+        else:
+            print 'ERROR: boundary type left not implemented'
+            sys.exit(0)
+        #calculate normal val with w_rep = C*r, instead of C:
+        flux_edge[-1] = self._bound_flux_uR(w_rep[-1]/self.grid_edge[-1], t)
+        #and correct 
+        flux_edge[-1] *= self.grid_edge[-1]
 
     def _bound_flux_uR(self, conc_r, t):
         """
@@ -323,7 +324,7 @@ class FiberModel(object):
             # evaporation to the right
             eCf = self.evap_Cf(t)
             eCs = self.evap_satconc(self.temp)
-            return self.porosity_domain[-1] * (eCs - eCf) \
+            return self.porosity_domain[-1] * self.evap_transfer * (eCs - eCf) \
                     * Heaviside_oneside(conc_r - self.evap_minbound, eCs - eCf)
 
     def _set_bound_fluxu(self, flux_edge, conc_r, t):
@@ -531,9 +532,6 @@ class FiberModel(object):
             tstep += 1
             if self.bound_right == EVAP:
                 #forward Euler on the dM/dt = -fluxout equation
-                print 'extra', self.simple_sol[tstep-1], self.delta_t * (flux_outevap(self.simple_sol[tstep-1], 
-                                            self.times[tstep-1])
-                                    + flux_out)
                 self.simple_sol[tstep] = self.simple_sol[tstep-1] - \
                     self.delta_t * (flux_outevap(self.simple_sol[tstep-1], 
                                             self.times[tstep-1])
