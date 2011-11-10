@@ -55,9 +55,11 @@ METHOD = {
 
 FLUX = 0
 TRANSFER = 1
+EVAP = 2
 BOUND_TYPE = {
     'flux': FLUX,
     'transfer': TRANSFER,
+    'evaporation': EVAP
     }
 
 CIRCLE  = 0
@@ -136,6 +138,19 @@ class Fiber1dConfigManager(ConfigManager):
         self.register("boundary.boundary_fib_left", 0.0)
         self.register("boundary.boundary_fib_right", 0.0)
         self.register("boundary.transfer_right", 0.0)
+        self.register("boundary.evap_satconc", "lambda T: 1.",
+            "Function to return saturated concentration for the compound"
+            " in terms of temperature T. Unit=??")
+        self.register("boundary.evap_transfer", 0.,
+            "Transfer coefficient for evaporation, so h_lg in the flux eq "
+            " flux = S h_lg (C_sat(T) - C_free) H(C - C_bo) ")
+        self.register("boundary.evap_minbound", 0.,
+            "The amount of concentration that cannot be removed by evaporation"
+            ", so C_bo in the eq flux = S h_lg (C_sat(T) - C_free) H(C - C_bo)")
+        self.register("boundary.evap_Cf", "lambda t: 0.",
+            "Function to return the amount of free compound at the surface of"
+            " the fiber in terms of the time. So C_free in the eq "
+            " flux = S h_lg (C_sat(T) - C_free) H(C - C_bo) ")
         
         self.register("time.time_period", 500.)
         self.register("time.dt", 5.0)

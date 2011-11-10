@@ -41,7 +41,8 @@ import time
 #-------------------------------------------------------------------------
 import lib.utils.utils as utils
 import lib.utils.gridutils as GridUtils
-from fiber1d.config import (METHOD, FLUX, TRANSFER, BOUND_TYPE, FIBER_FORM,
+from fiber1d.config import (METHOD, FLUX, TRANSFER, EVAP,
+                    BOUND_TYPE, FIBER_FORM,
                     CIRCLE, ELLIPSE)
 
 #-------------------------------------------------------------------------
@@ -51,6 +52,17 @@ from fiber1d.config import (METHOD, FLUX, TRANSFER, BOUND_TYPE, FIBER_FORM,
 #-------------------------------------------------------------------------
 from fipy import *
 
+
+def Heaviside_oneside(val, control):
+    """
+    a Heaviside function of val, if control is positive, otherwise identity
+    """
+    if control < 0.:
+        return 1.
+    if val < 0.:
+        return 0.
+    return val
+    
 #-------------------------------------------------------------------------
 #
 # DiffusionModel class 
@@ -71,6 +83,7 @@ class FiberModel(object):
         transfer: the Robin BC for the right side of 1D domain
         initial_c: the initial concentration of DEET in the whole domain
         """
+        self.temp = 273.15 + 21 #temperature in Kelvin
         self.datatime = []
         self.cfg = config
         self.method = self.cfg.get('general.method')
@@ -108,6 +121,11 @@ class FiberModel(object):
         self.boundary_fib_left = self.cfg.get('boundary.boundary_fib_left')
         self.boundary_fib_right = self.cfg.get('boundary.boundary_fib_right')
         self.boundary_transf_right = self.cfg.get('boundary.transfer_right')
+        if self.bound_right == EVAP:
+            self.evap_satconc = eval(self.cfg.get('boundary.evap_satconc'))
+            self.evap_transfer = self.cfg.get('boundary.evap_transfer')
+            self.evap_minbound = self.cfg.get('boundary.evap_minbound')
+            self.evap_Cf = eval(self.cfg.get('boundary.evap_Cf'))
         
         #data for stepwise operation
         self.initialized = False
@@ -276,36 +294,39 @@ class FiberModel(object):
                             sp.power(self.grid_edge[:-1],2)) 
                         * self.porosity_domain) * sp.pi 
 
-    def _set_bound_flux(self, flux_edge, w_rep):
+    def _set_bound_flux(self, flux_edge, w_rep, t):
         """
         Method that takes BC into account to set flux on edge
         Data is written to flux_edge, w_rep contains solution in the cell centers
         """
+        #calculate normal val with w_rep = C*r, instead of C:
+        self._set_bound_fluxu(flux_edge, w_rep, t)
+        #and correct if needed
         if self.bound_left == FLUX:
             #dC/dn = k, so dC/dr=k on a circle, hence 
-            flux_edge[0] = -self.boundary_fib_left * self.grid_edge[0]
-        else:
-            print 'ERROR: boundary type left not implemented'
-            sys.exit(0)
-        if self.bound_right == FLUX:
-            flux_edge[-1] = self.boundary_fib_right * self.grid_edge[-1]
-        else:
-            flux_edge[-1] = self.boundary_transf_right * w_rep[-1]  \
-                            *self.porosity_domain[-1]
+            flux_edge[0] *= self.grid_edge[0]
+        if self.bound_right in [FLUX, EVAP]:
+            flux_edge[-1] *= self.grid_edge[-1]
 
-    def _bound_flux_u(self, conc_r):
+    def _bound_flux_uR(self, conc_r, t):
         """
         Calculate the flux on the surface from concentration on surface with
         the BC
         """
         if self.bound_right == FLUX:
             return self.boundary_fib_right 
-        else:
+        elif self.bound_right == TRANSFER:
             # a transfer coeff to the right
             return self.boundary_transf_right * conc_r \
                              * self.porosity_domain[-1]
-        
-    def _set_bound_fluxu(self, flux_edge, conc_r):
+        elif self.bound_right == EVAP:
+            # evaporation to the right
+            eCf = self.evap_Cf(t)
+            eCs = self.evap_satconc(self.temp)
+            return self.porosity_domain[-1] * (eCs - eCf) \
+                    * Heaviside_oneside(conc_r - self.evap_minbound, eCs - eCf)
+
+    def _set_bound_fluxu(self, flux_edge, conc_r, t):
         """
         Method that takes BC into account to set flux on edge
         Data is written to flux_edge, conc_r contains solution in the cell centers
@@ -315,7 +336,7 @@ class FiberModel(object):
         else:
             print 'ERROR: boundary type left not implemented'
             sys.exit(0)
-        flux_edge[-1] = self._bound_flux_u(conc_r[-1])
+        flux_edge[-1] = self._bound_flux_uR(conc_r[-1], t)
 
     def f_conc1_ode(self, t, w_rep):
         return self.f_conc1(w_rep, t)
@@ -328,7 +349,7 @@ class FiberModel(object):
         diff_w_t = sp.empty(n_cell, float)
         #initialize the flux rate on the edge with replace 'w'
         flux_edge = sp.empty(n_cell+1, float)
-        self._set_bound_flux(flux_edge, w_rep)
+        self._set_bound_flux(flux_edge, w_rep, t)
         #Diffusion coefficient changes with the concentration changing
         #calculate flux rate in each edge of the domain
 ##        print (len(self.porosity_domain[:-1]), 
@@ -359,7 +380,7 @@ class FiberModel(object):
         diff_u_t = sp.empty(n_cell, float)
         #initialize the flux rate on the edge with replace 'w'
         flux_edge = sp.empty(n_cell+1, float)
-        self._set_bound_fluxu(flux_edge, conc_r)
+        self._set_bound_fluxu(flux_edge, conc_r, t)
         #Diffusion coefficient changes with the concentration changing
         #calculate flux rate in each edge of the domain
         flux_edge[1:-1] = -(self.porosity_domain[:-1] * self.diffusion_coeff[:-1] * 
@@ -427,7 +448,8 @@ class FiberModel(object):
             self.conc1[self.tstep][:] = self.solver.y / self.grid
             #print 'conc1', self.conc1[self.tstep][:]
             self.fiber_surface[self.tstep] = self.conc1[self.tstep][-1]
-            self.flux_at_surface[self.tstep] = self._bound_flux_u(self.conc1[self.tstep][-1])
+            self.flux_at_surface[self.tstep] = self._bound_flux_uR(
+                    self.conc1[self.tstep][-1], self.solver.t + self.delta_t)
             #print 'mass = ', self.calc_mass(self.conc1[tstep])
         #return the concentration after step
         #self.initial_w1 = self.initial_c1 * self.grid
@@ -448,7 +470,8 @@ class FiberModel(object):
             tstep += 1
             self.conc1[tstep][:] = self.solver.y / self.grid
             self.fiber_surface[tstep] = self.conc1[tstep][-1]
-            self.flux_at_surface[tstep] = self._bound_flux_u(self.conc1[tstep][-1])
+            self.flux_at_surface[tstep] = self._bound_flux_uR(
+                        self.conc1[tstep][-1], self.solver.t + self.delta_t)
             #print 'mass = ', self.calc_mass(self.conc1[tstep])
 
         self.view_sol(self.times, self.conc1)
@@ -469,6 +492,7 @@ class FiberModel(object):
         M0 = self.simple_sol[0]
         k = 0.
         flux_out = 0.
+        evap = False
         if self.bound_left == FLUX:
             flux_out += -2*sp.pi * self.grid_edge[-1]*self.porosity_domain[-1] \
                         * self.boundary_fib_left
@@ -483,18 +507,46 @@ class FiberModel(object):
             # which gives us the rate k in terms of M of:
             k = 2 * sp.pi * self.boundary_transf_right * self.grid_edge[-1] \
                     * self.porosity_domain[-1] / V
+        elif self.bound_right == EVAP:
+            evap = True
+            coeffevap = 2 * sp.pi * self.grid_edge[-1] \
+                        * self.porosity_domain[-1] \
+                        * self.evap_transfer
+            satevap = self.evap_satconc(self.temp)
+            flux_outevap = lambda M, t:  coeffevap * (satevap - self.evap_Cf(t)) \
+                                * Heaviside_oneside(M/V-self.evap_minbound, 
+                                                    satevap - self.evap_Cf(t))
         else:
             raise Exception, 'ERROR: boundary type right not implemented'
         tstep = 0
+        #a check to avoid errors by too large timestep!
+        if self.bound_right == EVAP:
+            first_step = self.delta_t * (flux_outevap(self.simple_sol[0], 
+                                            self.times[0]) + flux_out)
+            if abs(first_step/self.simple_sol[0]) > 0.05:
+                print 'start mass:', self.simple_sol[0], 'change:', first_step
+                raise Exception, 'ERROR, reduce time step of fiber model!' +\
+                            ' Change is mass over first time step > 5%'
         for time in self.times[1:]:
             tstep += 1
-            if k:
-                self.simple_sol[tstep] = flux_out/k+(M0-flux_out/k)*exp(-k*time)
+            if self.bound_right == EVAP:
+                #forward Euler on the dM/dt = -fluxout equation
+                print 'extra', self.simple_sol[tstep-1], self.delta_t * (flux_outevap(self.simple_sol[tstep-1], 
+                                            self.times[tstep-1])
+                                    + flux_out)
+                self.simple_sol[tstep] = self.simple_sol[tstep-1] - \
+                    self.delta_t * (flux_outevap(self.simple_sol[tstep-1], 
+                                            self.times[tstep-1])
+                                    + flux_out)
             else:
-                self.simple_sol[tstep] = flux_out * time + M0
+                if k:
+                    self.simple_sol[tstep] = flux_out/k+(M0-flux_out/k)*exp(-k*time)
+                else:
+                    self.simple_sol[tstep] = flux_out * time + M0
             #convert the mass to the average concentration valid over domain
             self.fiber_surface[tstep] = self.simple_sol[tstep] / V
-            self.flux_at_surface[tstep] = self._bound_flux_u(self.fiber_surface[tstep])
+            self.flux_at_surface[tstep] = self._bound_flux_uR(
+                                            self.fiber_surface[tstep], time)
         self.view_time(self.times, self.simple_sol, 'mass in cross section fiber')
 
     def solve_odeu(self):
@@ -510,7 +562,8 @@ class FiberModel(object):
             tstep += 1
             self.conc1[tstep][:] = r.y 
             self.fiber_surface[tstep] = self.conc1[tstep][-1]
-            self.flux_at_surface[tstep] = self._bound_flux_u(self.conc1[tstep][-1])
+            self.flux_at_surface[tstep] = self._bound_flux_uR(
+                                    self.conc1[tstep][-1], r.t + self.delta_t)
             #print 'mass = ', self.calc_mass(self.conc1[tstep])
         self.view_sol(self.times, self.conc1)
 
@@ -553,7 +606,8 @@ class FiberModel(object):
             tstep += 1
             self.conc1[tstep][:] = self.solution_fiber.getValue()
             self.fiber_surface[tstep] = self.conc1[tstep][-1]
-            self.flux_at_surface[tstep] = self._bound_flux_u(self.conc1[tstep][-1])
+            self.flux_at_surface[tstep] = self._bound_flux_uR(
+                                                self.conc1[tstep][-1], time)
             #if time == 200.0:
             #    dump.write({'space_position': self.grid, 'conc1': self.conc1[tstep][:]},
             #            filename = utils.OUTPUTDIR + os.sep + 'fipy_t1.gz', extension = '.gz')
@@ -707,7 +761,6 @@ class FiberModel(object):
         draw_conc = conc *1.0e4
         plt.ion()
         plt.figure(num=None)
-        print 'fig', title
         plt.plot(draw_time, draw_conc, '-', color = 'red')
         #plt.xlim(0.0, 3.0)
         plt.xlabel('Time (month)')
