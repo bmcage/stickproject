@@ -474,7 +474,6 @@ class FiberModel(object):
             self.flux_at_surface[tstep] = self._bound_flux_uR(
                         self.conc1[tstep][-1], self.solver.t + self.delta_t)
             #print 'mass = ', self.calc_mass(self.conc1[tstep])
-
         self.view_sol(self.times, self.conc1)
 
     def solve_simple(self):
@@ -674,7 +673,7 @@ class FiberModel(object):
                         if self.viewerplotcount == 0:
                             self.solution_view.setValue(self.conc1[nrt+1])
                             self.viewer.axes.set_title('time %s' %str(time))
-                            self.viewer.plot()
+                            self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'conc%s.png' % str(int(10*time)))
                         self.viewerplotcount += 1
                         self.viewerplotcount = self.viewerplotcount % self.plotevery
                 elif self.submethod == 'odeintu':
@@ -745,15 +744,18 @@ class FiberModel(object):
                             mesh = self.mesh_fiber,
                             value = conc[0][:])
         self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.20*conc.max())
-        self.viewerplotcount = 1
+        self.viewerplotcount = 0
         for time, con in zip(times[1:], conc[1:][:]):
+            self.solution_view.setValue(con)
             if self.viewerplotcount == 0:
-                self.solution_view.setValue(con)
+               self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'conc%s.png' % str(int(10*time)))
+               self.viewer.axes.set_title('time %s' %str(time))
+            else:
                 self.viewer.plot()
                 self.viewer.axes.set_title('time %s' %str(time))
             self.viewerplotcount += 1
-            self.viewerplotcount = self.viewerplotcount % self.plotevery
-    
+            self.viewerplotcount = self.viewerplotcount % self.plotevery   
+                
     def view_time(self, times, conc, title=None):
         draw_time = times/(3600.*24.*30.) # convert seconds to months
         draw_conc = conc *1.0e4

@@ -121,4 +121,7 @@ class Yarn1dConfigManager(ConfigManager):
         self.register("time.time_period", 4000.)
         self.register("time.dt", 5.0)
         
+        self.register("plot.plotevery", 10,
+            "When plotting over time, indicate how many steps dt to skip before plotting again")
+
         

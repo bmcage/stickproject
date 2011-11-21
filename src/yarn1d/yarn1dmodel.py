@@ -120,6 +120,7 @@ class Yarn1DModel(object):
         self.nr_fibers = self.cfg.get('fiber.number_fiber')
         self.blend=self.cfg.get('fiber.blend')
         
+        self.plotevery = self.cfg.get("plot.plotevery")
 
     def create_mesh(self):
         """
@@ -347,13 +348,23 @@ class Yarn1DModel(object):
         conc[i][:] contains solution at time times[i]
         """
         self.solution_view = CellVariable(name = "yarn concentration", mesh = self.mesh_yarn, value = conc[0][:])
-        self.viewer =  Viewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.2*conc.max())
-        for time, con in zip(times[1:], conc[1:]):
+        self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.20*conc.max())
+        self.viewerplotcount = 0
+        for time, con in zip(times[1:], conc[1:][:]):
             self.solution_view.setValue(con)
-            self.viewer.plot()
+            if self.viewerplotcount == 0:
+               self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'conc%s.png' % str(int(10*time)))
+               self.viewer.axes.set_title('time %s' %str(time))
+            else:
+                self.viewer.plot()
+                self.viewer.axes.set_title('time %s' %str(time))
+            self.viewerplotcount += 1
+            self.viewerplotcount = self.viewerplotcount % self.plotevery 
             #if time == 200.0:
              #   dump.write({'space_position': self.grid, 'conc1': con},
               #              filename = utils.OUTPUTDIR + os.sep + 'ode_t2.gz', extension = '.gz')
+            
+            
     def run(self):        
         self.create_mesh()
         self.initial_yarn1d()
