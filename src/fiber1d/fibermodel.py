@@ -300,14 +300,14 @@ class FiberModel(object):
         Data is written to flux_edge, w_rep contains solution in the cell centers
         """
         if self.bound_left == FLUX:
-            flux_edge[0] = -self.boundary_fib_left * self.grid_edge[0]
+            flux_edge[0] = -self.boundary_fib_left * self.grid_edge[0] + w_rep[0]/self.grid_edge[0]
         else:
             print 'ERROR: boundary type left not implemented'
             sys.exit(0)
         #calculate normal val with w_rep = C*r, instead of C:
         flux_edge[-1] = self._bound_flux_uR(w_rep[-1]/self.grid_edge[-1], t)
         #and correct 
-        flux_edge[-1] *= self.grid_edge[-1]
+        flux_edge[-1] *= self.grid_edge[-1]+ w_rep[-1]/self.grid_edge[-1]
 
     def _bound_flux_uR(self, conc_r, t):
         """
