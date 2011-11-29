@@ -85,17 +85,12 @@ class Yarn2dGrid(object):
         if self.verbose:
             print 'Fibers per blend', self.number_fiber_blend,' total', self.number_fiber
         self.theta_value = self.cfg.get('domain.theta_value')
-        self.poly_four = self.cfg.get('coefficients.poly_four')
-        self.poly_third = self.cfg.get('coefficients.poly_third')
-        self.poly_second = self.cfg.get('coefficients.poly_second')
-        self.poly_first = self.cfg.get('coefficients.poly_first')
-        self.poly_zero = self.cfg.get('coefficients.poly_zero')
+        self.beta_value =  self.cfg.get('domain.beta_value')
         
         #obtain size of fibers
         self.Rf = []
         self.Rf_form = []
         self.ecc = []
-        self.beta_value = [] 
         self.mean_deviation = []
         for filename in self.cfg.get('fiber.fiber_config'):
             if not os.path.isabs(filename):
@@ -106,7 +101,6 @@ class Yarn2dGrid(object):
             for i in range(cfg_fiber.get('fiber.nrlayers')):
                 section = 'fiberlayer_%i' % i
                 self.Rf[-1] += cfg_fiber.get(section + '.thickness')
-            self.beta_value.append(cfg_fiber.get('fiber.beta_value'))
             #scaled mean deviation of the fiber
             self.mean_deviation.append(self.scaleL * cfg_fiber.get('fiber.mean_deviation'))
             self.Rf_form.append(FIBER_FORM[cfg_fiber.get('fiber.form')])
@@ -114,6 +108,8 @@ class Yarn2dGrid(object):
         self.radius_fiber =  [self.scaleL * rad for rad in self.Rf]
         self.radius_boundlayer = max(self.radius_fiber)/2.
         self.radius_domain = self.radius_yarn + self.radius_boundlayer
+        self.prob_area = eval (self.cfg.get('fiber.prob_area'))
+        print 'the first read the function',  self.prob_area        
         
     def create_circle_domain_gmsh(self, filename='yarn.geo', 
             layoutfile = 'layout.dat', regenerate=True, plotyarn=False):
@@ -158,11 +154,7 @@ class Yarn2dGrid(object):
                 'theta_value' : self.theta_value,
                 'beta_value' : self.beta_value,
                 'mean_deviation': self.mean_deviation,
-                'poly_four': self.poly_four,
-                'poly_third': self.poly_third,
-                'poly_second': self.poly_second,
-                'poly_first': self.poly_first,
-                'poly_zero': self.poly_zero,
+                'prob_area': self.prob_area
                 })
             ouroptions['radius_first_center'] = self.cfg.get(
                                     'domain.radius_first_center_virtloc')

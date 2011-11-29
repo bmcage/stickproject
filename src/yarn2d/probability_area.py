@@ -52,6 +52,7 @@ def calculation_area_proportion(rad_yarn, rad_fib, x_fib, y_fib, mean_value):
     """
     #(1)divide the domain into the ring zones which contain the virtual locations
     yarn_center = 0.
+    print 'the length of rad_fib', len(rad_fib)
     rad_virtual = rad_fib[0] + mean_value
     total_circles = int((rad_yarn - rad_virtual) / (2 * rad_virtual)) + 1
     print 'the total circles number', total_circles
@@ -78,13 +79,13 @@ def calculation_area_proportion(rad_yarn, rad_fib, x_fib, y_fib, mean_value):
             width_each_zone[i_circle] = delta_ring_zone
     for i_circle in sp.arange(total_area_zone_num):
         if i_circle == 0:
-            each_zone_area[i_circle] == sp.pi * sp.power(each_zone_radius[i_circle],
+            each_zone_area[i_circle] = sp.pi * sp.power(each_zone_radius[i_circle],
                                         2.)
         else:
-            each_zone_area[i_circle] == sp.pi * sp.power(each_zone_radius[i_circle],
+            each_zone_area[i_circle] = sp.pi * sp.power(each_zone_radius[i_circle],
                                         2.) - sp.pi * sp.power(each_zone_radius[i_circle - 1],
                                         2.)
-                                        
+    print 'the area of the each zone', each_zone_area
     #(3)Calculate the distance of each fiber to the center
     distance_centra_each = sp.zeros(len(x_fib))
     for i_fib in sp.arange(len(x_fib)):
@@ -130,12 +131,12 @@ def calculation_area_proportion(rad_yarn, rad_fib, x_fib, y_fib, mean_value):
                     distance_centra_each[i_fib] < each_zone_radius[i_circle]:
                     #calculate the central part of fiber
                     #intersection point with (i-1)th ring
-                    print 'the index value for the loop in the new ring zones', i_circle
-                    print 'distance to the center',distance_centra_each[i_fib]
-                    print 'the smaller radius of ring zone', each_zone_radius[i_circle - 1]
+                    #print 'the index value for the loop in the new ring zones', i_circle
+                    #print 'distance to the center',distance_centra_each[i_fib]
+                    #print 'the smaller radius of ring zone', each_zone_radius[i_circle - 1]
                     solution_points_1 = intersect_circles(x_fib[i_fib],y_fib[i_fib],
                                     each_zone_radius[i_circle - 1],rad_fib[i_fib])
-                    print 'solution for the smalller circle', solution_points_1
+                    #print 'solution for the smalller circle', solution_points_1
                     x_first_1 = solution_points_1[0][0]
                     x_secon_1 = solution_points_1[1][0]
                     y_first_1 = solution_points_1[0][1]
@@ -143,7 +144,7 @@ def calculation_area_proportion(rad_yarn, rad_fib, x_fib, y_fib, mean_value):
                     #intersection point with ith ring
                     solution_points_2 = intersect_circles(x_fib[i_fib], y_fib[i_fib],
                                     each_zone_radius[i_circle], rad_fib[i_fib])
-                    print 'solution for the current ring', solution_points_2
+                    #print 'solution for the current ring', solution_points_2
                     x_first_2 = solution_points_2[0][0]
                     x_secon_2 = solution_points_2[1][0]
                     y_first_2 = solution_points_2[0][1]
@@ -157,7 +158,7 @@ def calculation_area_proportion(rad_yarn, rad_fib, x_fib, y_fib, mean_value):
                                 (2 * sp.power(rad_fib[i_fib], 2.)))
                     beta_ring_1 = sp.arccos((2 * sp.power(each_zone_radius[i_circle - 1], 2.) 
                                     - distance_sq_1) / (2 * sp.power(each_zone_radius
-                                    [i_circle], 2.)))
+                                    [i_circle-1], 2.)))
                     piece_fib_1 = alpha_r_1 / (2 * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)\
                                 - 1. / 2. * sp.sin(alpha_r_1) * sp.power(rad_fib[i_fib], 2.)
                     piece_ring_1 = beta_ring_1 / (2 * sp.pi) * sp.pi * sp.power(each_zone_radius
@@ -169,33 +170,47 @@ def calculation_area_proportion(rad_yarn, rad_fib, x_fib, y_fib, mean_value):
                                 (2 * sp.power(rad_fib[i_fib], 2.)))
                     beta_ring_2 = sp.arccos((2 * sp.power(each_zone_radius[i_circle], 2.) - 
                                 distance_sq_2) / (2 * sp.power(each_zone_radius[i_circle], 2.)))
+                    print 'the sin value of the angle in the center', sp.sin(beta_ring_2)
                     piece_fib_2 = alpha_r_2 / (2 * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)\
                                 - 1. / 2. * sp.sin(alpha_r_2) * sp.power(rad_fib[i_fib], 2.)
                     piece_ring_2 = beta_ring_2 / (2 * sp.pi) * sp.pi * sp.power(each_zone_radius
                                 [i_circle], 2.) - 1./ 2. * sp.sin(beta_ring_2) * sp. power(
                                 each_zone_radius[i_circle], 2.)
-                    total_piece_2 = piece_ring_2 - piece_fib_2
-                    area_in_zone = sp.pi * sp.power(rad_fib[i_fib], 2.) - (rad_fib[i_fib] + 
+                    #while piece_fib_2 < 0:
+                    #    sys.exit()
+                    total_piece_2 = -piece_ring_2 + piece_fib_2
+                    area_in_zone = sp.pi * sp.power(rad_fib[i_fib], 2.) - (total_piece_1 + 
                                     total_piece_2)
-                    print 'the area in the zone', area_in_zone
+                    #print 'the area in the zone', area_in_zone
                     fib_area_zone[i_circle] = fib_area_zone[i_circle] + area_in_zone
                     fib_area_zone[i_circle - 1] = fib_area_zone[i_circle - 1] + total_piece_1
                     fib_area_zone[i_circle + 1] = fib_area_zone[i_circle + 1] + total_piece_2	
-        print 'fiber cross-section area', fib_area_zone[i_circle]
+        
+        if fib_area_zone[i_circle] < 0:
+            print 'the index of the ring zone', i_circle
+##            print 'the wrong area', fib_area_zone[i_circle]
+##            print i_circle
+##            sys.exit()
+##        print 'fiber cross-section area', fib_area_zone[i_circle]
     #check whether the calculation includes all the fibers
     total_area_in_ring = sp.sum(each_zone_area)
     #total_arae_fib = 0.
     #for i_fib in sp.arange(len(rad_fib)):
     total_area_fib = sp.sum(sp.pi * sp.power(rad_fib, 2.))
-    if np.abs(total_area_in_ring - total_area_fib) > 0.001:
-        assert "The error exceeds the limitation for area calculation in the ring zones"
+##    if np.abs(total_area_in_ring - total_area_fib) > 0.001:
+##        assert "The error exceeds the limitation for area calculation in the ring zones"
     for i_circle in sp.arange(len(each_zone_area)):
         proportion_value_zone[i_circle] = fib_area_zone[i_circle] / \
                                         each_zone_area[i_circle]
     print 'the value of proportion in each ring zone', proportion_value_zone
+    polyfitting = np.poly1d(np.polyfit(each_zone_center, proportion_value_zone, 
+                4))
+    zone_centra = sp.linspace(0.0, 0.95, 50)
     pylab.figure()
     pylab.plot(each_zone_center, proportion_value_zone, '-')
+    pylab.plot(zone_centra, polyfitting(zone_centra), '.-')
     pylab.draw()
+    raw_input("Enter for continue")
     return (proportion_value_zone, each_zone_area, fib_area_zone, each_zone_center)
 
 def calculation_area_pro_shift(rad_yarn, rad_fib, x_fib, y_fib, 
@@ -203,13 +218,15 @@ def calculation_area_pro_shift(rad_yarn, rad_fib, x_fib, y_fib,
     #currently the delta_r = R_{virl} / 2.
     #(1)After shifting the central, how many ring zones are in the domain
     yarn_center = 0.0
-    rad_virtual = rad_fib + mean_value
-    total_circles_shift = int((rad_yarn - delta_r) / (2 * rad_virtual[0]))
-    total_circles = int((rad_yarn - rad_virtual[0]) / (2 * rad_virtual[0])) + 1
+    print 'the length of rad_fib', len(rad_fib)
+    rad_virtual = rad_fib[0] + mean_value
     delta_r = rad_virtual / 2.
+    total_circles_shift = int((rad_yarn - delta_r) / (2 * rad_virtual))
+    total_circles = int((rad_yarn - rad_virtual) / (2 * rad_virtual)) + 1
+    #delta_r = rad_virtual / 2.
     #(2)divide each ring zones into three piece and calculate the center position
     #and the radius value for each zone
-    delta_ring_zone = rad_virtual / 3.0
+    delta_ring_zone = rad_virtual / 3.0 * 2.
     total_area_zone_num = (total_circles - 1) * 3 + 2
     each_zone_radius = sp.zeros(total_area_zone_num, float)
     each_zone_center = sp.empty(total_area_zone_num, float)
@@ -227,13 +244,17 @@ def calculation_area_pro_shift(rad_yarn, rad_fib, x_fib, y_fib,
             each_zone_center[i_circle] = each_zone_radius[i_circle - 1] + \
                                         delta_ring_zone / 2.
             width_each_zone[i_circle] = delta_ring_zone
+    print 'the radius of each zone', each_zone_radius
     for i_circle in sp.arange(total_area_zone_num):
         if i_circle == 0:
-            each_zone_area[i_circle] == sp.pi * sp.power(each_zone_radius[i_circle],
+            each_zone_area[i_circle] = sp.pi * sp.power(each_zone_radius[i_circle],
                                         2.)
+            print 'each zone area', each_zone_area[i_circle]
         else:
-            each_zone_area[i_circle] == sp.pi * sp.power(each_zone_radius[i_circle],
-                                        2.) - each_zone_area[i_circle - 1]
+            each_zone_area[i_circle] = sp.pi * sp.power(each_zone_radius[i_circle],
+                                        2.) - sp.pi * sp.power(each_zone_radius[i_circle - 1],
+                                        2.)
+            print 'each zone area', each_zone_area[i_circle]
     #(3)Calculate the distance of each fiber to the center
     distance_centra_each = sp.sqrt(sp.power(x_fib, 2.0) + sp.power(y_fib, 2.0))
     
@@ -241,22 +262,24 @@ def calculation_area_pro_shift(rad_yarn, rad_fib, x_fib, y_fib,
     fib_area_zone = sp.zeros(total_area_zone_num, float)
     #proportion_value_zone = sp.zeros(total_area_zone_num, float)
     #(5)calculate the determining radius for angle 
-    determining_rad = sp.zeros(total_circle, float)
+    determining_rad = sp.zeros(total_circles - 1, float)
+    print 'the length of the determining_rad', len(determining_rad)
+##    for i_shift in sp.arange(total_circles - 1):
+##        if i_shift == 0:
+##            determining_rad[i_shift] = sp.sqrt(sp.power(each_zone_radius[i_shift + 2], 
+##                                    2.) - sp.power(3. / 2. * rad_virtual, 2.))
+##                                    
+##        else:
+##            print 'i_shift value', i_shift
+##            determining_rad[i_shift] = sp.sqrt(sp.power(each_zone_radius[i_shift + 2 * 
+##                                    (i_shift + 1)], 2.) - sp.power((3. / 2. + 2. * 
+##                                    i_shift) * rad_virtual, 2.))
     i_determining = 0
-    for i_shift in sp.arange(total_circles):
-        if i_shift == 0:
-            determining_rad[i_shift] = sp.sqrt(sp.power(each_zone_radius(i_shift + 2), 
-                                    2.) - sp.power(3. / 2. * rad_virtual[0], 2.))
-        else:
-            determining_rad[i_shift] = sp.sqrt(sp.power(each_zone_radius[i_shift + 2 * 
-                                    (i_shift + 1)], 2.) - sp.power((3. / 2. + 2. * 
-                                    i_shift) * rad_virtual[0], 2.))
-                                    
-    for i_circle in sp.arange(total_area_zone_num):    
-        if i_circle == 0:
-            continue
-        else:
-            for i_fib in sp.arange(len(x_lib)):
+    for i_circle in sp.arange(total_area_zone_num): 
+                      
+        if i_circle > 0:
+            print 'the circle value', i_circle 
+            for i_fib in sp.arange(len(x_fib)):
 ##                if distance_centra_each[i_fib] - rad_fib[i_fib] > each_zone_radius\
 ##                    [i_circle -1] and distance_centra_each[i_fib] > each_zone_radius\
 ##                    [i_circle] and distance_centra_each[i_fib] < each_zone_radius\
@@ -272,17 +295,20 @@ def calculation_area_pro_shift(rad_yarn, rad_fib, x_fib, y_fib,
                 #calculate the area proportional value for 'shift'
                 if distance_centra_each[i_fib] > each_zone_radius[i_circle] and \
                     distance_centra_each[i_fib] - rad_fib[i_fib] < each_zone_radius[i_circle]:
-                    solution_points = intersect_circles(x_fib[i_fib], y_fib[i_fib],
+                    solution_points_1 = intersect_circles(x_fib[i_fib], y_fib[i_fib],
                                 each_zone_radius[i_circle], rad_fib[i_fib])
                     x_first = solution_points_1[0][0]
-                    x_secon = solution_points_1[0][1]
-                    y_first = solution_points_1[1][0]
+                    x_secon = solution_points_1[1][0]
+                    y_first = solution_points_1[0][1]
                     y_secon = solution_points_1[1][1]
-                    distance_sq = sp.power((x_first - x_second), 2.) + sp.power((y_first - y_second), 2.)
+                    distance_sq = (x_first - x_secon) ** 2 + (y_first - y_secon) ** 2
+                    print 'the distance_sq', distance_sq
                     alpha_r = sp.arccos((2. * sp.power(rad_fib[i_fib], 2.) - distance_sq) / 
                             (2. * sp.power(rad_fib[i_fib], 2.)))
+                    print 'alpha_r', alpha_r
                     beta_centra = sp.arccos ((2. * sp.power(each_zone_radius[i_circle], 2.) - 
                             distance_sq) / (2. * sp.power(each_zone_radius[i_circle], 2.)))
+                    print 'beta_centra', beta_centra
                     piece_fib = alpha_r / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
                     piece_ring = beta_centra / (2. * sp.pi) * sp.pi * sp.power(each_zone_radius
                                 [i_circle], 2.)
@@ -295,7 +321,9 @@ def calculation_area_pro_shift(rad_yarn, rad_fib, x_fib, y_fib,
                     fib_area_zone[i_circle] = fib_area_zone[i_circle] + total_piece
                 elif distance_centra_each[i_fib] < each_zone_radius[i_circle] and \
                     distance_centra_each[i_fib] > each_zone_radius[i_circle - 1]:
+                    #print 'previous determining value is', i_determining
                     i_determining += 1
+                    #print 'determining value is', i_determining
                     solution_points_1 = intersect_circles(x_fib[i_fib], y_fib[i_fib],
                                 each_zone_radius[i_circle -1], rad_fib[i_fib])
                     
@@ -303,24 +331,24 @@ def calculation_area_pro_shift(rad_yarn, rad_fib, x_fib, y_fib,
                                 each_zone_radius[i_circle], rad_fib[i_fib])
                     #intersection point with (i-1)th ring
                     x_first_1 = solution_points_1[0][0]
-                    x_secon_1 = solution_points_1[0][1]
-                    y_first_1 = solution_points_1[1][0]
+                    x_secon_1 = solution_points_1[1][0]
+                    y_first_1 = solution_points_1[0][1]
                     y_secon_1 = solution_points_1[1][1]
                     #intersection point with ith ring
                     x_first_2 = solution_points_2[0][0]
-                    x_secon_2 = solution_points_2[0][1]
-                    y_first_2 = solution_points_2[1][0]
+                    x_secon_2 = solution_points_2[1][0]
+                    y_first_2 = solution_points_2[0][1]
                     y_secon_2 = solution_points_2[1][1]
                     
-                    distance_sq_1 = sp.power((x_first_1 - x_secon_1), 2.) + \
-                                sp.power((y_first_1 - y_secon_1), 2.) 
-                    distance_sq_2 = sp.power((x_first_2 - x_secon_2), 2.) + \
-                                sp.power((y_first_2 - y_secon_2), 2.) 
+                    distance_sq_1 = (x_first_1 - x_secon_1) ** 2 + \
+                                (y_first_1 - y_secon_1) ** 2 
+                    distance_sq_2 = (x_first_2 - x_secon_2) ** 2 + \
+                                (y_first_2 - y_secon_2) ** 2
                     alpha_r_1 = sp.arccos((2 * sp.power(rad_fib[i_fib], 2.) - distance_sq_1) /\
                             (2 * sp.power(rad_fib[i_fib], 2.)))
                     beta_ring_1 = sp.arccos((2 * sp.power(each_zone_radius[i_circle - 1], 2.) 
                                 - distance_sq_1) / (2 * sp.power(each_zone_radius
-                                [i_circle], 2.)))
+                                [i_circle - 1], 2.)))
                     piece_fib_1 = alpha_r_1 / (2 * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)\
                             - 1. / 2. * sp.sin(alpha_r_1) * sp.power(rad_fib[i_fib], 2.)
                     piece_ring_1 = beta_ring_1 / (2 * sp.pi) * sp.pi * sp.power(each_zone_radius
@@ -330,26 +358,24 @@ def calculation_area_pro_shift(rad_yarn, rad_fib, x_fib, y_fib,
                     alpha_r_2 = sp.arccos((2 * sp.power(rad_fib[i_fib], 2.) 
                                 - distance_sq_2) / (2 * sp.power(rad_fib[i_fib]
                                 , 2.)))
-                    beta_ring_2 = sp.power((2 * sp.power(each_zone_radius[i_circle], 
+                    beta_ring_2 = (2 * sp.power(each_zone_radius[i_circle], 
                                 2.) - distance_sq_2) / (2. * sp.power(each_zone_radius[i_circle],
-                                2.)))
-                    if rad_fib[i_fib] <= determining_rad[i_circle - 2 * i_determining]:
-                        piece_fib_2 = alpha_r_2 / (2 * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)\
-                            - 1. / 2. * sp.sin(alpha_r_2) * sp.power(rad_fib[i_fib], 2.)
-                        piece_ring_2 = beta_ring_1 / (2 * sp.pi) * sp.pi * sp.power(each_zone_radius
-                                [i_circle], 2.) - 1. / 2. * sp.sin(beta_ring_2) * \
-                                sp.power(each_zone_radius[i_circle], 2.)
-                        total_piece_2 = piece_fib_2 + piece_ring_2
-                    elif rad_fib[i_fib] > determining_rad[i_circle - 2 * i_determining]:
-                        piece_fib_2 = alpha_r_2 / (2. * sp.pi) * sp.pi * sp.power(
-                                    rad_fib[i_fib], 2.)
-                        piece_ring_2 = beta_ring_2 / (2. * sp.pi) * sp.pi * \
-                                    sp.power(each_zone_radius[i_circle], 2.) - 1./ 2. * \
-                                    sp.sin(beta_ring_2) * sp.power(each_zone_radius[i_circle],
-                                    2.) - 1. / 2. * sp.sin(alpha_r_2) * sp.power(rad_fib[i_fib], 2.)
-                        total_piece_2 = piece_fib_2 - piece_ring_2
-                    
-                        
+                                2.))
+                    #if rad_fib[i_fib] <= determining_rad[i_circle - 2 * i_determining]:
+                    piece_fib_2 = alpha_r_2 / (2 * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)\
+                        - 1. / 2. * sp.sin(alpha_r_2) * sp.power(rad_fib[i_fib], 2.)
+                    piece_ring_2 = beta_ring_1 / (2 * sp.pi) * sp.pi * sp.power(each_zone_radius
+                            [i_circle], 2.) - 1. / 2. * sp.sin(beta_ring_2) * \
+                            sp.power(each_zone_radius[i_circle], 2.)
+                    total_piece_2 = piece_fib_2 + piece_ring_2
+                    #elif rad_fib[i_fib] > determining_rad[i_circle - 2 * i_determining]:
+##                        piece_fib_2 = alpha_r_2 / (2. * sp.pi) * sp.pi * sp.power(
+##                                    rad_fib[i_fib], 2.)
+##                        piece_ring_2 = beta_ring_2 / (2. * sp.pi) * sp.pi * \
+##                                    sp.power(each_zone_radius[i_circle], 2.) - 1./ 2. * \
+##                                    sp.sin(beta_ring_2) * sp.power(each_zone_radius[i_circle],
+##                                    2.) - 1. / 2. * sp.sin(alpha_r_2) * sp.power(rad_fib[i_fib], 2.)
+##                        total_piece_2 = piece_fib_2 - piece_ring_2
                     left_part = sp.pi * sp.power(rad_fib[i_fib], 2.) - (total_piece_2 + 
                                 total_piece_1)
                     fib_area_zone[i_circle] = fib_area_zone[i_circle] + left_part
@@ -361,85 +387,85 @@ def calculation_area_pro_shift(rad_yarn, rad_fib, x_fib, y_fib,
                                 each_zone_radius[i_circle], rad_fib[i_fib])
                     #intersection point with (i-1)th ring
                     x_first_1 = solution_points_1[0][0]
-                    x_secon_1 = solution_points_1[0][1]
-                    y_first_1 = solution_points_1[1][0]
+                    x_secon_1 = solution_points_1[1][0]
+                    y_first_1 = solution_points_1[0][1]
                     y_secon_1 = solution_points_1[1][1]
                     #intersection point with ith ring
                     x_first_2 = solution_points_2[0][0]
-                    x_secon_2 = solution_points_2[0][1]
-                    y_first_2 = solution_points_2[1][0]
+                    x_secon_2 = solution_points_2[1][0]
+                    y_first_2 = solution_points_2[0][1]
                     y_secon_2 = solution_points_2[1][1]
-                    if x_first_2.imag == 0:
-                        distance_sq_1 = sp.power((x_first_1 - x_secon_1), 2.) + \
-                                    sp.power((y_first_1 - y_secon_1), 2.) 
-                        distance_sq_2 = sp.power((x_first_2 - x_secon_2), 2.) + \
-                                    sp.power((y_first_2 - y_secon_2), 2.) 
-                        alpha_r_2 = sp.arccos((2 * sp.power(rad_fib[i_fib], 2.) - distance_sq_2) /\
-                                (2 * sp.power(rad_fib[i_fib], 2.)))
-                        beta_ring_2 = sp.arccos((2 * sp.power(each_zone_radius[i_circle], 2.) 
-                                    - distance_sq_2) / (2 * sp.power(each_zone_radius
-                                    [i_circle], 2.)))
-                        piece_fib_2 = alpha_r_2 / (2 * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)\
-                                - 1. / 2. * sp.sin(alpha_r_2) * sp.power(rad_fib[i_fib], 2.)
-                        piece_ring_2 = beta_ring_2 / (2 * sp.pi) * sp.pi * sp.power(each_zone_radius
-                                    [i_circle], 2.) - 1. / 2. * sp.sin(beta_ring_2) * \
-                                    sp.power(each_zone_radius[i_circle], 2.)
-                        total_piece_2 = piece_fib_2 - piece_ring_2
-                        alpha_r_1 = sp.arccos((2 * sp.power(rad_fib[i_fib], 
-                                    2.) - distance_sq_1) /(2 * sp.power(rad_fib[i_fib], 
-                                    2.)))
-                        beta_ring_1 = sp.arccos((2 * sp.power(each_zone_radius[i_circle - 1], 
-                                    2.) - distance_sq_1) / (2 * sp.power(each_zone_radius
-                                    [i_circle - 1], 2.)))
-                        if rad_fib[i_fib] <= determining_rad[i_circle - 2 * i_determining - 1]:
-                            piece_fib_1 = (2. * sp.pi - alpha_r_1) / (2. * sp.pi) * \
-                                        sp.pi * sp.power(rad_fib[i_fib], 2.) + \
-                                        1. / 2. * sp.sin(alpha_r_1) * sp.power(
-                                        rad_fib[i_fib], 2.)
-                            piece_ring_1 = beta_ring_1 / (2. * sp.pi) * sp.pi * \
-                                        sp.power(each_zone_radius[i_circle - 1], 2.) - \
-                                        1. / 2. * sp.sin(beta_ring_1) * sp.power(
-                                        each_zone_radius[i_circle - 1])
-                            total_piece_1 = piece_fib_1 + piece_ring_1
-                        elif rad_fib[i_fib] > determining_rad[i_circle - 2 * i_determining - 1]:
-                            piece_fib_1 = alpha_r_1 / (2. * sp.pi) * sp.pi * \
-                                        sp.power(rad_fib[i_fib], 2.) 
-                            piece_ring_1 = beta_ring_1 / (2. * sp.pi) * sp.pi * \
-                                        sp.power(each_zone_radius[i_circle - 1], 2.) - \
-                                        1. / 2. * sp.sin(beta_ring_1) * sp.power(
-                                        each_zone_radius[i_circle - 1], 2.) - 1. / 2. * \
-                                        sp.sin(alpha_r_1) * sp.power(rad_fib[i_fib], 2.)
-                            total_piece_1 = piece_fib_1 - piece_ring_1
-                        left_part = sp.pi * sp.power(rad_fib[i_fib], 2.) - (total_piece_1 + 
-                                    total_piece_2)
-                        fib_area_zone[i_circle + 1] = fib_area_zone[i_circle + 1] + \
-                                                    total_piece_2
-                    else:
-                        alpha_r_1 = sp.arccos((2. * sp.power(rad_fib[i_fib], 2.) 
-                                    - distance_sq_1) / (2. * sp.power(rad_fib[i_fib], 2.)))
-                        beta_ring_1 = sp.arccos((2. * sp.power(each_zone_radius[i_circle - 1], 
-                                    2.) - distance_sq_1) / (2. * 
-                                    sp.power(each_zone_radius[i_circle - 1], 2.)) )
-                        if rad_fib[i_fib] <= determining_rad[i_circle - 2 * i_determining - 1]:
-                            piece_fib_1 = alpha_r_1 / (2. * sp.pi) * sp.pi * \
-                                        sp.power(rad_fib[i_fib], 2.) - \
-                                        1. / 2. * sp.sin(alpha_r_1) * \
-                                        sp.power(rad_fib[i_fib], 2.)
-                            piece_ring_1 = beta_ring_1 / (2. * sp.pi) * sp.pi * \
-                                        sp.power(each_zone_radius[i_circle - 1], 2.) \
-                                        - 1./ 2. * sp.sin(beta_ring_1) * sp.power(
-                                        each_zone_radius[i_circle - 1], 2.)
-                            left_part = piece_fib_1 - piece_ring_1
-                        else:
-                            piece_fib_1 = (2. * sp.pi - alpha_r_1) / (2. * sp.pi) * \
-                                        sp.pi * sp.power(rad_fib[i_fib], 2.)
-                            piece_ring_1 = beta_ring_1 / (2. * sp.pi) * sp.pi * \
-                                        sp.power(each_zone_radius[i_circle - 1], 2.) - \
-                                        1. / 2. * sp.sin(beta_ring_1) * sp. power(
-                                        each_zone_radius[i_circle - 1], 2.) - \
-                                        1./ 2. * sp.sin(alpha_r_1) * sp.power(
-                                        rad_fib[i_fib], 2.)
-                            left_part = piece_fib_1 - piece_ring_1
+                    #if x_first_2.imag == 0:
+                    distance_sq_1 = (x_first_1 - x_secon_1) ** 2 + \
+                                (y_first_1 - y_secon_1) ** 2
+                    distance_sq_2 = (x_first_2 - x_secon_2) ** 2 + \
+                                (y_first_2 - y_secon_2) ** 2 
+                    alpha_r_2 = sp.arccos((2 * sp.power(rad_fib[i_fib], 2.) - distance_sq_2) /\
+                            (2 * sp.power(rad_fib[i_fib], 2.)))
+                    beta_ring_2 = sp.arccos((2 * sp.power(each_zone_radius[i_circle], 2.) 
+                                - distance_sq_2) / (2 * sp.power(each_zone_radius
+                                [i_circle], 2.)))
+                    piece_fib_2 = alpha_r_2 / (2 * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)\
+                            - 1. / 2. * sp.sin(alpha_r_2) * sp.power(rad_fib[i_fib], 2.)
+                    piece_ring_2 = beta_ring_2 / (2 * sp.pi) * sp.pi * sp.power(each_zone_radius
+                                [i_circle], 2.) - 1. / 2. * sp.sin(beta_ring_2) * \
+                                sp.power(each_zone_radius[i_circle], 2.)
+                    total_piece_2 = piece_fib_2 - piece_ring_2
+                    alpha_r_1 = sp.arccos((2 * sp.power(rad_fib[i_fib], 
+                                2.) - distance_sq_1) /(2 * sp.power(rad_fib[i_fib], 
+                                2.)))
+                    beta_ring_1 = sp.arccos((2 * sp.power(each_zone_radius[i_circle - 1], 
+                                2.) - distance_sq_1) / (2 * sp.power(each_zone_radius
+                                [i_circle - 1], 2.)))
+##                        if rad_fib[i_fib] <= determining_rad[i_circle - 2 * i_determining - 1]:
+##                            piece_fib_1 = (2. * sp.pi - alpha_r_1) / (2. * sp.pi) * \
+##                                        sp.pi * sp.power(rad_fib[i_fib], 2.) + \
+##                                        1. / 2. * sp.sin(alpha_r_1) * sp.power(
+##                                        rad_fib[i_fib], 2.)
+##                            piece_ring_1 = beta_ring_1 / (2. * sp.pi) * sp.pi * \
+##                                        sp.power(each_zone_radius[i_circle - 1], 2.) - \
+##                                        1. / 2. * sp.sin(beta_ring_1) * sp.power(
+##                                        each_zone_radius[i_circle - 1])
+##                            total_piece_1 = piece_fib_1 + piece_ring_1
+##                        elif rad_fib[i_fib] > determining_rad[i_circle - 2 * i_determining - 1]:
+                    piece_fib_1 = alpha_r_1 / (2. * sp.pi) * sp.pi * \
+                                sp.power(rad_fib[i_fib], 2.) 
+                    piece_ring_1 = beta_ring_1 / (2. * sp.pi) * sp.pi * \
+                                sp.power(each_zone_radius[i_circle - 1], 2.) - \
+                                1. / 2. * sp.sin(beta_ring_1) * sp.power(
+                                each_zone_radius[i_circle - 1], 2.) - 1. / 2. * \
+                                sp.sin(alpha_r_1) * sp.power(rad_fib[i_fib], 2.)
+                    total_piece_1 = piece_fib_1 - piece_ring_1
+                    left_part = sp.pi * sp.power(rad_fib[i_fib], 2.) - (total_piece_1 + 
+                                total_piece_2)
+                    fib_area_zone[i_circle + 1] = fib_area_zone[i_circle + 1] + \
+                                                total_piece_2
+##                    else:
+##                        alpha_r_1 = sp.arccos((2. * sp.power(rad_fib[i_fib], 2.) 
+##                                    - distance_sq_1) / (2. * sp.power(rad_fib[i_fib], 2.)))
+##                        beta_ring_1 = sp.arccos((2. * sp.power(each_zone_radius[i_circle - 1], 
+##                                    2.) - distance_sq_1) / (2. * 
+##                                    sp.power(each_zone_radius[i_circle - 1], 2.)) )
+##                        if rad_fib[i_fib] <= determining_rad[i_circle - 2 * i_determining - 1]:
+##                            piece_fib_1 = alpha_r_1 / (2. * sp.pi) * sp.pi * \
+##                                        sp.power(rad_fib[i_fib], 2.) - \
+##                                        1. / 2. * sp.sin(alpha_r_1) * \
+##                                        sp.power(rad_fib[i_fib], 2.)
+##                            piece_ring_1 = beta_ring_1 / (2. * sp.pi) * sp.pi * \
+##                                        sp.power(each_zone_radius[i_circle - 1], 2.) \
+##                                        - 1./ 2. * sp.sin(beta_ring_1) * sp.power(
+##                                        each_zone_radius[i_circle - 1], 2.)
+##                            left_part = piece_fib_1 - piece_ring_1
+##                        else:
+##                            piece_fib_1 = (2. * sp.pi - alpha_r_1) / (2. * sp.pi) * \
+##                                        sp.pi * sp.power(rad_fib[i_fib], 2.)
+##                            piece_ring_1 = beta_ring_1 / (2. * sp.pi) * sp.pi * \
+##                                        sp.power(each_zone_radius[i_circle - 1], 2.) - \
+##                                        1. / 2. * sp.sin(beta_ring_1) * sp. power(
+##                                        each_zone_radius[i_circle - 1], 2.) - \
+##                                        1./ 2. * sp.sin(alpha_r_1) * sp.power(
+##                                        rad_fib[i_fib], 2.)
+##                            left_part = piece_fib_1 - piece_ring_1
                     fib_area_zone[i_circle] = fib_area_zone[i_circle] + left_part
     sum_each_zone = sp.sum(each_zone_area)
     area_each_fib = sp.pi * sp.power(rad_fib[:], 2.)

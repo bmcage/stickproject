@@ -112,6 +112,7 @@ class Yarn2dConfigManager(ConfigManager):
             "Method for the fiber layout, one of " 
             + ",".join(FIBERLAYOUTS.keys()))
         self.register("domain.theta_value", 0.05)
+        self.register("domain.beta_value", 0.04)
         self.register("domain.radius_first_center_virtloc", 0.)
         #fiber section
         self.register("fiber.number_type", 1, 
@@ -121,13 +122,10 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("fiber.eps_value", 0.001)
         self.register("fiber.blend", [100.0], 
             "Blend distribution over the fiber types")
+        self.register("fiber.radius_fiber", [100.])
         self.register("fiber.fiber_config", ['../fiber/defaultfiber.ini'])
-        #coef section
-        self.register("coefficients.poly_four", [0.0])
-        self.register("coefficients.poly_third", [0.0])
-        self.register("coefficients.poly_second", [0.0])
-        self.register("coefficients.poly_first", [0.0])
-        self.register("coefficients.poly_zero", [0.0])
+        self.register("fiber.prob_area", '[lambda r: r ** 2]')
+
         #initial section
         self.register("initial.init_conc", 0., 
             "Initial concentration of tracked compound in the yarn")

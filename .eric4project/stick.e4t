@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Tasks SYSTEM "Tasks-4.2.dtd">
+<!-- eric4 tasks file for project stick -->
+<!-- Saved: 2011-11-28, 16:59:35 -->
+<Tasks version="4.2">
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: in following diffusion is given as cellvariable, would a</Summary>
+    <Description></Description>
+    <Created>2011-11-24, 11:23:21</Created>
+    <Resource>
+      <Filename>src/fiber1d/fibermodel.py</Filename>
+      <Linenumber>473</Linenumber>
+    </Resource>
+  </Task>
+</Tasks>
