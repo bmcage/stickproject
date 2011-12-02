@@ -552,6 +552,7 @@ def virtlocoverlaplayout(options):
 #                    filename = filename_1, extension = '.gz')
     
     #take 50% points from each other
+    
     number_vl_overlap = sp.empty(len(onumber_fiber_blend))
     for ind in sp.arange(len(onumber_fiber_blend)):
         number_vl_overlap[ind] = int(onumber_fiber_blend[ind] / 2.)
