@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-4.6.dtd">
 <!-- eric4 project file for project stick -->
-<!-- Saved: 2011-11-22, 10:42:01 -->
+<!-- Saved: 2011-11-30, 16:54:21 -->
 <!-- Copyright (C) 2011 ,  -->
 <Project version="4.6">
   <Language></Language>
@@ -12,11 +12,9 @@
   <Author></Author>
   <Email></Email>
   <Sources>
-    <Source>src/stick.py</Source>
     <Source>analysis/diffcons_twolayers.py</Source>
     <Source>src/yarn1d/yarn1dmodel.py</Source>
     <Source>src/yarn1d/__init__.py</Source>
-    <Source>src/yarn1d/config.py</Source>
     <Source>src/yarn1d/yarn1dprog.py</Source>
     <Source>src/const.py</Source>
     <Source>src/utils/expmeas_201104.py</Source>
