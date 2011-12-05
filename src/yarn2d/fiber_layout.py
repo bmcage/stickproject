@@ -369,8 +369,6 @@ def virtloclayout(options):
                 random_position = int(a_position)
                 determine_value = (random_position == location_number)
             else:
-                print 'determine',  determine_generate
-                print 'random',  random_position
                 x_position[determine_generate] = x_position_vl[random_position]
                 y_position[determine_generate] = y_position_vl[random_position]
                 location_number[i_index] = random_position
@@ -412,8 +410,6 @@ def virtlocoverlaplayout(options):
     onumber_fiber = options.get('number_fiber', 1)
     onumber_fiber_blend = options.get('number_fiber_blend', [1])
     oradius_fiber = options.get('radius_fiber', [1.])
-    print 'the fiber radius in the simulation',  oradius_fiber
-    raw_input('confirm the radius of the fiber, enter')
 
     oradius_yarn = options.get('radius_yarn', 2.)
     otheta_value = options.get('theta_value', 0.1)
@@ -471,7 +467,6 @@ def virtlocoverlaplayout(options):
         each_circle_zone_num, radius_circle_central, area_ring_zone = virtloclayout(ouroptions)
         proportion_no_sub = sp.pi * sp.power(oradius_fiber[0], 2.) * each_circle_zone_num / \
         area_ring_zone
-        print 'the radius from inifile is', aradius_fiber
         #sys.exit()
         x_position[i_type][:] = ax_position[:]
         y_position[i_type][:] = ay_position[:]
@@ -499,7 +494,6 @@ def virtlocoverlaplayout(options):
             pylab.plot(radius_circle_central, proportion_no_sub, '.-')
             pylab.legend(['from sub-ring zone dividing', 'from ring zone'])
             pylab.draw()
-            raw_input('enter')
         else:
             continue
         
@@ -759,131 +753,131 @@ def virtlocoverlaplayout(options):
     dump.write({'x_position':x_position, 'y_position':y_position, 'radius_fiber':radius_fiber},
                 filename = filename, extension = '.gz')
 #   
-##    x_polyester = []
-##    y_polyester = []
-##    x_cotton = []
-##    y_cotton = []
-##    radius_poly = []
-##    radius_cotton = []
-##    for i_fib in sp.arange(len(x_position)):
-##        if fiber_kind[i_fib] == 0:
-##            x_polyester.append(x_position[i_fib])
-##            y_polyester.append(y_position[i_fib])
-##            radius_poly.append(radius_fiber[i_fib])
-##        else:
-##            x_cotton.append(x_position[i_fib])
-##            y_cotton.append(y_position[i_fib])
-##            radius_cotton.append(radius_fiber[i_fib])
-##    x_polyester = np.array(x_polyester)
-##    y_polyester = np.array(y_polyester)
-##    radius_poly = np.array(radius_poly)
-##    x_cotton = np.array(x_cotton)
-##    y_cotton = np.array(y_cotton)
-##    radius_cotton = np.array(radius_cotton)
-##    fig = pylab.figure()
-##    ax = fig.add_subplot(111, xlim = (-1.1, 1.1), ylim = (-1.1, 1.1))
-##    patches_1 = []
-##    patches_2 = []
-##    for x_center, y_center, radii in zip(x_polyester[:], y_polyester[:], radius_poly[:]):
-##        circle = Circle((x_center, y_center), radii, facecolor = 'g', alpha = 0.4)
-##        patches_1.append(circle)
-##    angle = sp.zeros(len(x_cotton), float)
-##    for i_cotton in sp.arange(len(x_cotton)):
-##        angle[i_cotton] = np.random.uniform(0.0, 180.0)
-##    for x_center, y_center, radii, angle in zip(x_cotton[:], y_cotton[:], radius_cotton[:], angle[:]):
-##        ellipse = Ellipse((x_center, y_center), radii, radii*1.5, angle = angle, alpha = 0.4)
-##        patches_2.append(ellipse)
-##    p_1 = PatchCollection(patches_1, facecolor = 'red', cmap = matplotlib.cm.jet, alpha = 0.4)
-##    p_2 = PatchCollection(patches_2, facecolor = 'black', cmap = matplotlib.cm.jet, alpha = 0.4)
-##    ax.add_collection(p_1)
-##    ax.add_collection(p_2)    
-##    
-####    plot_yarn(x_position, y_position, radius_fiber)
-####    pylab.show()
-####    plot_yarn(x_position_alpha, y_position_alpha, radius_fiber)
-####    pylab.show()
-##    filepath_1 = utils.OUTPUTDIR + os.sep + 'fiber_polyester.csv'
-##    filepath_2 = utils.OUTPUTDIR + os.sep + 'fiber_cotton.csv'
-##    data_polyester = np.loadtxt('/home/lipei/Documents/fiber_polyester.csv')
-##    data_cotton = np.loadtxt('/home/lipei/Documents/fiber_cotton.csv')
-##    x_position_real_fiber = []
-##    y_position_real_fiber = []
-##    radius_real_fiber = []
-##    for i_polyester in sp.arange(len(data_polyester)):
-##        x_position_real_fiber.append(data_polyester[i_polyester][0])
-##        y_position_real_fiber.append(data_polyester[i_polyester][1])
-##        radius_real_fiber.append(data_polyester[i_polyester][2])
-##    for i_cotton in sp.arange(len(data_cotton)):
-##        x_position_real_fiber.append(data_cotton[i_cotton][0])
-##        y_position_real_fiber.append(data_cotton[i_cotton][1])
-##        radius_real_fiber.append(data_cotton[i_cotton][2])
-##    x_position_real_fiber = np.array(x_position_real_fiber)
-##    y_position_real_fiber = np.array(y_position_real_fiber)
-##    radius_real_fiber = np.array(radius_real_fiber)
-##
-##    #print 'all the positions for real fiber', x_position_real_fiber
-##    
-##    filename_2 = utils.OUTPUTDIR + os.sep + "proportion_vl_overlap.gz"
-##    filename_3 = utils.OUTPUTDIR + os.sep + "proportion_vl_overlap_alpha.gz"
-##    filename_4 = utils.OUTPUTDIR + os.sep + "proportion_vl_real.gz"
-##    filename_5 = utils.OUTPUTDIR + os.sep + "proportion_vl_poly.gz"
-##    filename_6 = utils.OUTPUTDIR + os.sep + "proportion_vl_cotton.gz"
-##    zone_position_ov, ratio_vl_ov = calculate_proportion(oradius_yarn, radius_fiber, 
-##                                    x_position, y_position)
-##    zone_position_ov_1, ratio_vl_ov_1 = calculate_proportion(oradius_yarn, radius_fiber,
-##                                    x_position_alpha, y_position_alpha)
-##    zone_position_ov_real, ratio_vl_ov_real = calculate_proportion(oradius_yarn, 
-##                                    radius_real_fiber, x_position_real_fiber,
-##                                    y_position_real_fiber)
-##    print 'the radius value for cotton', radius_real_fiber
-##    print 'the ratio value for the real fiber', ratio_vl_ov_real
-##    raw_input("check the combination")
-##    radius_poly = radius_real_fiber[:(len(data_polyester) + 1)]
-##    radius_cotton = radius_real_fiber[(len(data_polyester) + 1):]
-##    x_polyester = x_position_real_fiber[:(len(data_polyester) + 1)]
-##    x_cotton = x_position_real_fiber[(len(data_polyester) + 1):]
-##    y_polyester = y_position_real_fiber[:(len(data_polyester) + 1)]
-##    y_cotton = y_position_real_fiber[(len(data_polyester) + 1):]
-##    area_cotton_fiber = sp.pi * sp.power(radius_cotton, 2.)
-##    area_poly_fiber = sp.pi * sp.power(radius_poly, 2.)
-##    print 'the total area of cross-section for cotton', sp.sum(area_cotton_fiber)
-##    print 'the total area of cross-section for polyester', sp.sum(area_poly_fiber)
-##    print 'the total value', sp.sum(area_cotton_fiber) + sp.sum(area_poly_fiber)
-##    zone_position_ov_poly, ratio_vl_ov_poly = calculate_proportion(oradius_yarn,
-##                                    radius_poly, x_polyester, y_polyester)
-##    zone_position_ov_cotton, ratio_vl_ov_cotton = calculate_proportion(oradius_yarn, 
-##                                    radius_cotton, x_cotton, y_cotton)
-##    dump.write({'zone_position': zone_position_ov, 'ratio_value':ratio_vl_ov},
-##                filename = filename_2, extension = '.gz')
-##    dump.write({'zone_position_alpha': zone_position_ov_1, 'ratio_value_alpha':
-##                ratio_vl_ov_1}, filename = filename_3, extension = '.gz')
-##    dump.write({'zone_position_real': zone_position_ov_real, 'ratio_value': ratio_vl_ov_real},
-##                filename = filename_4, extension = '.gz')
-##    dump.write({'zone_position_poly': zone_position_ov_poly, 'ratio_value': ratio_vl_ov_poly},
-##                filename = filename_5, extension = '.gz')
-##    dump.write({'zone_position_cotton': zone_position_ov_cotton, 'ratio_value': ratio_vl_ov_cotton},
-##                filename = filename_6, extension = '.gz')
-##    ##draw the figure for the blend in the yarn
-##    fig = pylab.figure()
-##    ax = fig.add_subplot(111, xlim = (-1.1, 1.1), ylim = (-1.1, 1.1))
-##    patches_1 = []
-##    patches_2 = []
-##    
-##    for x_center, y_center, radii in zip(x_polyester[:], y_polyester[:], radius_poly[:]):
-##        circle = Circle((x_center, y_center), radii, facecolor = 'g', alpha = 0.4)
-##        patches_1.append(circle)
-##    for x_center, y_center, radii in zip(x_cotton[:], y_cotton[:], radius_cotton[:]):
-##        circle = Circle((x_center, y_center), radii, facecolor = 'r', alpha = 0.4)
-##        patches_2.append(circle)
-##    circle = Circle((0., 0.), oradius_yarn)
-##    patches_1.append(circle)
-##    p_1 = PatchCollection(patches_1, facecolor = 'red', cmap = matplotlib.cm.jet, alpha = 0.4)
-##    p_2 = PatchCollection(patches_2, facecolor = 'black', cmap = matplotlib.cm.jet, alpha = 0.4)
-##    ax.add_collection(p_1)
-##    ax.add_collection(p_2)
-##    pylab.ioff()
-##    pylab.draw()
-##    pylab.ion()
+    x_polyester = []
+    y_polyester = []
+    x_cotton = []
+    y_cotton = []
+    radius_poly = []
+    radius_cotton = []
+    for i_fib in sp.arange(len(x_position)):
+        if fiber_kind[i_fib] == 0:
+            x_polyester.append(x_position[i_fib])
+            y_polyester.append(y_position[i_fib])
+            radius_poly.append(radius_fiber[i_fib])
+        else:
+            x_cotton.append(x_position[i_fib])
+            y_cotton.append(y_position[i_fib])
+            radius_cotton.append(radius_fiber[i_fib])
+    x_polyester = np.array(x_polyester)
+    y_polyester = np.array(y_polyester)
+    radius_poly = np.array(radius_poly)
+    x_cotton = np.array(x_cotton)
+    y_cotton = np.array(y_cotton)
+    radius_cotton = np.array(radius_cotton)
+    fig = pylab.figure()
+    ax = fig.add_subplot(111, xlim = (-1.1, 1.1), ylim = (-1.1, 1.1))
+    patches_1 = []
+    patches_2 = []
+    for x_center, y_center, radii in zip(x_polyester[:], y_polyester[:], radius_poly[:]):
+        circle = Circle((x_center, y_center), radii, facecolor = 'g', alpha = 0.4)
+        patches_1.append(circle)
+    angle = sp.zeros(len(x_cotton), float)
+    for i_cotton in sp.arange(len(x_cotton)):
+        angle[i_cotton] = np.random.uniform(0.0, 180.0)
+    for x_center, y_center, radii, angle in zip(x_cotton[:], y_cotton[:], radius_cotton[:], angle[:]):
+        ellipse = Ellipse((x_center, y_center), radii, radii*1.5, angle = angle, alpha = 0.4)
+        patches_2.append(ellipse)
+    p_1 = PatchCollection(patches_1, facecolor = 'red', cmap = matplotlib.cm.jet, alpha = 0.4)
+    p_2 = PatchCollection(patches_2, facecolor = 'black', cmap = matplotlib.cm.jet, alpha = 0.4)
+    ax.add_collection(p_1)
+    ax.add_collection(p_2)    
+    
+    plot_yarn(x_position, y_position, radius_fiber)
+    pylab.show()
+    plot_yarn(x_position_alpha, y_position_alpha, radius_fiber)
+    pylab.show()
+    filepath_1 = utils.OUTPUTDIR + os.sep + 'fiber_polyester.csv'
+    filepath_2 = utils.OUTPUTDIR + os.sep + 'fiber_cotton.csv'
+    data_polyester = np.loadtxt('/home/lipei/Documents/fiber_polyester.csv')
+    data_cotton = np.loadtxt('/home/lipei/Documents/fiber_cotton.csv')
+    x_position_real_fiber = []
+    y_position_real_fiber = []
+    radius_real_fiber = []
+    for i_polyester in sp.arange(len(data_polyester)):
+        x_position_real_fiber.append(data_polyester[i_polyester][0])
+        y_position_real_fiber.append(data_polyester[i_polyester][1])
+        radius_real_fiber.append(data_polyester[i_polyester][2])
+    for i_cotton in sp.arange(len(data_cotton)):
+        x_position_real_fiber.append(data_cotton[i_cotton][0])
+        y_position_real_fiber.append(data_cotton[i_cotton][1])
+        radius_real_fiber.append(data_cotton[i_cotton][2])
+    x_position_real_fiber = np.array(x_position_real_fiber)
+    y_position_real_fiber = np.array(y_position_real_fiber)
+    radius_real_fiber = np.array(radius_real_fiber)
+
+    #print 'all the positions for real fiber', x_position_real_fiber
+    
+    filename_2 = utils.OUTPUTDIR + os.sep + "proportion_vl_overlap.gz"
+    filename_3 = utils.OUTPUTDIR + os.sep + "proportion_vl_overlap_alpha.gz"
+    filename_4 = utils.OUTPUTDIR + os.sep + "proportion_vl_real.gz"
+    filename_5 = utils.OUTPUTDIR + os.sep + "proportion_vl_poly.gz"
+    filename_6 = utils.OUTPUTDIR + os.sep + "proportion_vl_cotton.gz"
+    zone_position_ov, ratio_vl_ov = calculate_proportion(oradius_yarn, radius_fiber, 
+                                    x_position, y_position)
+    zone_position_ov_1, ratio_vl_ov_1 = calculate_proportion(oradius_yarn, radius_fiber,
+                                    x_position_alpha, y_position_alpha)
+    zone_position_ov_real, ratio_vl_ov_real = calculate_proportion(oradius_yarn, 
+                                    radius_real_fiber, x_position_real_fiber,
+                                    y_position_real_fiber)
+    print 'the radius value for cotton', radius_real_fiber
+    print 'the ratio value for the real fiber', ratio_vl_ov_real
+    raw_input("check the combination")
+    radius_poly = radius_real_fiber[:(len(data_polyester) + 1)]
+    radius_cotton = radius_real_fiber[(len(data_polyester) + 1):]
+    x_polyester = x_position_real_fiber[:(len(data_polyester) + 1)]
+    x_cotton = x_position_real_fiber[(len(data_polyester) + 1):]
+    y_polyester = y_position_real_fiber[:(len(data_polyester) + 1)]
+    y_cotton = y_position_real_fiber[(len(data_polyester) + 1):]
+    area_cotton_fiber = sp.pi * sp.power(radius_cotton, 2.)
+    area_poly_fiber = sp.pi * sp.power(radius_poly, 2.)
+    print 'the total area of cross-section for cotton', sp.sum(area_cotton_fiber)
+    print 'the total area of cross-section for polyester', sp.sum(area_poly_fiber)
+    print 'the total value', sp.sum(area_cotton_fiber) + sp.sum(area_poly_fiber)
+    zone_position_ov_poly, ratio_vl_ov_poly = calculate_proportion(oradius_yarn,
+                                    radius_poly, x_polyester, y_polyester)
+    zone_position_ov_cotton, ratio_vl_ov_cotton = calculate_proportion(oradius_yarn, 
+                                    radius_cotton, x_cotton, y_cotton)
+    dump.write({'zone_position': zone_position_ov, 'ratio_value':ratio_vl_ov},
+                filename = filename_2, extension = '.gz')
+    dump.write({'zone_position_alpha': zone_position_ov_1, 'ratio_value_alpha':
+                ratio_vl_ov_1}, filename = filename_3, extension = '.gz')
+    dump.write({'zone_position_real': zone_position_ov_real, 'ratio_value': ratio_vl_ov_real},
+                filename = filename_4, extension = '.gz')
+    dump.write({'zone_position_poly': zone_position_ov_poly, 'ratio_value': ratio_vl_ov_poly},
+                filename = filename_5, extension = '.gz')
+    dump.write({'zone_position_cotton': zone_position_ov_cotton, 'ratio_value': ratio_vl_ov_cotton},
+                filename = filename_6, extension = '.gz')
+    ##draw the figure for the blend in the yarn
+    fig = pylab.figure()
+    ax = fig.add_subplot(111, xlim = (-1.1, 1.1), ylim = (-1.1, 1.1))
+    patches_1 = []
+    patches_2 = []
+    
+    for x_center, y_center, radii in zip(x_polyester[:], y_polyester[:], radius_poly[:]):
+        circle = Circle((x_center, y_center), radii, facecolor = 'g', alpha = 0.4)
+        patches_1.append(circle)
+    for x_center, y_center, radii in zip(x_cotton[:], y_cotton[:], radius_cotton[:]):
+        circle = Circle((x_center, y_center), radii, facecolor = 'r', alpha = 0.4)
+        patches_2.append(circle)
+    circle = Circle((0., 0.), oradius_yarn)
+    patches_1.append(circle)
+    p_1 = PatchCollection(patches_1, facecolor = 'red', cmap = matplotlib.cm.jet, alpha = 0.4)
+    p_2 = PatchCollection(patches_2, facecolor = 'black', cmap = matplotlib.cm.jet, alpha = 0.4)
+    ax.add_collection(p_1)
+    ax.add_collection(p_2)
+    pylab.ioff()
+    pylab.draw()
+    pylab.ion()
 
     for i_kind in range(len(onumber_fiber_blend)):
         x_each_kind = []
