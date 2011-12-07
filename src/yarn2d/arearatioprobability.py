@@ -34,8 +34,7 @@ from matplotlib.patches import Circle, Wedge, Polygon
 from matplotlib.collections import PatchCollection
 import pylab
 import matplotlib
-##import sympy
-##from sympy.abc import x,y
+
 
 #-------------------------------------------------------------------------
 #
@@ -304,14 +303,14 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib,):
     ratio_each = area_fib_zone / zone_area
     total_zone_area = sp.sum(zone_area)
     index_zone = sp.arange(1, len(zone_radius)+1, 1)
-    pylab.figure()
-    pylab.plot(index_zone, area_fib_zone, '-')
-    pylab.plot(index_zone, zone_area, '.-')
-    pylab.ylim(0., 0.9)
-    pylab.xlabel('Index of ring zone')
-    pylab.ylabel('Area value')
-    pylab.legend(['Area of fibers in each zone', 'Area of each ring zone'])
-    pylab.show()
+##    pylab.figure()
+##    pylab.plot(index_zone, area_fib_zone, '-')
+##    pylab.plot(index_zone, zone_area, '.-')
+##    pylab.ylim(0., 0.9)
+##    pylab.xlabel('Index of ring zone')
+##    pylab.ylabel('Area value')
+##    pylab.legend(['Area of fibers in each zone', 'Area of each ring zone'])
+##    pylab.show()
     print 'the area of the yarn cross-section', sp.pi * sp.power(rad_yarn, 2.)
     print 'the area of the sum of ring zones', total_zone_area
     print 'the value of zone area is', zone_area

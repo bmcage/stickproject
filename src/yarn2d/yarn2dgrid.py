@@ -84,8 +84,8 @@ class Yarn2dGrid(object):
         self.number_fiber_blend[-1] = self.number_fiber - np.sum(self.number_fiber_blend[:-1])
         if self.verbose:
             print 'Fibers per blend', self.number_fiber_blend,' total', self.number_fiber
-        self.theta_value = self.cfg.get('domain.theta_value')
-        self.beta_value =  self.cfg.get('domain.beta_value')
+        #self.theta_value = self.cfg.get('domain.theta_value')
+        #self.beta_value =  self.cfg.get('domain.beta_value')
         
         #obtain size of fibers
         self.Rf = []
@@ -108,8 +108,7 @@ class Yarn2dGrid(object):
         self.radius_fiber =  [self.scaleL * rad for rad in self.Rf]
         self.radius_boundlayer = max(self.radius_fiber)/2.
         self.radius_domain = self.radius_yarn + self.radius_boundlayer
-        self.prob_area = eval (self.cfg.get('fiber.prob_area'))
-        print 'the first read the function',  self.prob_area        
+        self.prob_area = eval (self.cfg.get('fiber.prob_area'))       
         
     def create_circle_domain_gmsh(self, filename='yarn.geo', 
             layoutfile = 'layout.dat', regenerate=True, plotyarn=False):
@@ -151,8 +150,8 @@ class Yarn2dGrid(object):
             layoutfun = randomfiberlayout
         elif self.fiberlayout in ['virtloc', 'virtlocoverlap']:
             ouroptions.update({
-                'theta_value' : self.theta_value,
-                'beta_value' : self.beta_value,
+                #'theta_value' : self.theta_value,
+                #'beta_value' : self.beta_value,
                 'mean_deviation': self.mean_deviation,
                 'prob_area': self.prob_area
                 })
