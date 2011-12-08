@@ -122,7 +122,6 @@ class Fiber1dConfigManager(ConfigManager):
         self.register("fiber.init_conc", 'lambda x: 0.')
         self.register("fiber.porosity_in", 0.2)
         self.register("fiber.percentage_active", 1.0)
-        self.register("fiber.beta_value", 0.04)
         self.register("fiber.mean_deviation", 0.00355,
             "Mean deviation of the fiber radius in mm")
 

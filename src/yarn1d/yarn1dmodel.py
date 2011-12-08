@@ -98,8 +98,7 @@ class Yarn1DModel(object):
             #if self.cfg_fiber[-1].get("time.dt") > self.cfg.get("time.time_period"):
                 #self.cfg_fiber[-1].set("time.dt", self.cfg.get("time.time_period"))
             self.cfg_fiber[-1].set("time.dt", self.delta_t)  
-            
-                       
+
         #create fiber models
         self.fiber_models = []
         for cfg in self.cfg_fiber:
@@ -119,8 +118,11 @@ class Yarn1DModel(object):
         self.evap_equilibrium = self.cfg.get('boundary.evap_equilibrium')
         self.nr_fibers = self.cfg.get('fiber.number_fiber')
         self.blend=self.cfg.get('fiber.blend')
+<<<<<<< HEAD
         
         self.plotevery = self.cfg.get("plot.plotevery")
+=======
+>>>>>>> ab40eed853b9d1f1ddeeb7b6d537bf516b10c1d6
 
     def create_mesh(self):
         """
@@ -144,7 +146,7 @@ class Yarn1DModel(object):
         self.mesh_yarn = CylindricalGrid1D(dr=tuple(self.delta_r))
         self.mesh_yarn.periodicBC = False
         self.mesh_yarn = self.mesh_yarn + (self.beginning_point,)
-                             
+
     def initial_yarn1d(self):
         """ initial concentration over the domain"""
         self.init_conc = sp.ones(self.nr_edge-1, float)
@@ -163,7 +165,6 @@ class Yarn1DModel(object):
         discretize the right side of equation. The mesh in this 1-D condition is 
         uniform.
         """        
-        
         self.nr_timesteps = np.empty((self.nr_models),int)
         self.timesteps = [0]*self.nr_models
         self.fiber_surface = [0] * self.nr_models
@@ -174,8 +175,7 @@ class Yarn1DModel(object):
             self.nr_timesteps[ind] = len(model.times)
             self.timesteps[ind] = copy(model.times)            
             self.fiber_surface[ind] = copy(model.fiber_surface)
-            
-            
+
     def _set_bound_flux(self, flux_edge, conc_r):
         """
         Method that takes BC into account to set flux on edge
@@ -256,7 +256,7 @@ class Yarn1DModel(object):
                         raise Exception, 'something wrong'
             self.cache_index_t_fiber[nr] = self.index_t_fiber[nr]
             nr+=1
-            
+
         #source term is n*Cf(R,r_i+,t)/2pi=(m*delta(r**2)_i/Ry**2)*Cf(R,r_i+,t)/2pi with n the number of fibers in a shell,
         #m the number of fibers per yarn.
         grid_square = np.power(self.grid_edge, 2)
@@ -274,10 +274,10 @@ class Yarn1DModel(object):
                     *(t-self.timesteps[ind][self.index_t_fiber[ind]])
             fibersurf = fibersurf + fiber_surf_t * blend/100
         self.source[self.index_t_yarn,:]=n*fibersurf/(2*np.pi)
-        
+
     def f_conc1_ode(self, t,conc_r):
         return self.f_conc1(conc_r,t)
-        
+
     def f_conc1(self, conc_r, t):
         print 't, concr', t, conc_r
         grid = self.grid
@@ -363,11 +363,14 @@ class Yarn1DModel(object):
             #if time == 200.0:
              #   dump.write({'space_position': self.grid, 'conc1': con},
               #              filename = utils.OUTPUTDIR + os.sep + 'ode_t2.gz', extension = '.gz')
+<<<<<<< HEAD
             
             
+=======
+
+>>>>>>> ab40eed853b9d1f1ddeeb7b6d537bf516b10c1d6
     def run(self):        
         self.create_mesh()
         self.initial_yarn1d()
         self.solve_fiber()
         self.solve_ode()
-        

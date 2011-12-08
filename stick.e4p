@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Project SYSTEM "Project-4.6.dtd">
+<!-- eric4 project file for project stick -->
+<!-- Saved: 2011-11-30, 16:54:21 -->
+<!-- Copyright (C) 2011 ,  -->
+<Project version="4.6">
+  <Language></Language>
+  <ProgLanguage mixed="0">Python</ProgLanguage>
+  <ProjectType>Qt4</ProjectType>
+  <Description></Description>
+  <Version>0.1</Version>
+  <Author></Author>
+  <Email></Email>
+  <Sources>
+    <Source>analysis/diffcons_twolayers.py</Source>
+    <Source>src/yarn1d/yarn1dmodel.py</Source>
+    <Source>src/yarn1d/__init__.py</Source>
+    <Source>src/yarn1d/yarn1dprog.py</Source>
+    <Source>src/const.py</Source>
+    <Source>src/utils/expmeas_201104.py</Source>
+    <Source>src/fabric1d/config.py</Source>
+    <Source>src/fabric1d/fabric2dupscalingnet.py</Source>
+    <Source>src/model/diffmodel.py</Source>
+    <Source>src/model/__init__.py</Source>
+    <Source>src/lib/diff/diffusion.py</Source>
+    <Source>src/lib/diff/__init__.py</Source>
+    <Source>src/lib/utils/__init__.py</Source>
+    <Source>src/lib/utils/utilsbm.py</Source>
+    <Source>src/lib/utils/interpolatebm.py</Source>
+    <Source>src/lib/utils/gridutils.py</Source>
+    <Source>src/lib/utils/utilstime.py</Source>
+    <Source>src/lib/utils/utils.py</Source>
+    <Source>src/lib/utils/arraycompare.py</Source>
+    <Source>src/lib/__init__.py</Source>
+    <Source>src/lib/config.py</Source>
+    <Source>src/test/testprog.py</Source>
+    <Source>src/test/__init__.py</Source>
+    <Source>src/test/testfiber.py</Source>
+    <Source>src/test/mycorrection.py</Source>
+    <Source>src/test/config.py</Source>
+    <Source>src/fiber1d/__init__.py</Source>
+    <Source>src/fiber1d/config.py</Source>
+    <Source>src/fiber1d/fiberprog.py</Source>
+    <Source>src/fiber1d/fibermodel.py</Source>
+    <Source>src/yarn2d/yarn2dmodel.py</Source>
+    <Source>src/yarn2d/probability_area.py</Source>
+    <Source>src/yarn2d/__init__.py</Source>
+    <Source>src/yarn2d/fiber_layout.py</Source>
+    <Source>src/yarn2d/arearatioprobability.py</Source>
+    <Source>src/yarn2d/virtlocgeom.py</Source>
+    <Source>src/yarn2d/yarn2dprog.py</Source>
+    <Source>src/yarn2d/mycorrection.py</Source>
+    <Source>src/yarn2d/config.py</Source>
+    <Source>src/yarn2d/yarn2dgrid.py</Source>
+    <Source>src/yarn2d/yarn2d_diffradius.py</Source>
+    <Source>__init__.py</Source>
+  </Sources>
+  <Forms>
+  </Forms>
+  <Translations>
+  </Translations>
+  <Resources>
+  </Resources>
+  <Interfaces>
+  </Interfaces>
+  <Others>
+  </Others>
+  <MainScript>src/stick.py</MainScript>
+  <Vcs>
+    <VcsType>None</VcsType>
+  </Vcs>
+  <FiletypeAssociations>
+    <FiletypeAssociation pattern="*.ui" type="FORMS" />
+    <FiletypeAssociation pattern="*.idl" type="INTERFACES" />
+    <FiletypeAssociation pattern="*.qm" type="TRANSLATIONS" />
+    <FiletypeAssociation pattern="*.ptl" type="SOURCES" />
+    <FiletypeAssociation pattern="*.pyw" type="SOURCES" />
+    <FiletypeAssociation pattern="*.ui.h" type="FORMS" />
+    <FiletypeAssociation pattern="*.ts" type="TRANSLATIONS" />
+    <FiletypeAssociation pattern="*.py" type="SOURCES" />
+    <FiletypeAssociation pattern="*.qrc" type="RESOURCES" />
+  </FiletypeAssociations>
+</Project>
