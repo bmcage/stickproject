@@ -118,11 +118,9 @@ class Yarn1DModel(object):
         self.evap_equilibrium = self.cfg.get('boundary.evap_equilibrium')
         self.nr_fibers = self.cfg.get('fiber.number_fiber')
         self.blend=self.cfg.get('fiber.blend')
-<<<<<<< HEAD
         
         self.plotevery = self.cfg.get("plot.plotevery")
-=======
->>>>>>> ab40eed853b9d1f1ddeeb7b6d537bf516b10c1d6
+
 
     def create_mesh(self):
         """
@@ -362,13 +360,7 @@ class Yarn1DModel(object):
             self.viewerplotcount = self.viewerplotcount % self.plotevery 
             #if time == 200.0:
              #   dump.write({'space_position': self.grid, 'conc1': con},
-              #              filename = utils.OUTPUTDIR + os.sep + 'ode_t2.gz', extension = '.gz')
-<<<<<<< HEAD
-            
-            
-=======
-
->>>>>>> ab40eed853b9d1f1ddeeb7b6d537bf516b10c1d6
+              #              filename = utils.OUTPUTDIR + os.sep + 'ode_t2.gz', extension = '.gz')>>>>>>> ab40eed853b9d1f1ddeeb7b6d537bf516b10c1d6
     def run(self):        
         self.create_mesh()
         self.initial_yarn1d()
