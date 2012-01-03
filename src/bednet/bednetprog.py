@@ -65,7 +65,7 @@ def main(argv=None):
         print "Error parsing the arguments: %s " % argv[1:]
         sys.exit(0)
     if leftargs:
-        print 'fiber.py does not understand argument %s' % leftargs
+        print 'bednet.py does not understand argument %s' % leftargs
         sys.exit(0)
 
     inifile = conf.INIFILE_DEFAULT

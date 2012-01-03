@@ -82,6 +82,10 @@ class BednetConfigManager(ConfigManager):
         self.register("general.method", 'FVM')
         self.register("general.submethod", 'fipy')
         
+        self.register("observer.x0",6)
+        
+        #self.register("domain.nr_vert_yarns",50)
+        #self.register("domain.nr_hor_yarns",100)
         self.register("domain.domain_size", [5.0e-2, 1.5e-1])
         self.register("domain.dx", 2.5e-3)
         self.register("domain.dy", 2.5e-3)

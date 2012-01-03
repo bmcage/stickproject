@@ -35,6 +35,7 @@ from scipy import integrate
 import matplotlib.pyplot as plt
 import sets
 import time
+import mpmath
 
 #-------------------------------------------------------------------------
 #
@@ -80,7 +81,8 @@ class Bednet(object):
         while i <= self.timesteps:
             self.times[i] = self.times[i-1] + self.delta_t
             i += 1
-            
+        #self.n = self.cfg.get('domain.nr_vert_yarns')
+        #self.m = self.cfg.get('domain.nr_hor_yarns')   
         self.domain_size = self.cfg.get('domain.domain_size')
         self.dx = self.cfg.get('domain.dx')
         self.dy  = self.cfg.get('domain.dy')
@@ -92,7 +94,7 @@ class Bednet(object):
         self.boundary_right = self.cfg.get('boundary.boundary_right')
         self.diffusion_coef_DEET = self.cfg.get('diffusion_DEET.diffusion_coef_DEET')
         self.saturation_conc = self.cfg.get('saturation.saturation_conc')
-
+        self.x0 = self.cfg.get('observer.x0')
         """
         self.distance_yarn = self.cfg.get('domain.distance_yarn')
         self.grid_space_vertical = self.cfg.get('domain.grid_space_vertical')
@@ -160,7 +162,7 @@ class Bednet(object):
         self.initconc = self.cfg.get('initial.initial_conc_DEET')
         self.initvoidconc = self.cfg.get('initial.init_DEET_void')
                 
-    def solve_timestep(self,t,x0):
+    def solve_timestep(self,t):
         # solve per timesstep t and for position x0 of the observer
         #find right index of interval for t in model.times and in self.times
         if self.times[self.cache_index_t_bednet] <= t and \
@@ -227,12 +229,23 @@ class Bednet(object):
                     else:
                         print nr, t, self.timesteps
                         raise Exception, 'something wrong'
+                    
         self.cache_index_t_yarn  = self.index_t_yarn 
+        x0 = self.x0
         Heaviside = Lambda(x, (sign(x)+1))
-        conc = yarn_surface[:][self.index_t_yarn] * Heaviside(t-self.index_t_bednet*delta_t) * \
-                exp(-x0**2/(4*self.diffusion_coef_DEET))
+        
+        #while i <= self.n:
+        #    self.conci += (exp(-(x0**2+i**2*self.dx**2)/(4*self.diffusion_coef_DEET*(t-self.index_t_bednet*delta_t)))
+        
+        #while j <= self.m:
+        #    self.concj += (exp(-(x0**2+j**2*self.dy**2)/(4*self.diffusion_coef_DEET*(t-self.index_t_bednet*delta_t)))
+        C = self.diffusion_coef_DEET*(t-self.index_t_bednet*delta_t)
+        AH = math.sqrt(dx)/4*C
+        AW = math.sqrt(dy)/4*C
+        conc = yarn_surface[:][self.index_t_yarn] * (Heaviside(t-self.index_t_bednet*delta_t)/(8 * math.pi * C)) *exp(-math.sqrt(x0)/4*C)* \
+                    (mpmath.elliptic.jtheta(3,0,exp(-AH))+mpmath.elliptic.jtheta(3,0,exp(-AW))+2)
+                    
         self.solution_DEET_void = conc
-          
     '''def conc_out(self):
         self.eq = TransientTerm() == DiffusionTerm(coeff = D)
         x_center, y_center = self.mesh2d.getFaceCenters()
@@ -261,7 +274,8 @@ class Bednet(object):
         self.create_mesh_2d()
         self.solve_yarn()
         self.initial_boundary()
-        self.conc_out()
+        for t in self.times:
+            self.solve_timestep(t)
     
         
         
