@@ -95,8 +95,8 @@ def main(argv=None):
     shutil.copy(inifile, outputdir)
     
     #create the correct model, and run it
-    from bednet.bednetmodel import BednetModel
-    model = BednetModel(cfg)
+    from bednet.bednetmodel import Bednet
+    model = Bednet(cfg)
     
     #pass further execution to the model
     model.run()

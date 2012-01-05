@@ -45,13 +45,14 @@ import mpmath
 import lib.utils.utils as utils
 import lib.utils.gridutils as GridUtils
 import bednet.config as conf
-from mycorrection import MyDiffusionTermNoCorrection
-from yarn2dgrid import Yarn2dGrid
-from Grid2D import Grid2D
-from yarn2dfiber import Yarn2dFiber
-from yarn2d.config import *
-from fiberfipy.config import FiberfipyConfigManager
-from fiberfipy.fibermodel import FiberModel
+#from mycorrection import MyDiffusionTermNoCorrection
+#from yarn2dgrid import Yarn2dGrid
+#from numMesh import Grid2D
+#from yarn2dfiber import Yarn2dFiber
+from yarn1d.config import *
+from yarn1d.yarn1dmodel import *
+#from fiberfipy.config import FiberfipyConfigManager
+#from fiberfipy.fibermodel import FiberModel
 
 #-------------------------------------------------------------------------
 #import fipy
@@ -69,7 +70,7 @@ class Bednet(object):
     DEET outside the fabric. This upscaling method is simple with the equation:
     C_outside = C_yarn * R_yarn/d_distance
     """
-    def __init__(self,cfg):
+    def __init__(self,config):
         self.datatime = []
         self.cfg = config
         self.time_period = self.cfg.get('time.time_period')
@@ -102,19 +103,20 @@ class Bednet(object):
                             (self.domain_size[1] / self.grid_space_vertical + 1)
         """
         self.cfg_yarn = []        
-        for filename in self.cfg.get('yarn.yarn_config'):
+        for filename in self.cfg.get('sample.yarn_config'):
             if not os.path.isabs(filename):
                 filename = os.path.normpath(os.path.join(
                         os.path.dirname(self.cfg.filename), filename))
-            self.cfg_yarn.append(yarn1dConfigManager.get_instance(filename))
+            self.cfg_yarn.append(Yarn1dConfigManager.get_instance(filename))
             #set values from the yarn on this inifile
+            print 'time', self.time_period
             self.cfg_yarn[-1].set("time.time_period", self.time_period)
             self.cfg_yarn[-1].set("time.dt", self.delta_t)  
             
         #create yarn models
         self.yarn_models = []
         for cfg in self.cfg_yarn:
-            self.yarn_model.append(Yarn1DModel(cfg))
+            self.yarn_models.append(Yarn1DModel(cfg))
         self.nr_models = len(self.yarn_models)
         self.verbose = self.cfg.get('general.verbose')
                 
@@ -203,33 +205,32 @@ class Bednet(object):
                 self.index_t_yarn = self.cache_index_t_yarn 
                 #print "interval found in loop 1"
         else:
-                #self.index_t_yarn  = None
-                i = max([self.cache_index_t_yarn  - 1,0])
-                while i < self.nr_timesteps  - 1:
-                        if self.timesteps [i] <= t and t< self.timesteps [i+1] :
-                            self.index_t_yarn  = i
-                            break
-                        #print 'i', i, "index_t", self.index_t_fiber, "interval found in loop 2"
-                        i += 1                                    
-                if self.index_t_yarn  is None:
-                    #backward in time, so reducing timestep it seems
-                    i = self.cache_index_t_yarn -1
-                    while i > 0:
-                        if self.timesteps [i] <= t and t< self.timesteps [i+1] :
-                            self.index_t_yarn  = i
-                            break
-                        #print "interval found in loop 3"
-                        i -= 1                    
-                if self.index_t_yarn  is None:
-                    #no interval found
-                    if t > self.timesteps [-1]:
-                        print 'ERROR: time over endtime', t, '>', self.timesteps [-1]
-                        self.index_t_yarn  = self.nr_timesteps  - 1
+            #self.index_t_yarn  = None
+            i = max([self.cache_index_t_yarn  - 1,0])
+            while i < self.nr_timesteps  - 1:
+                    if self.timesteps [i] <= t and t< self.timesteps [i+1] :
+                        self.index_t_yarn  = i
                         break
-                    else:
-                        print nr, t, self.timesteps
-                        raise Exception, 'something wrong'
+                        #print 'i', i, "index_t", self.index_t_fiber, "interval found in loop 2"
+                    i += 1                                    
+            if self.index_t_yarn  is None:
+                #backward in time, so reducing timestep it seems
+                i = self.cache_index_t_yarn -1
+                while i > 0:
+                    if self.timesteps [i] <= t and t< self.timesteps [i+1] :
+                        self.index_t_yarn  = i
+                        break
+                        #print "interval found in loop 3"
+                    i -= 1                    
+            if self.index_t_yarn  is None:
+                #no interval found
+                if t > self.timesteps [-1]:
+                    print 'ERROR: time over endtime', t, '>', self.timesteps [-1]
+                    self.index_t_yarn  = self.nr_timesteps  - 1
                     
+                else:
+                    print nr, t, self.timesteps
+                    raise Exception, 'something wrong'
         self.cache_index_t_yarn  = self.index_t_yarn 
         x0 = self.x0
         Heaviside = Lambda(x, (sign(x)+1))
