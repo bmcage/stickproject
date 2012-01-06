@@ -271,7 +271,6 @@ class FiberModel(object):
             self.diffusion_coeff[i] = self.diff_coef[st]
             self.diffusion_exp_fact[i] = self.diff_exp_fact[st]
             self.porosity_domain[i] = self.porosity[st]
-        
         self.initial_w1 = self.initial_c1 * self.grid
         self.volume = self.calc_volume()
         print 'initial mass = ', self.calc_mass(self.initial_c1)
@@ -300,14 +299,21 @@ class FiberModel(object):
         Data is written to flux_edge, w_rep contains solution in the cell centers
         """
         if self.bound_left == FLUX:
-            flux_edge[0] = -self.boundary_fib_left * self.grid_edge[0] + w_rep[0]/self.grid_edge[0]
+            if abs(self.grid_edge[0]) < 1e-10 and not (self.boundary_fib_left == 0):
+                print 'ERROR: Flux boundary to left, but at center of radial symmetry'
+                sys.exit(0)
+            if self.boundary_fib_left == 0:
+                flux_edge[0] = 0
+            else:
+                flux_edge[0] = -self.boundary_fib_left * \
+                                (self.grid_edge[0] + w_rep[0]/self.grid_edge[0])
         else:
             print 'ERROR: boundary type left not implemented'
             sys.exit(0)
         #calculate normal val with w_rep = C*r, instead of C:
         flux_edge[-1] = self._bound_flux_uR(w_rep[-1]/self.grid_edge[-1], t)
         #and correct 
-        flux_edge[-1] *= self.grid_edge[-1]+ w_rep[-1]/self.grid_edge[-1]
+        flux_edge[-1] *= self.grid_edge[-1] + w_rep[-1]/self.grid_edge[-1]
 
     def _bound_flux_uR(self, conc_r, t):
         """
@@ -368,6 +374,7 @@ class FiberModel(object):
                         * self.grid_edge[1:-1] \
                         * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
                         / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
+
         diff_w_t[:]=(flux_edge[:-1]-flux_edge[1:])/self.delta_r[:] / self.porosity_domain[:]
         return diff_w_t
     
@@ -427,7 +434,7 @@ class FiberModel(object):
         self.initial_t = self.times[0]
         self.solver = ode(self.f_conc1_ode).set_integrator('vode', 
                             method = 'bdf',
-                            nsteps=5000)
+                            nsteps=50000)
         self.solver.set_initial_value(self.step_old_sol, self.step_old_time)
 
     def solve_ode_step(self, step, needreinit=True):
@@ -468,6 +475,8 @@ class FiberModel(object):
         self.conc1[tstep][:] = self.initial_c1
         while self.solver.successful() and self.solver.t < endT - self.delta_t /10.:
             self.solver.integrate(self.solver.t + self.delta_t)
+            if self.verbose:
+                print 'INFO: fibermodel at t = ', self.solver.t
             tstep += 1
             self.conc1[tstep][:] = self.solver.y / self.grid
             self.fiber_surface[tstep] = self.conc1[tstep][-1]
@@ -630,16 +639,6 @@ class FiberModel(object):
         self.simple_sol[0] = self.calc_mass(self.initial_c1)
         self.tstep = 0
         self.initialized = True
-
-    def solve_ode_reinit(self):
-        """
-        Reinitialize the ode solver to start again
-        """
-        self.initial_t = self.times[0]
-        self.solver = ode(self.f_conc1_ode).set_integrator('vode', 
-                            method = 'bdf',
-                            nsteps=5000)
-        self.solver.set_initial_value(self.step_old_sol, self.step_old_time)
 
     def solve(self):
         """
