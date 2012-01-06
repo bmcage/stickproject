@@ -111,8 +111,8 @@ class Yarn2dConfigManager(ConfigManager):
         self.register("domain.fiberlayout_method", 'random',
             "Method for the fiber layout, one of " 
             + ",".join(FIBERLAYOUTS.keys()))
-        #self.register("domain.theta_value", 0.05)
-        #self.register("domain.beta_value", 0.04)
+        self.register("domain.theta_value", 0.05)
+        self.register("domain.beta_value", 0.04)
         self.register("domain.radius_first_center_virtloc", 0.)
         #fiber section
         self.register("fiber.number_type", 1, 

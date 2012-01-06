@@ -84,8 +84,8 @@ class Yarn2dGrid(object):
         self.number_fiber_blend[-1] = self.number_fiber - np.sum(self.number_fiber_blend[:-1])
         if self.verbose:
             print 'Fibers per blend', self.number_fiber_blend,' total', self.number_fiber
-        #self.theta_value = self.cfg.get('domain.theta_value')
-        #self.beta_value =  self.cfg.get('domain.beta_value')
+        self.theta_value = self.cfg.get('domain.theta_value')
+        self.beta_value =  self.cfg.get('domain.beta_value')
         
         #obtain size of fibers
         self.Rf = []
@@ -150,8 +150,8 @@ class Yarn2dGrid(object):
             layoutfun = randomfiberlayout
         elif self.fiberlayout in ['virtloc', 'virtlocoverlap']:
             ouroptions.update({
-                #'theta_value' : self.theta_value,
-                #'beta_value' : self.beta_value,
+                'theta_value' : self.theta_value,
+                'beta_value' : self.beta_value,
                 'mean_deviation': self.mean_deviation,
                 'prob_area': self.prob_area
                 })

@@ -57,6 +57,7 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
         zone_radius[i_circle] += width_zone * i_circle + width_zone / 2.
         zone_width[i_circle] = width_zone
     total_zone = sum(zone_width) - zone_radius[0]
+    print 'the radius of each zone is (zone_radius)', zone_radius
     #zone_radius[-1] = rad_yarn * NONTOUCH_FAC
     #zone_width[-1] = zone_width[-1] + rad_yarn * (NONTOUCH_FAC -1.)
     print 'the sum of five zones', total_zone
@@ -73,7 +74,7 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
     #calculate the area of fiber cross section in each domain
     #print 'zone_radius value', zone_radius
     distan_fib_central = sp.sqrt(x_fib**2. + y_fib**2.)
-    #print 'the distance from fibre to central', distan_fib_central
+    print 'the distance from fibre to central', distan_fib_central
     area_fib_zone = sp.zeros(len(zone_radius))
     count_number = 0
     filename = utils.OUTPUTDIR + os.sep + "proportion_value.gz"
@@ -89,15 +90,15 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
         patches_2.append(circle)
     circle = Circle((0., 0.), rad_yarn)
     patches_1.append(circle)
-    p_1 = PatchCollection(patches_1, facecolor = 'red', cmap = matplotlib.cm.jet, alpha = 0.4)
-    p_2 = PatchCollection(patches_2, edgecolor = 'black', cmap = matplotlib.cm.jet, alpha = 0.1)    
+    p_1 = PatchCollection(patches_1, facecolor = 'blue', cmap = matplotlib.cm.jet, alpha = 0.4)
+    #p_2 = PatchCollection(patches_2, edgecolor = 'black', cmap = matplotlib.cm.jet, alpha = 0.1)    
     ax.add_collection(p_1)
-    ax.add_collection(p_2)
+    #ax.add_collection(p_2)
     pylab.show()
     #raw_input("begin to calculate the area")
     i_fiber_calculation = 0
     for i_circle in sp.arange(len(zone_radius)):
-        #print 'GOING %g th zone' %(i_circle)
+        print 'GOING %g th zone' %(i_circle)
         if i_circle == 0:
             for i_fib in sp.arange(len(distan_fib_central)):
                 if distan_fib_central[i_fib] + rad_fib[i_fib] <= zone_radius[i_circle]:
@@ -119,22 +120,22 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
                     beta_r_zone = sp.arccos((2. * sp.power(zone_radius[i_circle], 2.) - sp.power(distan_two_points, 2.)) 
                                 / (2.* sp.power(zone_radius[i_circle], 2.)))
                     #print 'the beta_r_zone', beta_r_zone
-                    if alpha_r <= sp.pi:
-                        area_circ = alpha_r / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
-                        area_triangle = 1./2. * sp.sin(alpha_r) * sp.power(rad_fib[i_fib], 2.)
-                        area_curve = beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.) - \
-                                    1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
-                        area_fib_zone[i_circle] = area_fib_zone[i_circle] + area_circ - area_triangle + \
-                                                area_curve
-                        part_fib = area_circ - area_triangle + area_curve
-                    else:
-                        area_circ = (2. * sp.pi - alpha_r) / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
-                        area_triangle = 1./2. * sp.sin(alpha_r) * sp.power(rad_fib[i_fib], 2.)
-                        area_curve = beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.) - \
-                            1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
-                        area_fib_zone[i_circle] = area_fib_zone[i_circle] + area_circ + area_triangle + \
-                            area_curve
-                        part_fib = area_circ + area_triangle + area_curve 
+##                    if alpha_r <= sp.pi:
+##                        area_circ = alpha_r / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
+##                        area_triangle = 1./2. * sp.sin(alpha_r) * sp.power(rad_fib[i_fib], 2.)
+##                        area_curve = beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.) - \
+##                                    1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
+##                        area_fib_zone[i_circle] = area_fib_zone[i_circle] + area_circ - area_triangle + \
+##                                                area_curve
+##                        part_fib = area_circ - area_triangle + area_curve
+##                    else:
+                    area_circ = (2. * sp.pi - alpha_r) / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
+                    area_triangle = 1./2. * sp.sin(alpha_r) * sp.power(rad_fib[i_fib], 2.)
+                    area_curve = beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.) - \
+                        1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
+                    area_fib_zone[i_circle] = area_fib_zone[i_circle] + area_circ + area_triangle + \
+                        area_curve
+                    part_fib = area_circ + area_triangle + area_curve 
                     area_fib_zone[i_circle +1] += sp.pi * sp.power(rad_fib[i_fib], 2.) - part_fib
                     i_fiber_calculation += 1
                 elif distan_fib_central[i_fib] > zone_radius[i_circle] and distan_fib_central[i_fib] \
@@ -198,8 +199,11 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
                     #print 'the value in the zone area', area_fib_zone[i_circle]
                 elif distan_fib_central[i_fib] < zone_radius[i_circle] and \
                     (distan_fib_central[i_fib] + rad_fib[i_fib]) > zone_radius[i_circle]:
+                    print 'the index of fiber', i_fib
+                    print 'the position of fibers', x_fib[i_fib]
                     solution_points = intersect_circles(x_fib[i_fib],y_fib[i_fib],
                                 zone_radius[i_circle],rad_fib[i_fib])
+                    print 'solution for this condition', solution_points
                     x_in_one = float(solution_points[0][0])
                     x_in_secon = float(solution_points[1][0])
                     y_in_one = float(solution_points[0][1])
@@ -213,25 +217,26 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
                                 - sp.power(distan_two_points, 2.)) / (2.* 
                                 sp.power(zone_radius[i_circle], 2.)))
                     #print 'the beta_r_zone', beta_r_zone
-                    if alpha_r <= sp.pi:
-                        area_circ = alpha_r / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
-                        area_triangle = 1./2. * sp.sin(alpha_r) * sp.power(rad_fib[i_fib], 2.)
-                        area_curve = beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.) - \
-                                    1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
-                        area_fib_zone[i_circle] = area_fib_zone[i_circle] + area_circ - area_triangle + \
-                                                area_curve
-                        part_fib = area_circ - area_triangle + area_curve
-                    else:
-                        area_circ = (2. * sp.pi - alpha_r) / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
-                        area_triangle = 1./2. * sp.sin(alpha_r) * sp.power(rad_fib[i_fib], 2.)
-                        area_curve = beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.) - \
-                            1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
-                        area_fib_zone[i_circle] = area_fib_zone[i_circle] + area_circ + area_triangle + \
-                            area_curve
-                        part_fib = area_circ + area_triangle + area_curve 
+##                    if alpha_r <= sp.pi:
+##                        area_circ = alpha_r / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
+##                        area_triangle = 1./2. * sp.sin(alpha_r) * sp.power(rad_fib[i_fib], 2.)
+##                        area_curve = beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.) - \
+##                                    1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
+##                        area_fib_zone[i_circle] = area_fib_zone[i_circle] + area_circ - area_triangle + \
+##                                                area_curve
+##                        part_fib = area_circ - area_triangle + area_curve
+##                    else:
+                    area_circ = (2. * sp.pi - alpha_r) / (2. * sp.pi) * sp.pi * sp.power(rad_fib[i_fib], 2.)
+                    print 'the most fiber area', area_circ
+                    area_triangle = 1./2. * sp.sin(alpha_r) * sp.power(rad_fib[i_fib], 2.)
+                    area_curve = beta_r_zone / (2. * sp.pi) * sp.pi * sp.power(zone_radius[i_circle], 2.) - \
+                        1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
+                    area_fib_zone[i_circle] += area_circ + area_triangle + \
+                        area_curve
+                    part_fib = area_circ + area_triangle + area_curve 
                     area_fib_zone[i_circle +1] += sp.pi * sp.power(rad_fib[i_fib], 2.) - part_fib
                     i_fiber_calculation += 1
-                    #print 'the value in the zone area', area_fib_zone[i_circle]  
+                    print 'the value in the zone area', area_fib_zone[i_circle]  
                 elif distan_fib_central[i_fib] > zone_radius[i_circle] and distan_fib_central[i_fib] \
                         - rad_fib[i_fib] < zone_radius[i_circle]:
                     solution_points = intersect_circles(x_fib[i_fib],y_fib[i_fib],
@@ -260,7 +265,7 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
                     part_fib = area_circ - area_triangle + area_curve
                     area_fib_zone[i_circle + 1] += sp.pi * sp.power(rad_fib[i_fib], 2.) - part_fib
                     i_fiber_calculation += 1
-                    #print 'the value in the zone area', area_fib_zone[i_circle]
+                    print 'the value in the zone area', area_fib_zone[i_circle]
                 elif distan_fib_central[i_fib] == zone_radius[i_circle]:
                     solution_points = intersect_circles(x_fib[i_fib],y_fib[i_fib],
                                 zone_radius[i_circle],rad_fib[i_fib])
@@ -323,4 +328,7 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
 ##    dump.write({'zone_number': zone_point, 'ratio_value': ratio_each}, filename = 
 ##                filename, extension = '.gz')
     return (zone_point, ratio_each)
+
+
+    
 
