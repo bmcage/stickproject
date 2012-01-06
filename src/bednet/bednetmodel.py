@@ -241,9 +241,9 @@ class Bednet(object):
         #while j <= self.m:
         #    self.concj += (exp(-(x0**2+j**2*self.dy**2)/(4*self.diffusion_coef_DEET*(t-self.index_t_bednet*delta_t)))
         C = self.diffusion_coef_DEET*(t-self.index_t_bednet*delta_t)
-        AH = math.sqrt(dx)/4*C
-        AW = math.sqrt(dy)/4*C
-        conc = yarn_surface[:][self.index_t_yarn] * (Heaviside(t-self.index_t_bednet*delta_t)/(8 * math.pi * C)) *exp(-math.sqrt(x0)/4*C)* \
+        AH = math.pow(dx,2)/4*C
+        AW = math.pow(dy,2)/4*C
+        conc = yarn_surface[:][self.index_t_yarn] * (Heaviside(t-self.index_t_bednet*delta_t)/(8 * math.pi * C)) *exp(-math.pow(x0,2)/4*C)* \
                     (mpmath.elliptic.jtheta(3,0,exp(-AH))+mpmath.elliptic.jtheta(3,0,exp(-AW))+2)
                     
         self.solution_DEET_void = conc
