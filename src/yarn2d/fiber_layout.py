@@ -574,7 +574,7 @@ def virtlocoverlaplayout(options):
                     = t3array[ind][:]
         start = start+onumber_fiber_blend[ind]
     for j in range(len(onumber_fiber_blend)):
-        radius_fiber[sum(onumber_fiber_blend[:j]):sum(onumber_fiber_blend[:j+1])]\
+        radius_fiber[np.sum(onumber_fiber_blend[:j]):np.sum(onumber_fiber_blend[:j+1])]\
             = oradius_fiber[j]
         fiber_kind[onumber_fiber_blend[j-1]:onumber_fiber_blend[j] + onumber_fiber_blend[j-1]] = j
     #plot starting overlap
