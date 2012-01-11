@@ -47,11 +47,11 @@ from fipy import *
 from virtlocgeom import *
 
 NONTOUCH_FAC = 1.01
-def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib,):
+def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
     #divide the yarn zone to five concentric zones
-    zone_radius = sp.zeros(5, float)
-    zone_width = sp.zeros(5, float)
-    width_zone = rad_yarn / 4.5
+    zone_radius = sp.zeros(nrzones, float)
+    zone_width = sp.zeros(nrzones, float)
+    width_zone = 2. * rad_yarn / ((nrzones-1)*2 + 1)
     print rad_yarn
     for i_circle in sp.arange(len(zone_radius)):
         zone_radius[i_circle] += width_zone * i_circle + width_zone / 2.
@@ -66,9 +66,9 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib,):
     while abs(rad_yarn - total_zone) > 1.0e-4:
         diff = abs(rad_yarn - total_zone)
         if rad_yarn > total_zone:
-            zone_radius[:] = zone_radius[:] + diff / 5.0
+            zone_radius[:] = zone_radius[:] + diff / nrzones
         else:
-            zone_radius[:] = zone_radius[:] - diff / 5.0
+            zone_radius[:] = zone_radius[:] - diff / nrzones
     #count how many virtual locations in each zone
     #calculate the area of fiber cross section in each domain
     #print 'zone_radius value', zone_radius
