@@ -42,6 +42,7 @@ from fipy import *
 from virtlocgeom import *
 
 NONTOUCH_FAC = 1.01
+
 def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
     #divide the yarn zone to five concentric zones
     zone_radius = sp.zeros(nrzones, float)
@@ -305,7 +306,3 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
 ##    dump.write({'zone_number': zone_point, 'ratio_value': ratio_each}, filename = 
 ##                filename, extension = '.gz')
     return (zone_point, ratio_each)
-
-
-    
-

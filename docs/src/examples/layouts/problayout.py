@@ -85,7 +85,8 @@ fibf = open('tmpfiber2.ini', 'w')
 fibf.write(ini_fiber2)
 fibf.close()
 
-#read the statistic data from a real yarn2d
+#read the statistic data from a real blended yarn from which the probability 
+#distribution in the ini file has been derived
 data_polyester = np.loadtxt('fiber_polyester.csv')
 data_cotton = np.loadtxt('fiber_cotton.csv')
 x_position_real_fiber = []
@@ -101,35 +102,13 @@ for i_cotton in sp.arange(len(data_cotton)):
   radius_real_fiber.append(data_cotton[i_cotton][2])
 x_position_real_fiber = np.array(x_position_real_fiber)
 y_position_real_fiber = np.array(y_position_real_fiber)
-fradius_real_fiber = np.array(radius_real_fiber)
-radius_poly = radius_real_fiber[:(len(data_polyester) + 1)]
-radius_cotton = radius_real_fiber[(len(data_polyester) + 1):]
-x_polyester = x_position_real_fiber[:(len(data_polyester) + 1)]
-x_cotton = x_position_real_fiber[(len(data_polyester) + 1):]
-y_polyester = y_position_real_fiber[:(len(data_polyester) + 1)]
-y_cotton = y_position_real_fiber[(len(data_polyester) + 1):]
-area_cotton_fiber = sp.pi * sp.power(radius_cotton, 2.)
-area_poly_fiber = sp.pi * sp.power(radius_poly, 2.)
-fig = pylab.figure()
-ax = fig.add_subplot(111, xlim = (-1.1, 1.1), ylim = (-1.1, 1.1))
-patches_1 = []
-patches_2 = []
-    
-for x_center, y_center, radii in zip(x_polyester[:], y_polyester[:], radius_poly[:]):
-  circle = Circle((x_center, y_center), radii, facecolor = 'g', alpha = 0.4)
-  patches_1.append(circle)
-for x_center, y_center, radii in zip(x_cotton[:], y_cotton[:], radius_cotton[:]):
-  circle = Circle((x_center, y_center), radii, facecolor = 'r', alpha = 0.4)
-  patches_2.append(circle)
-circle = Circle((0., 0.), 1.0)
-patches_1.append(circle)
-p_1 = PatchCollection(patches_1, facecolor = 'red', cmap = matplotlib.cm.jet, alpha = 0.4)
-p_2 = PatchCollection(patches_2, facecolor = 'black', cmap = matplotlib.cm.jet, alpha = 0.4)
-ax.add_collection(p_1)
-ax.add_collection(p_2)
-pylab.ion()
-pylab.draw()
-#pylab.ion()
+radius_real_fiber = np.array(radius_real_fiber)
+fiber_kind = np.zeros(len(radius_real_fiber), int)
+fiber_kind[len(data_polyester):] = 1
+
+from yarn2d.fiber_layout import plot_yarn
+plot_yarn(x_position_real_fiber, y_position_real_fiber, radius_real_fiber, 
+          fiber_kind, title='Real fiber-yarn layout')
 
 #set up a yarn computation
 from yarn2d.config import Yarn2dConfigManager
@@ -142,9 +121,32 @@ set_outputdir('temp')
 #create 10 2D grids for statistics
 from yarn2d.yarn2dgrid import Yarn2dGrid
 grid = Yarn2dGrid(cfg)
-for i in range(1):
-    mesh2d = grid.mesh_2d_generate(filename='yarn%0d.geo'%i,
-                          regenerate=True)
+ouroptions = {
+                'x_central' : grid.x_central,
+                'y_central' : grid.y_central,
+                'number_fiber' : grid.number_fiber,
+                'number_fiber_blend' : grid.number_fiber_blend,
+                'radius_fiber' : grid.radius_fiber,
+                'radius_yarn' : grid.radius_yarn,
+                'theta_value' : grid.theta_value,
+                'beta_value' : grid.beta_value,
+                'mean_deviation': grid.mean_deviation,
+                'prob_area': grid.prob_area,
+                'radius_first_center': cfg.get(
+                                    'domain.radius_first_center_virtloc'),
+                }
+from yarn2d.fiber_layout import virtlocoverlaplayout
+for i in range(2):
+    x_position, y_position, all_radius_fibers, \
+                    fiber_kind = virtlocoverlaplayout(ouroptions)
+    plot_yarn(x_position, y_position, all_radius_fibers, 
+              fiber_kind, title='Realization %d' % i)
+    probs = calculate_proportion(grid.radius_yarn, all_radius_fibers, x_position, 
+                         y_position, fiber_kind, nrzones=5)
+    for prob in probs:
+        #prob has zone_point and ratio_each, here we plot prob func of the fiber
+        TODO PEI
+
 print 'layout created in directory temp'
 raw_input('Press key to quit example')
 

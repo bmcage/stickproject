@@ -67,6 +67,11 @@ class Yarn2dGrid(object):
         self.cfg = cfg
         self.verbose = self.cfg.get('general.verbose')
         self.fiberlayout = self.cfg.get('domain.fiberlayout_method')
+        
+        self.x_central = 0.
+        self.y_central = 0.
+        self.z = 0.
+        
         if not (self.fiberlayout in FIBERLAYOUTS):
             print 'ERROR: unkown fiber layout method %s' % self.fiberlayout
             sys.exit(0)
@@ -123,9 +128,6 @@ class Yarn2dGrid(object):
         filepath = utils.OUTPUTDIR + os.sep + filename
         #filepath_f = utils.OUTPUTDIR + os.sep +figure_file
         start = time.clock()
-        self.x_central = 0.
-        self.y_central = 0.
-        self.z = 0.
         
         if not regenerate:
             npzfile = np.load(utils.OUTPUTDIR + os.sep + layoutfile)
@@ -137,7 +139,6 @@ class Yarn2dGrid(object):
             return '\n'.join(circledef)
 
         #first set options that define the layout algorithm
-        print 'rad', self.radius_fiber, self.radius_yarn
         ouroptions = {
                 'x_central' : self.x_central,
                 'y_central' : self.y_central,

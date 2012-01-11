@@ -1046,17 +1046,33 @@ def prob_func_VL(r, radius_yarn, theta, beta):
     return (1 - 2 * theta) * sp.power((sp.exp(1.) - sp.exp(r / radius_yarn)) /
                             (sp.exp(1.) - 1.), beta) + theta
 
-def plot_yarn(x_position, y_position, radius_fiber):#, fiber_kind):
+def plot_yarn(x_position, y_position, radius_fiber, fiber_kind=None, title=None):
     """
     Function to make a nice plot of the yarn with all the fibers
     """
+    colors = ['blue', 'red', 'black','green']
     fig = pylab.figure()
     ax = fig.add_subplot(111, xlim = (-1.1, 1.1), ylim = (-1.1, 1.1))
-    patches = []
+    max_kind = 0
+    if fiber_kind is not None:
+        max_kind = np.max(fiber_kind)
+    patches = [None] * (max_kind+1)
     #each fiber is drawn
-    for x_center, y_center, radii in zip(x_position, y_position, radius_fiber):
-        circle = Circle((x_center, y_center), radii)
-        patches.append(circle)
+    if fiber_kind is not None:
+        for x_center, y_center, radii, kind in zip(x_position, y_position, 
+                                                   radius_fiber, fiber_kind):
+            circle = Circle((x_center, y_center), radii)
+            patch = patches[kind]
+            if patch is None:
+                patches[kind] = []
+                patch = patches[kind]
+            patch.append(circle)
+    else: 
+        patches[0] = []
+        patch = patches[0]
+        for x_center, y_center, radii in zip(x_position, y_position, radius_fiber):
+            circle = Circle((x_center, y_center), radii)
+            patch.append(circle)
     #add the yarn
     ax.xaxis.set_ticks(np.arange(-1., 1.1, 0.5))
     ax.xaxis.set_ticklabels(["-$R$","-0.5$R$","0","0.5$R$", "R"])
@@ -1071,19 +1087,11 @@ def plot_yarn(x_position, y_position, radius_fiber):#, fiber_kind):
 ##    fig.axes.set_xlabel('$X$')
     #circle = Circle((0., 0.), 1.0)
     #patches.append(circle)
-    p = PatchCollection(patches, cmap = matplotlib.cm.jet, alpha = 0.4)
-    ax.add_collection(p)
+    for ind, patch in enumerate(patches):
+        p = PatchCollection(patch, cmap = matplotlib.cm.jet, alpha = 0.4,
+                            color=colors[ind])
+        ax.add_collection(p)
+    if title:
+        pylab.title(title)
     pylab.ion()
     pylab.show()
-
-##def prob_func_VL(r, radius_yarn, theta, beta):
-##    return (1 - 2 * theta) * sp.power(
-##                                    (sp.exp(1.) -sp.exp(r / 
-##                                    radius_yarn))/(sp.exp(1) - 1), 
-##                                    beta) + theta
-                                    
-def test():
-    pass
-
-if __name__ == '__main__': 
-    test()
