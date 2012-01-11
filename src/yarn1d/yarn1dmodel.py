@@ -104,7 +104,6 @@ class Yarn1DModel(object):
             #if self.cfg_fiber[-1].get("time.dt") > self.cfg.get("time.time_period"):
                 #self.cfg_fiber[-1].set("time.dt", self.cfg.get("time.time_period"))
             self.cfg_fiber[-1].set("time.dt", self.delta_t) 
-            self.cfg_fiber[-1].set("boundary.type_right", 'outerconc_evaporation') 
             self.fiber_radius = self.cfg_fiber[-1].get("fiber.radius_pure_fiber") 
             self.transfercoef = self.cfg_fiber[-1].get("boundary.transfer_right") 
 
@@ -153,6 +152,7 @@ class Yarn1DModel(object):
         self.mesh_yarn = CylindricalGrid1D(dr=tuple(self.delta_r))
         self.mesh_yarn.periodicBC = False
         self.mesh_yarn = self.mesh_yarn + (self.beginning_point,)
+        print 'mesh', self.grid_edge, ', delta_r', self.delta_r
 
     def initial_yarn1d(self):
         """ initial concentration over the domain"""
@@ -177,13 +177,12 @@ class Yarn1DModel(object):
         self.fiber_surface = [0] * self.nr_models
         for ind, model in enumerate(self.fiber_models):
             print 'solving fibermodel', ind
-            model.out_conc = self.conc
             model.run()
             self.nr_timesteps[ind] = len(model.times)
             self.timesteps[ind] = copy(model.times)            
             self.fiber_surface[ind] = copy(model.fiber_surface)
             
-    def solve_fiber_step(self, time):
+    def solve_fiber_step(self, time,x):
         """
         Solve the diffusion process on the fiber up to time, starting
         from where we where last. 
@@ -193,19 +192,23 @@ class Yarn1DModel(object):
         uniform. 
         The flux is the BC: S*h(C_equi - C_yarn(t))*H(C-C_b,C_equi-C_yarn(t))
         """
-        for nyfib, model in enumerate(self.fiber_models):
-            #determine step neede to reach this time
-            step = time - model.step_old_time
-            self.fiber_edge_result[nyfib] = model.run_step(step)[-1]
-    def solve_ode_reinit(self):
-        """
-        Reinitialize the ode solver to start again
-        """
-        self.initial_t = self.times[0]
-        self.solver = ode(self.f_conc1_ode).set_integrator('vode', 
-                            method = 'bdf',
-                            nsteps=5000)
-        self.solver.set_initial_value(self.step_old_sol, self.step_old_time)
+        self.cfg_fiber[-1].set("boundary.type_right", 'outerconc_evaporation') 
+        for model in enumerate(self.fiber_models):
+            model.out_conc = self.conc1[time][:]
+            #step = time - model.step_old_time
+            #self.fiber_edge_result[nyfib] = model.run_step(step)[-1]
+            model.run()
+            self.fiber_edge_result = model.fiber_surface[time]
+            
+   # def solve_ode_reinit(self):
+        #"""
+       # Reinitialize the ode solver to start again
+        #"""
+        #self.initial_t = self.times[0]
+        #self.solver = ode(self.f_conc1_ode).set_integrator('vode', 
+        #                    method = 'bdf',
+        #                    nsteps=5000)
+        #self.solver.set_initial_value(self.step_old_sol, self.step_old_time)
 
     def _set_bound_flux(self, flux_edge, conc_r):
         """
@@ -373,6 +376,10 @@ class Yarn1DModel(object):
         return self.conc1[-1][:]
         self.view_sol(self.times, self.conc1)
         raw_input("view solution")
+        
+    def solve_ode_step(self,step):
+        self.solve_ode()
+        print 'fiber_source=', self.source[step,:]
   
     def view_sol(self, times, conc):
         """
@@ -404,5 +411,10 @@ class Yarn1DModel(object):
         self.initial_yarn1d()
         self.solve_fiber_init()
         self.solve_ode()
-        self.solve_fiber_step()
+        print 'concentration yarn=', self.conc1
+        for t in self.times:
+            for x in self.grid:
+                self.solve_fiber_step(t,x)
+                self.solve_ode_step(t)            
+                
         

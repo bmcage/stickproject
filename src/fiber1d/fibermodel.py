@@ -57,7 +57,7 @@ def Heaviside_oneside(val, control):
     """
     a Heaviside function of val, if control is positive, otherwise identity
     """
-    if control.all() < 0.:
+    if control < 0.:
         return 1.
     if val < 0.:
         return 0.
@@ -84,7 +84,7 @@ class FiberModel(object):
         initial_c: the initial concentration of DEET in the whole domain
         """
         self.temp = 273.15 + 21 #temperature in Kelvin
-        self.out_conc = 0.
+        self.out_conc = [0.,]
         self.datatime = []
         self.cfg = config
         self.method = self.cfg.get('general.method')
@@ -557,6 +557,7 @@ class FiberModel(object):
                     self.simple_sol[tstep] = flux_out/k+(M0-flux_out/k)*exp(-k*time)
                 else:
                     self.simple_sol[tstep] = flux_out * time + M0
+        
             #convert the mass to the average concentration valid over domain
             self.fiber_surface[tstep] = self.simple_sol[tstep] / V
             self.flux_at_surface[tstep] = self._bound_flux_uR(
