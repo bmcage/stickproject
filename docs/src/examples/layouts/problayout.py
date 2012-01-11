@@ -85,10 +85,12 @@ fibf = open('tmpfiber2.ini', 'w')
 fibf.write(ini_fiber2)
 fibf.close()
 
+
 #read the statistic data from a real blended yarn from which the probability 
 #distribution in the ini file has been derived
 data_polyester = np.loadtxt('fiber_polyester.csv')
 data_cotton = np.loadtxt('fiber_cotton.csv')
+
 x_position_real_fiber = []
 y_position_real_fiber = []
 radius_real_fiber = []

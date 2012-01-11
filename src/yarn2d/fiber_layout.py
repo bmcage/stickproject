@@ -619,6 +619,7 @@ def virtlocoverlaplayout(options):
         zone_position_shifted, ratio_shifted = calculate_proportion(oradius_yarn,
                                             aradius_fiber_shift, ax_position_shift,
                                             ay_position_shift)
+
         ##print 'the shifted distribution', ratio_shifted
         ##raw_input("next step")
         
@@ -842,10 +843,7 @@ def virtlocoverlaplayout(options):
         zone_position_ov_alpha, ratio_ov_alpha = calculate_proportion(oradius_yarn, 
                                         radius_each_kind_alpha, x_each_kind_alpha,
                                         y_each_kind_alpha)
-        ##raw_input("check than continue")
-        ##print 'each kind fiber has the number:', len(x_each_kind)
-        ##print 'each kind fiber has the number with alpha value', len(x_each_kind_alpha)
-        ##print 'each ratio_vl_ov value',  ratio_vl_ov
+
         dump.write({'zone_position':zone_position_ov, 'ratio_value': ratio_vl_ov},
                     filename = utils.OUTPUTDIR + os.sep + "each_kind_ratio_%g"%(i_kind), 
                     extension = '.gz')
