@@ -189,7 +189,7 @@ class Yarn1DModel(object):
             self.timesteps[ind] = copy(model.times)            
             self.fiber_surface[ind] = copy(model.fiber_surface)
             
-    def solve_fiber_step(self, time,x):
+    def solve_fiber_step(self, time):
         """
         Solve the diffusion process on the fiber up to time, starting
         from where we where last. 
@@ -309,7 +309,7 @@ class Yarn1DModel(object):
         return self.f_conc1(conc_r,t)
 
     def f_conc1(self, conc_r, t):
-        print 't, concr', t, conc_r
+        ##print 't, concr', t, conc_r
         grid = self.grid
         n_cellcenters = len(grid)
         #get the sourceterm on time t
@@ -331,7 +331,7 @@ class Yarn1DModel(object):
                           /(self.delta_r[:-1]+self.delta_r[1:])
         diff_u_t=((flux_edge[1:]-flux_edge[:-1])+ self.source[self.index_t_yarn,:])/ (self.grid_edge[:-1]*self.delta_r + np.power(self.delta_r,2)/2) \
                     
-        print 'diff', diff_u_t
+        ##print 'diff', diff_u_t
         #raw_input("cont")
         return diff_u_t    
     #def solve_odeint(self):
@@ -382,29 +382,27 @@ class Yarn1DModel(object):
         """Solve the yarnmodel for one step, continuing from the present
            state, return the concentration after step
         """
+        if self.delta_t > step*1.001:
+            raise Exception, 'dt set larger than stepsize, decrease: %f > %f' % (self.delta_t, step)
         if not self.initialized:
             raise Exception, 'Solver ode not initialized'
         if needreinit:
             self.solve_ode_reinit()
         curt = self.solver.t
-        #print 'curt value', curt
         while self.solver.successful() and self.solver.t < curt + step - self.delta_t /10. and \
         self.solver.t < self.step_old_time + step - self.delta_t /10.:
             #print 'length of solution', len(self.solver.y)
             #print 'length of grid', len(self.grid)
             self.solver.integrate(self.solver.t + self.delta_t)
             self.tstep += 1
-            print 'conc1', self.conc1, 'self.times', self.times, 'tstep', self.tstep, 'solver.t', self.solver.t
-            
             #print 'self.solver.y', self.solver.y
-            
             self.conc1[self.tstep][:] = self.solver.y
         self.solver.integrate(curt + step)
         self.step_old_time += step
         self.step_old_sol = self.solver.y
         assert self.solver.t == self.step_old_time, "%f %f" % (self.solver.t, self.step_old_time)
         return self.conc1[-1][:]
-        
+                
     def solve_ode(self):
         self.initial_t = 0.
         endT = self.time_period
@@ -456,11 +454,11 @@ class Yarn1DModel(object):
         self.solve_fiber_init()
         if not self.initialized:
             self.solve_ode_init()
-        self.solve_ode()
         print 'concentration yarn=', self.conc1
-        for t in self.times:
-            for x in self.grid:
-                self.solve_fiber_step(t,x)
-                self.solve_ode_step(t)            
-                
-        
+        for ind, t in enumerate(self.times[1:]):
+            print 'solving t', t
+            step = self.times[ind+1] - self.times[ind]
+##            for x in self.grid:
+##                print 'grid x'
+            self.solve_fiber_step(step)
+            self.solve_ode_step(step)            

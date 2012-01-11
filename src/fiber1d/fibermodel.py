@@ -472,7 +472,7 @@ class FiberModel(object):
         self.solver.integrate(curt + step)
         self.step_old_time += step
         self.step_old_sol = self.solver.y
-        assert self.solver.t == self.step_old_time, "%f %f" % (self.solver.t, self.step_old_time)
+        assert abs(self.solver.t - self.step_old_time) < 1e-15, "%f %f %g" % (self.solver.t, self.step_old_time, self.solver.t- self.step_old_time)
         return self.solver.y
         
     def solve_ode(self):
