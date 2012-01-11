@@ -1,0 +1,7 @@
+Source code of examples
+=======================
+
+If you did not install stick, you can run these examples using PYTHONPATH
+like this:
+
+PYTHONPATH=/path-to-stickproject/src  python example.py
