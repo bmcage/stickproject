@@ -4,6 +4,12 @@ area probability function
 """
 
 import os, sys
+import numpy as np
+import scipy as sp
+import pylab
+import matplotlib
+from matplotlib.patches import Circle, Wedge, Polygon, Ellipse
+from matplotlib.collections import PatchCollection
 
 # We start with inifile settings in 
 ini_yarn = """
@@ -78,6 +84,53 @@ fibf.close()
 fibf = open('tmpfiber2.ini', 'w')
 fibf.write(ini_fiber2)
 fibf.close()
+
+#read the statistic data from a real yarn2d
+data_polyester = np.loadtxt('fiber_polyester.csv')
+data_cotton = np.loadtxt('fiber_cotton.csv')
+x_position_real_fiber = []
+y_position_real_fiber = []
+radius_real_fiber = []
+for i_polyester in sp.arange(len(data_polyester)):
+  x_position_real_fiber.append(data_polyester[i_polyester][0])
+  y_position_real_fiber.append(data_polyester[i_polyester][1])
+  radius_real_fiber.append(data_polyester[i_polyester][2])
+for i_cotton in sp.arange(len(data_cotton)):
+  x_position_real_fiber.append(data_cotton[i_cotton][0])
+  y_position_real_fiber.append(data_cotton[i_cotton][1])
+  radius_real_fiber.append(data_cotton[i_cotton][2])
+x_position_real_fiber = np.array(x_position_real_fiber)
+y_position_real_fiber = np.array(y_position_real_fiber)
+fradius_real_fiber = np.array(radius_real_fiber)
+radius_poly = radius_real_fiber[:(len(data_polyester) + 1)]
+radius_cotton = radius_real_fiber[(len(data_polyester) + 1):]
+x_polyester = x_position_real_fiber[:(len(data_polyester) + 1)]
+x_cotton = x_position_real_fiber[(len(data_polyester) + 1):]
+y_polyester = y_position_real_fiber[:(len(data_polyester) + 1)]
+y_cotton = y_position_real_fiber[(len(data_polyester) + 1):]
+area_cotton_fiber = sp.pi * sp.power(radius_cotton, 2.)
+area_poly_fiber = sp.pi * sp.power(radius_poly, 2.)
+fig = pylab.figure()
+ax = fig.add_subplot(111, xlim = (-1.1, 1.1), ylim = (-1.1, 1.1))
+patches_1 = []
+patches_2 = []
+    
+for x_center, y_center, radii in zip(x_polyester[:], y_polyester[:], radius_poly[:]):
+  circle = Circle((x_center, y_center), radii, facecolor = 'g', alpha = 0.4)
+  patches_1.append(circle)
+for x_center, y_center, radii in zip(x_cotton[:], y_cotton[:], radius_cotton[:]):
+  circle = Circle((x_center, y_center), radii, facecolor = 'r', alpha = 0.4)
+  patches_2.append(circle)
+circle = Circle((0., 0.), 1.0)
+patches_1.append(circle)
+p_1 = PatchCollection(patches_1, facecolor = 'red', cmap = matplotlib.cm.jet, alpha = 0.4)
+p_2 = PatchCollection(patches_2, facecolor = 'black', cmap = matplotlib.cm.jet, alpha = 0.4)
+ax.add_collection(p_1)
+ax.add_collection(p_2)
+pylab.ioff()
+pylab.draw()
+pylab.ion()
+
 #set up a yarn computation
 from yarn2d.config import Yarn2dConfigManager
 from lib.utils.utils import set_outputdir
