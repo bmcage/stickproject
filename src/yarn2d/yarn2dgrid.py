@@ -238,7 +238,6 @@ class Yarn2dGrid(object):
             #rotate each ellipse randomly
             rotate_theta = np.random.uniform(0,sp.pi * 2)
             #begin to write the points
-            print 'index of ellipse', i_position_ellipse
             long_axis = self.all_radius_fibers[i_position_ellipse]
             short_axis = sqrt(self.all_radius_fibers[i_position_ellipse]**2 \
                     * (1-self.ecc[self.fiber_kind[i_position_ellipse]]**2))

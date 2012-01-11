@@ -564,15 +564,15 @@ def virtlocoverlaplayout(options):
         fiber_kind[i_type][:] = afiber_kind[:]
         each_num_circle[i_type] = sp.empty(len(area_ring_zone), int)
         each_num_circle[i_type][:] = each_circle_zone_num[:]
-        print 'each_num_circle', each_num_circle[i_type]
-        raw_input("next step for position")
+        ##print 'each_num_circle', each_num_circle[i_type]
+        ##raw_input("next step for position")
         for i_point in sp.arange(len(x_position[i_type])):
             position_half[i_type][i_point] = int(i_point)
             
         zone_position_origin, ratio_origin = calculate_proportion(oradius_yarn, 
                                    aradius_fiber, ax_position, ay_position)
-        print 'the original distribution', ratio_origin
-        raw_input("next step")
+        ##print 'the original distribution', ratio_origin
+        ##raw_input("next step")
         dump.write({'x_position':ax_position, 'y_position':ay_position, 'radius_fiber':aradius_fiber,
                     },
                     filename = filename, extension = '.gz')
@@ -619,8 +619,8 @@ def virtlocoverlaplayout(options):
         zone_position_shifted, ratio_shifted = calculate_proportion(oradius_yarn,
                                             aradius_fiber_shift, ax_position_shift,
                                             ay_position_shift)
-        print 'the shifted distribution', ratio_shifted
-        raw_input("next step")
+        ##print 'the shifted distribution', ratio_shifted
+        ##raw_input("next step")
         
         dump.write({'x_position':ax_position_shift, 'y_position':ay_position_shift, 
                     'radius_fiber':aradius_fiber_shift},
@@ -753,8 +753,8 @@ def virtlocoverlaplayout(options):
     y_position_alpha[:] = y_position[:]
     zone_position_1, ratio_no_shift = calculate_proportion(oradius_yarn, 
                                    radius_fiber, x_position, y_position)
-    print 'before removing the overlap', ratio_no_shift
-    raw_input("enter to continue")
+    ##print 'before removing the overlap', ratio_no_shift
+    ##raw_input("enter to continue")
     move_fibers_alpha(x_position_alpha, y_position_alpha, radius_fiber, 
                     oradius_yarn, omean_deviation)
     move_fibers_nonoverlap(x_position, y_position, radius_fiber, oradius_yarn, 
@@ -842,17 +842,17 @@ def virtlocoverlaplayout(options):
         zone_position_ov_alpha, ratio_ov_alpha = calculate_proportion(oradius_yarn, 
                                         radius_each_kind_alpha, x_each_kind_alpha,
                                         y_each_kind_alpha)
-        raw_input("check than continue")
-        #print 'each kind fiber has the number:', len(x_each_kind)
-        print 'each kind fiber has the number with alpha value', len(x_each_kind_alpha)
-        print 'each ratio_vl_ov value',  ratio_vl_ov
+        ##raw_input("check than continue")
+        ##print 'each kind fiber has the number:', len(x_each_kind)
+        ##print 'each kind fiber has the number with alpha value', len(x_each_kind_alpha)
+        ##print 'each ratio_vl_ov value',  ratio_vl_ov
         dump.write({'zone_position':zone_position_ov, 'ratio_value': ratio_vl_ov},
                     filename = utils.OUTPUTDIR + os.sep + "each_kind_ratio_%g"%(i_kind), 
                     extension = '.gz')
         dump.write({'zone_position': zone_position_ov_alpha, 'ratio_value':ratio_ov_alpha},
                     filename = utils.OUTPUTDIR + os.sep + "each_kind_ratio_alpha_%g"%(i_kind),
                     extension = '.gz')
-    raw_input("wait")
+    ##raw_input("wait")
     
     return (x_position, y_position, radius_fiber, fiber_kind)
 
@@ -1073,8 +1073,7 @@ def plot_yarn(x_position, y_position, radius_fiber):#, fiber_kind):
     #patches.append(circle)
     p = PatchCollection(patches, cmap = matplotlib.cm.jet, alpha = 0.4)
     ax.add_collection(p)
-    pylab.ioff()
-    pylab.draw()
+    pylab.ion()
     pylab.show()
 
 ##def prob_func_VL(r, radius_yarn, theta, beta):

@@ -127,9 +127,9 @@ p_1 = PatchCollection(patches_1, facecolor = 'red', cmap = matplotlib.cm.jet, al
 p_2 = PatchCollection(patches_2, facecolor = 'black', cmap = matplotlib.cm.jet, alpha = 0.4)
 ax.add_collection(p_1)
 ax.add_collection(p_2)
-pylab.ioff()
-pylab.draw()
 pylab.ion()
+pylab.draw()
+#pylab.ion()
 
 #set up a yarn computation
 from yarn2d.config import Yarn2dConfigManager
@@ -142,7 +142,9 @@ set_outputdir('temp')
 #create 10 2D grids for statistics
 from yarn2d.yarn2dgrid import Yarn2dGrid
 grid = Yarn2dGrid(cfg)
-for i in range(10):
-    mesh2d = grid.mesh_2d_generate(filename='temp'+os.sep+'yarn%0d.geo'%i,
+for i in range(1):
+    mesh2d = grid.mesh_2d_generate(filename='yarn%0d.geo'%i,
                           regenerate=True)
 print 'layout created in directory temp'
+raw_input('Press key to quit example')
+
