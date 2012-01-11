@@ -84,7 +84,7 @@ class FiberModel(object):
         initial_c: the initial concentration of DEET in the whole domain
         """
         self.temp = 273.15 + 21 #temperature in Kelvin
-        self.out_conc = [0.,]
+        self.out_conc = 0
         self.datatime = []
         self.cfg = config
         self.method = self.cfg.get('general.method')
@@ -338,8 +338,8 @@ class FiberModel(object):
             eCf = self.evap_Cf(t)
             eCs = self.evap_satconc(self.temp)
             rad = self.cfg.get('fiber.radius_pure_fiber')
-            return 2*math.pi*rad*self.porosity_domain[-1] * self.evap_transfer * (eCs - self.out_conc[-1]) \
-                    * Heaviside_oneside(conc_r - self.evap_minbound, eCs - self.out_conc[-1])
+            return 2*math.pi*rad*self.porosity_domain[-1] * self.evap_transfer * (eCs - self.out_conc) \
+                    * Heaviside_oneside(conc_r - self.evap_minbound, eCs - self.out_conc)
                     
     def _set_bound_fluxu(self, flux_edge, conc_r, t):
         """
@@ -706,6 +706,7 @@ class FiberModel(object):
         The mesh in this 1-D condition is 
         uniform
         """
+        global res
         if self.submethod == 'fipy':
             res = self.solve_fipy_step()
         else:            
