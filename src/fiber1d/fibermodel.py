@@ -41,7 +41,7 @@ import time
 #-------------------------------------------------------------------------
 import lib.utils.utils as utils
 import lib.utils.gridutils as GridUtils
-from fiber1d.config import (METHOD, FLUX, TRANSFER, EVAP,
+from fiber1d.config import (METHOD, FLUX, TRANSFER, EVAP, EVAPYARN,
                     BOUND_TYPE, FIBER_FORM,
                     CIRCLE, ELLIPSE)
 
@@ -57,7 +57,7 @@ def Heaviside_oneside(val, control):
     """
     a Heaviside function of val, if control is positive, otherwise identity
     """
-    if control < 0.:
+    if control.all() < 0.:
         return 1.
     if val < 0.:
         return 0.
@@ -84,6 +84,7 @@ class FiberModel(object):
         initial_c: the initial concentration of DEET in the whole domain
         """
         self.temp = 273.15 + 21 #temperature in Kelvin
+        self.out_conc = 0.
         self.datatime = []
         self.cfg = config
         self.method = self.cfg.get('general.method')
@@ -121,7 +122,7 @@ class FiberModel(object):
         self.boundary_fib_left = self.cfg.get('boundary.boundary_fib_left')
         self.boundary_fib_right = self.cfg.get('boundary.boundary_fib_right')
         self.boundary_transf_right = self.cfg.get('boundary.transfer_right')
-        if self.bound_right == EVAP:
+        if self.bound_right == EVAP or EVAPYARN:
             self.evap_satconc = eval(self.cfg.get('boundary.evap_satconc'))
             self.evap_transfer = self.cfg.get('boundary.evap_transfer')
             self.evap_minbound = self.cfg.get('boundary.evap_minbound')
@@ -330,9 +331,16 @@ class FiberModel(object):
             # evaporation to the right
             eCf = self.evap_Cf(t)
             eCs = self.evap_satconc(self.temp)
+            rad = self.cfg.get('fiber.radius_pure_fiber')
             return self.porosity_domain[-1] * self.evap_transfer * (eCs - eCf) \
                     * Heaviside_oneside(conc_r - self.evap_minbound, eCs - eCf)
-
+        elif self.bound_right == EVAPYARN:
+            eCf = self.evap_Cf(t)
+            eCs = self.evap_satconc(self.temp)
+            rad = self.cfg.get('fiber.radius_pure_fiber')
+            return 2*math.pi*rad*self.porosity_domain[-1] * self.evap_transfer * (eCs - self.out_conc[-1]) \
+                    * Heaviside_oneside(conc_r - self.evap_minbound, eCs - self.out_conc[-1])
+                    
     def _set_bound_fluxu(self, flux_edge, conc_r, t):
         """
         Method that takes BC into account to set flux on edge

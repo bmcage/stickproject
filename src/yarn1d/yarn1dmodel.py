@@ -87,6 +87,12 @@ class Yarn1DModel(object):
             self.times[i] = self.times[i-1] + self.delta_t
             i += 1
             
+        self.number_fiber = self.cfg.get('fiber.number_fiber')
+        self.blend = self.cfg.get('fiber.blend')
+        self.nrtypefiber = self.cfg.get('fiber.number_type')
+        self.fiber_edge_result = [0] * self.nrtypefiber
+        assert self.nrtypefiber == len(self.blend) == len(self.cfg.get('fiber.fiber_config'))
+            
         self.cfg_fiber = []
         for filename in self.cfg.get('fiber.fiber_config'):
             if not os.path.isabs(filename):
@@ -97,7 +103,10 @@ class Yarn1DModel(object):
             self.cfg_fiber[-1].set("time.time_period", self.time_period)
             #if self.cfg_fiber[-1].get("time.dt") > self.cfg.get("time.time_period"):
                 #self.cfg_fiber[-1].set("time.dt", self.cfg.get("time.time_period"))
-            self.cfg_fiber[-1].set("time.dt", self.delta_t)  
+            self.cfg_fiber[-1].set("time.dt", self.delta_t) 
+            self.cfg_fiber[-1].set("boundary.type_right", 'outerconc_evaporation') 
+            self.fiber_radius = self.cfg_fiber[-1].get("fiber.radius_pure_fiber") 
+            self.transfercoef = self.cfg_fiber[-1].get("boundary.transfer_right") 
 
         #create fiber models
         self.fiber_models = []
@@ -155,7 +164,7 @@ class Yarn1DModel(object):
         self.viewer = None
         #self.viewer = Viewer(vars = self.conc, datamin = 0., datamax = None)
 
-    def solve_fiber(self):
+    def solve_fiber_init(self):
         """
         Solve the diffusion process for a repellent on the fiber at radial position r in the yarn.
         &C/&t = 1/r * &(Dr&C/&r) / &r
@@ -166,13 +175,37 @@ class Yarn1DModel(object):
         self.nr_timesteps = np.empty((self.nr_models),int)
         self.timesteps = [0]*self.nr_models
         self.fiber_surface = [0] * self.nr_models
-        
         for ind, model in enumerate(self.fiber_models):
             print 'solving fibermodel', ind
+            model.out_conc = self.conc
             model.run()
             self.nr_timesteps[ind] = len(model.times)
             self.timesteps[ind] = copy(model.times)            
             self.fiber_surface[ind] = copy(model.fiber_surface)
+            
+    def solve_fiber_step(self, time):
+        """
+        Solve the diffusion process on the fiber up to time, starting
+        from where we where last. 
+        &C/&t = 1/r * &(Dr&C/&r) / &r
+        The diffusion coefficient is constant. The finite volume method is used to
+        discretize the right side of equation. The mesh in this 1-D condition is 
+        uniform. 
+        The flux is the BC: S*h(C_equi - C_yarn(t))*H(C-C_b,C_equi-C_yarn(t))
+        """
+        for nyfib, model in enumerate(self.fiber_models):
+            #determine step neede to reach this time
+            step = time - model.step_old_time
+            self.fiber_edge_result[nyfib] = model.run_step(step)[-1]
+    def solve_ode_reinit(self):
+        """
+        Reinitialize the ode solver to start again
+        """
+        self.initial_t = self.times[0]
+        self.solver = ode(self.f_conc1_ode).set_integrator('vode', 
+                            method = 'bdf',
+                            nsteps=5000)
+        self.solver.set_initial_value(self.step_old_sol, self.step_old_time)
 
     def _set_bound_flux(self, flux_edge, conc_r):
         """
@@ -337,6 +370,7 @@ class Yarn1DModel(object):
             tstep += 1
             self.conc1[tstep][:] =  r.y
             print "r.y", self.conc1[tstep][:]
+        return self.conc1[-1][:]
         self.view_sol(self.times, self.conc1)
         raw_input("view solution")
   
@@ -361,8 +395,14 @@ class Yarn1DModel(object):
             #if time == 200.0:
              #   dump.write({'space_position': self.grid, 'conc1': con},
               #              filename = utils.OUTPUTDIR + os.sep + 'ode_t2.gz', extension = '.gz')>>>>>>> ab40eed853b9d1f1ddeeb7b6d537bf516b10c1d6
+            
+    #def solve_ode_step(self):
+        
+                
     def run(self):        
         self.create_mesh()
         self.initial_yarn1d()
-        self.solve_fiber()
+        self.solve_fiber_init()
         self.solve_ode()
+        self.solve_fiber_step()
+        

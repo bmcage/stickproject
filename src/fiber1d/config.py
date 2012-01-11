@@ -56,10 +56,12 @@ METHOD = {
 FLUX = 0
 TRANSFER = 1
 EVAP = 2
+EVAPYARN = 3
 BOUND_TYPE = {
     'flux': FLUX,
     'transfer': TRANSFER,
-    'evaporation': EVAP
+    'evaporation': EVAP,
+    'outerconc_evaporation':EVAPYARN
     }
 
 CIRCLE  = 0
