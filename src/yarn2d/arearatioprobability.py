@@ -28,12 +28,7 @@ import sys
 import const
 import numpy as np
 import scipy as sp
-import matplotlib.pyplot as plt
 import time
-from matplotlib.patches import Circle, Wedge, Polygon
-from matplotlib.collections import PatchCollection
-import pylab
-import matplotlib
 
 
 #-------------------------------------------------------------------------
@@ -78,24 +73,6 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
     area_fib_zone = sp.zeros(len(zone_radius))
     count_number = 0
     filename = utils.OUTPUTDIR + os.sep + "proportion_value.gz"
-    fig = pylab.figure()
-    ax = fig.add_subplot(111, xlim = (-1.1, 1.1), ylim = (-1.1, 1.1))
-    patches_1 = []
-    patches_2 = []
-    for x_center, y_center, radii in zip(x_fib[:], y_fib[:], rad_fib[:]):
-        circle = Circle((x_center, y_center), radii)
-        patches_1.append(circle)
-    for i_radii in sp.arange(len(zone_radius)):
-        circle = Circle((0., 0.), zone_radius[i_radii])
-        patches_2.append(circle)
-    circle = Circle((0., 0.), rad_yarn)
-    patches_1.append(circle)
-    p_1 = PatchCollection(patches_1, facecolor = 'blue', cmap = matplotlib.cm.jet, alpha = 0.4)
-    #p_2 = PatchCollection(patches_2, edgecolor = 'black', cmap = matplotlib.cm.jet, alpha = 0.1)    
-    ax.add_collection(p_1)
-    #ax.add_collection(p_2)
-    pylab.show()
-    #raw_input("begin to calculate the area")
     i_fiber_calculation = 0
     for i_circle in sp.arange(len(zone_radius)):
         print 'GOING %g th zone' %(i_circle)
