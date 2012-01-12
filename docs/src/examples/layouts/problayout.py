@@ -88,8 +88,8 @@ fibf.close()
 
 #read the statistic data from a real blended yarn from which the probability 
 #distribution in the ini file has been derived
-data_polyester = np.loadtxt('fiber_polyester.csv')
-data_cotton = np.loadtxt('fiber_cotton.csv')
+data_polyester = np.loadtxt('/home/lipei/git/stickproject/docs/src/examples/fiber_polyester.csv')
+data_cotton = np.loadtxt('/home/lipei/git/stickproject/docs/src/examples/fiber_cotton.csv')
 
 x_position_real_fiber = []
 y_position_real_fiber = []
@@ -109,6 +109,7 @@ fiber_kind = np.zeros(len(radius_real_fiber), int)
 fiber_kind[len(data_polyester):] = 1
 
 from yarn2d.fiber_layout import plot_yarn
+from yarn2d.arearatioprobability import calculate_proportion
 plot_yarn(x_position_real_fiber, y_position_real_fiber, radius_real_fiber, 
           fiber_kind, title='Real fiber-yarn layout')
 
@@ -138,17 +139,28 @@ ouroptions = {
                                     'domain.radius_first_center_virtloc'),
                 }
 from yarn2d.fiber_layout import virtlocoverlaplayout
-for i in range(2):
-    x_position, y_position, all_radius_fibers, \
-                    fiber_kind = virtlocoverlaplayout(ouroptions)
-    plot_yarn(x_position, y_position, all_radius_fibers, 
-              fiber_kind, title='Realization %d' % i)
-    probs = calculate_proportion(grid.radius_yarn, all_radius_fibers, x_position, 
-                         y_position, fiber_kind, nrzones=5)
-    for prob in probs:
-        #prob has zone_point and ratio_each, here we plot prob func of the fiber
-        TODO PEI
+#After generating n times of iteration, plot prob func result from the average ratio value
+iteration = 10
+each_time_ratio = [] * iteration
 
+for i in range(iteration):
+    x_position, y_position, all_radius_fibers, \
+                    fiber_kind, type_fiber = virtlocoverlaplayout(ouroptions)
+##    plot_yarn(x_position, y_position, all_radius_fibers, 
+##              fiber_kind, title='Realization %d' % i)
+    probs = [0]* type_fiber
+    for i_type in sp.arange(type_fiber):
+        
+        for i_fiber in sp.arange(len(fiber_kind)):
+            if fiber_kind[i_fiber] == i_type:
+                x_position_cal.append()
+    probs = calculate_proportion(grid.radius_yarn, all_radius_fibers, x_position, 
+            y_position, nrzones=5)
+     
+    #for prob in probs:
+        #prob has zone_point and ratio_each, here we plot prob func of the fiber
+        #TODO PEI
+        
 print 'layout created in directory temp'
 raw_input('Press key to quit example')
 
