@@ -137,26 +137,19 @@ class YarnConfigManager(ConfigManager):
         self.register("boundary.boundary_interior", 1.0)
         self.register("boundary.transfer_conc1", 5.3e-9,
             "tracked compound exterior transfer coef, so flux D dC/dx = - transfer_conc1 C")
-        #size_hole section
-        self.register("size_hole.net_width", 1.0e-3,
-            "the width of the hole of the bed net (mm)")
-        self.register("size_hole.net_length", 2.0e-3,
-            "the length of the hole of the bed net (mm)")
-        self.register("size_hole.length_yarn", 2.0,
-            "the length of the yarn of a bed net")
-        self.register("size_hole.domain_effect", 0.02,
-            "the domain of repelling the mosquito")
-        self.register("size_hole.dis_effect", 4)
+
         #time section
         self.register("time.time_period", 4000.,
             "the time domain for the simulation (s)")
         self.register("time.dt", 1.0,
             "the time step to use in the simulation")
+
         #plot section
         self.register("plot.maxval", 0.0005,
             "When plotting tracked compound, set a max value for vertical axis")
         self.register("plot.plotevery", 10,
             "When plotting over time, indicate how many steps dt to skip before plotting again")
+
         #writeout section
         self.register("writeout.writeevery", 100,
             "When writing data out over time, indicate how many steps dt to skip")

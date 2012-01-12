@@ -92,7 +92,18 @@ class BednetConfigManager(ConfigManager):
         
         self.register("sample.size_sample", [2e-2, 4.92e-3])
         self.register("sample.yarn_config", ['../yarn2d/defaultyarn.ini'])
-        
+
+        #size_hole section describing the square holes in the net
+        self.register("size_hole.net_width", 1.0e-3,
+            "the width of the hole of the bed net (mm)")
+        self.register("size_hole.net_length", 2.0e-3,
+            "the length of the hole of the bed net (mm)")
+        self.register("size_hole.length_yarn", 2.0,
+            "the length of the yarn of a bed net")
+        self.register("size_hole.domain_effect", 0.02,
+            "the domain of repelling the mosquito")
+        self.register("size_hole.dis_effect", 4)
+
         self.register("diffusion_DEET.diffusion_coef_DEET", 5.0e-8)
         self.register("diffusion_DEET.tortuosity_fab", 2.)
         self.register("diffusion_DEET.diff_DEET_void", 7.0e-8)
