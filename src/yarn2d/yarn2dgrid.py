@@ -47,7 +47,7 @@ from sympy.abc import x,y
 import lib.utils.utils as utils
 from fipy import Gmsh2D
 from fipy import *
-from yarn2d.config import FIBERLAYOUTS
+from yarn.config import FIBERLAYOUTS
 from fiber1d.config import Fiber1dConfigManager, FIBER_FORM, CIRCLE, ELLIPSE
 
 from virtlocgeom import *

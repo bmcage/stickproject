@@ -40,7 +40,7 @@ import time
 #-------------------------------------------------------------------------
 import lib.utils.utils as utils
 import lib.utils.gridutils as GridUtils
-import yarn2d.config as conf
+import yarn.config as conf
 from mycorrection import MyDiffusionTermNoCorrection
 from yarn2dgrid import Yarn2dGrid
 from yarn2dfiber import Yarn2dFiber
@@ -92,7 +92,7 @@ class Fabric2dUpscalingNet(object):
         if not os.path.isabs(filename):
             filename = os.path.normpath(os.path.join(
                         os.path.dirname(self.cfg.filename), filename))
-        self.cfg_yarn.append(Yarn2dConfigManager.get_instance(filename))
+        self.cfg_yarn.append(YarnConfigManager.get_instance(filename))
         self.cfg_fiber[-1].set("time.time_period", self.cfg.get("time.time_period"))
         
         self.yarn_model = []

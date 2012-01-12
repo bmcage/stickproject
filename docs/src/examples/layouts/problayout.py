@@ -111,9 +111,9 @@ plot_yarn(x_position_real_fiber, y_position_real_fiber, radius_real_fiber,
           fiber_kind, title='Real fiber-yarn layout')
 
 #set up a yarn computation
-from yarn2d.config import Yarn2dConfigManager
+from yarn.config import YarnConfigManager
 from lib.utils.utils import set_outputdir
-cfg = Yarn2dConfigManager.get_instance('tmpyarn.ini')
+cfg = YarnConfigManager.get_instance('tmpyarn.ini')
 #create outputdir if not existing
 if not os.path.isdir('temp'):
     os.mkdir('temp')

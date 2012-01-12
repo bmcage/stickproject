@@ -39,7 +39,7 @@ import scipy as S
 #-------------------------------------------------------------------------
 from lib.utils.utils import set_outputdir
 import const
-import yarn2d.config as conf
+import yarn.config as conf
 
 #-------------------------------------------------------------------------
 #
@@ -85,7 +85,7 @@ def main(argv=None):
             writeini = True
     
     #Parse ini file to obtain parameters.
-    cfg = conf.Yarn2dConfigManager.get_instance(inifile)
+    cfg = conf.YarnConfigManager.get_instance(inifile)
 
     #create outputdir if not existing
     if not os.path.isdir(outputdir):

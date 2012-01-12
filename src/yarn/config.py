@@ -40,7 +40,7 @@ from lib.config import ConfigManager
 # Constants
 #
 #---------------------------------------------------------------
-INIFILE_DEFAULT = const.INI_DIR + os.sep + 'yarn2d' + os.sep + \
+INIFILE_DEFAULT = const.INI_DIR + os.sep + 'yarn' + os.sep + \
                      'defaultyarn.ini'
 
 LONGOPTS = ["inifile", 'outputdir', 'mesh', 'write-ini']
@@ -67,26 +67,27 @@ YARN_MAT = {
 #
 #---------------------------------------------------------------
 
-class Yarn2dConfigManager(ConfigManager):
+class YarnConfigManager(ConfigManager):
 
-    __instance = None
+    __instance = {}
     
     def get_instance(inifile):
         """ Use this function to get the instance of the ConfigManager 
         that will work on inifile
         """
-        if Yarn2dConfigManager.__instance is None:
-            Yarn2dConfigManager.__instance = 1 # Set to 1 for __init__()
-            Yarn2dConfigManager.__instance = Yarn2dConfigManager(inifile)
-        return Yarn2dConfigManager.__instance
+        if inifile not in YarnConfigManager.__instance:
+            YarnConfigManager.__instance[inifile] = None # Set to 1 for __init__()
+            YarnConfigManager.__instance[inifile] = YarnConfigManager(inifile)
+        return YarnConfigManager.__instance[inifile]
     get_instance = staticmethod(get_instance)
     
     def __init__(self, filename = INIFILE_DEFAULT):
         """ 
         A singleton implementation of config.ConfigManager
         """
-        if Yarn2dConfigManager.__instance is not 1:
-            raise Exception("This class is a singleton. "
+        if (filename not in YarnConfigManager.__instance) or (
+                YarnConfigManager.__instance[filename] is not None):
+            raise Exception("This class is a singleton per filename. "
                             "Use the get_instance() method")
         ConfigManager.__init__(self, filename)
 

@@ -85,7 +85,7 @@ class Fiber1dConfigManager(ConfigManager):
         """ Use this function to get the instance of the ConfigManager 
         that will work on inifile
         """
-        if not (inifile in Fiber1dConfigManager.__instance):
+        if inifile not in Fiber1dConfigManager.__instance:
             Fiber1dConfigManager.__instance[inifile] = None # Set for __init__()
             Fiber1dConfigManager.__instance[inifile] = Fiber1dConfigManager(inifile)
         return Fiber1dConfigManager.__instance[inifile]
@@ -95,7 +95,8 @@ class Fiber1dConfigManager(ConfigManager):
         """ 
         A singleton implementation of config.ConfigManager
         """
-        if filename not in Fiber1dConfigManager.__instance:
+        if (filename not in Fiber1dConfigManager.__instance) or (
+                Fiber1dConfigManager.__instance[filename] is not None):
             raise Exception("This class is a singleton per filename. "
                             "Use the get_instance() method")
         ConfigManager.__init__(self, filename)

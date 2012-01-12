@@ -107,7 +107,7 @@ class Bednet(object):
             if not os.path.isabs(filename):
                 filename = os.path.normpath(os.path.join(
                         os.path.dirname(self.cfg.filename), filename))
-            self.cfg_yarn.append(Yarn1dConfigManager.get_instance(filename))
+            self.cfg_yarn.append(YarnConfigManager.get_instance(filename))
             #set values from the yarn on this inifile
             print 'time', self.time_period
             self.cfg_yarn[-1].set("time.time_period", self.time_period)

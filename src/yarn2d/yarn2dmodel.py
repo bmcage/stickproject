@@ -41,7 +41,7 @@ import time
 #-------------------------------------------------------------------------
 import lib.utils.utils as utils
 import lib.utils.gridutils as GridUtils
-import yarn2d.config as conf
+import yarn.config as conf
 from mycorrection import MyDiffusionTermNoCorrection
 from yarn2dgrid import Yarn2dGrid
 from fiber1d.config import Fiber1dConfigManager, CIRCLE
