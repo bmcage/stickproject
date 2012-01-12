@@ -52,7 +52,6 @@ from fiber1d.config import (METHOD, FLUX, TRANSFER, EVAP, EVAPYARN,
 #-------------------------------------------------------------------------
 from fipy import *
 
-
 def Heaviside_oneside(val, control):
     """
     a Heaviside function of val, if control is positive, otherwise identity
@@ -83,10 +82,11 @@ class FiberModel(object):
         transfer: the Robin BC for the right side of 1D domain
         initial_c: the initial concentration of DEET in the whole domain
         """
+        self.cfg = config
+        self.verbose = self.cfg.get('general.verbose')
         self.temp = 273.15 + 21 #temperature in Kelvin
         self.out_conc = 0
         self.datatime = []
-        self.cfg = config
         self.method = self.cfg.get('general.method')
         if not (self.method in METHOD):
             print 'ERROR: unkown solution method %s' % self.method
@@ -100,7 +100,6 @@ class FiberModel(object):
             raise Exception, 'Internal diffusion requires diff coeff > 0.'
 
         self.time_period = self.cfg.get('time.time_period')
-        print 'the time period', self.time_period
         self.delta_t = self.cfg.get('time.dt')
         self.steps = int((self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t)
         self.times = sp.linspace(0, self.time_period, self.steps + 1)
@@ -108,7 +107,8 @@ class FiberModel(object):
         self.step_old_time = self.initial_t
         #set correct delta_t
         self.delta_t = self.times[1]-self.times[0]
-        print "Timestep used in fiber model:", self.delta_t
+        if self.verbose:
+            print "Timestep used in fiber model:", self.delta_t
         #storage for output
         self.fiber_surface = sp.empty(len(self.times), float)
         self.flux_at_surface = sp.empty(len(self.times), float)
@@ -135,9 +135,7 @@ class FiberModel(object):
         self.__Rf = None
 
         self.plotevery = self.cfg.get("plot.plotevery")
-        
-        self.verbose = self.cfg.get('general.verbose')
-        
+
     def radius_pure(self):
         """method that returns the radius of the fiber seen as a circle,
            without coatings
@@ -240,7 +238,11 @@ class FiberModel(object):
         self.grid = (self.grid_edge[:-1] + self.grid_edge[1:])/2.
         #obtain cell sizes
         self.delta_r = self.grid_edge[1:] - self.grid_edge[:-1]
-        print 'mesh', self.grid, self.grid_edge, self.delta_r
+        if self.verbose:
+            pass
+            #print 'mesh center', self.grid
+            #print 'mesh edges ', self.grid_edge
+
         #create a fipy mesh for visualization and fipy computation
         self.mesh_fiber = CylindricalGrid1D(dx=tuple(self.delta_r))
         self.mesh_fiber.periodicBC = False
@@ -252,7 +254,6 @@ class FiberModel(object):
         if self.fiber_diff:
             #percentage of active component
             self.percentage_active = self.cfg.get('fiber.percentage_active')
-        print 'TOT EDGES', self.tot_edges
         self.initial_c1 = sp.empty(self.tot_edges-1, float)
         self.diffusion_coeff = sp.empty(self.tot_edges-1, float)
         self.diffusion_exp_fact = sp.empty(self.tot_edges-1, float)
@@ -274,7 +275,8 @@ class FiberModel(object):
             self.porosity_domain[i] = self.porosity[st]
         self.initial_w1 = self.initial_c1 * self.grid
         self.volume = self.calc_volume()
-        print 'initial mass = ', self.calc_mass(self.initial_c1)
+        if self.verbose:
+            print 'initial mass = ', self.calc_mass(self.initial_c1)
 
     def calc_mass(self, conc_r):
         """calculate the mass of component present given value in cell center
@@ -331,16 +333,17 @@ class FiberModel(object):
             # evaporation to the right
             eCf = self.evap_Cf(t)
             eCs = self.evap_satconc(self.temp)
-            rad = self.cfg.get('fiber.radius_pure_fiber')
             return self.porosity_domain[-1] * self.evap_transfer * (eCs - eCf) \
                     * Heaviside_oneside(conc_r - self.evap_minbound, eCs - eCf)
         elif self.bound_right == EVAPYARN:
             eCf = self.evap_Cf(t)
             eCs = self.evap_satconc(self.temp)
-            rad = self.cfg.get('fiber.radius_pure_fiber')
-            return 2*math.pi*rad*self.porosity_domain[-1] * self.evap_transfer * (eCs - self.out_conc) \
-                    * Heaviside_oneside(conc_r - self.evap_minbound, eCs - self.out_conc)
-                    
+            return (2 * math.pi * self.radius() * self.porosity_domain[-1] 
+                    * self.evap_transfer * (eCs - self.out_conc) 
+                    * Heaviside_oneside(conc_r - self.evap_minbound, 
+                                        eCs - self.out_conc)
+                   ) 
+
     def _set_bound_fluxu(self, flux_edge, conc_r, t):
         """
         Method that takes BC into account to set flux on edge
@@ -361,20 +364,12 @@ class FiberModel(object):
         grid = self.grid
         n_cell = len(grid)
         #Initialize the left side of ODE equations
-        diff_w_t = sp.empty(n_cell, float)
+        diff_w_t = self.__tmp_diff_w_t
         #initialize the flux rate on the edge with replace 'w'
-        flux_edge = sp.empty(n_cell+1, float)
+        flux_edge = self.__tmp_flux_edge
         self._set_bound_flux(flux_edge, w_rep, t)
         #Diffusion coefficient changes with the concentration changing
         #calculate flux rate in each edge of the domain
-##        print (len(self.porosity_domain[:-1]), 
-##            len(self.diffusion_coeff[:-1]),
-##            len(self.diffusion_exp_fact[:-1]), 
-##            len(w_rep[:-1]), 
-##            len(self.grid[:-1]), 
-##            len(self.grid_edge[1:-1]), 
-##            len(self.grid[:-1]), 
-##            )
         flux_edge[1:-1] = -(self.porosity_domain[:-1] * self.diffusion_coeff[:-1] * 
                             sp.exp(-self.diffusion_exp_fact[:-1] * w_rep[:-1]/self.grid[:-1]) \
                          + self.porosity_domain[1:] * self.diffusion_coeff[1:] * 
@@ -393,9 +388,9 @@ class FiberModel(object):
         grid = self.grid
         n_cell = len(grid)
         #Initialize the left side of ODE equations
-        diff_u_t = sp.empty(n_cell, float)
+        diff_u_t = self.__tmp_diff_w_t
         #initialize the flux rate on the edge with replace 'w'
-        flux_edge = sp.empty(n_cell+1, float)
+        flux_edge = self.__tmp_flux_edge
         self._set_bound_fluxu(flux_edge, conc_r, t)
         #Diffusion coefficient changes with the concentration changing
         #calculate flux rate in each edge of the domain
@@ -412,12 +407,16 @@ class FiberModel(object):
         return diff_u_t
     
     def solve_odeint(self):
+        self.__tmp_diff_w_t = sp.empty(n_cell, float)
+        self.__tmp_flux_edge = sp.empty(n_cell+1, float)
         initial_w = self.initial_c1 * self.grid
         self.solv=odeint(self.f_conc1, initial_w, self.times, rtol=1.0e-9, atol = 1.0e-10)
         self.conc1=self.solv/ self.grid
         self.view_sol(self.times, self.conc1)
-        
+
     def solve_odeintu(self):
+        self.__tmp_diff_w_t = sp.empty(n_cell, float)
+        self.__tmp_flux_edge = sp.empty(n_cell+1, float)
         self.solv=odeint(self.f_conc1u, initial_c1, self.times)
         self.conc1=self.solv
         self.view_sol(self.times, self.conc1)
@@ -429,8 +428,13 @@ class FiberModel(object):
         self.initial_t = self.times[0]
         self.step_old_time = self.initial_t
         self.step_old_sol = self.initial_w1
+        #data storage
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
         self.conc1[0][:] = self.initial_c1
+        n_cell = len(self.grid)
+        self.__tmp_diff_w_t = sp.empty(n_cell, float)
+        self.__tmp_flux_edge = sp.empty(n_cell+1, float)
+        
         self.tstep = 0
         self.solve_ode_reinit()
         self.initialized = True
@@ -612,7 +616,6 @@ class FiberModel(object):
                             self.porosity_domain) 
         tstep = 0
         self.conc1[tstep][:] = self.initial_c1[:]
-        print 'solving for times', self.times[1:]
         for time in self.times[1:]:
             self.solve_fipy_sweep()
 ##            if self.viewer is not None:
@@ -688,12 +691,14 @@ class FiberModel(object):
                     self.solve_odeintu()
                 elif self.submethod == 'odeu':
                     self.solve_odeu()
-            print 'end mass = ', self.calc_mass(self.conc1[-1])
+            if self.verbose:
+                print 'end mass = ', self.calc_mass(self.conc1[-1])
         elif self.method == 'SIMPLE':
             self.solve_simple()
         else:
             raise NotImplementedError, 'Method %s is not implemented' % self.method
-        print 'finished the fiber calculation'
+        if self.verbose:
+            print 'Finished the fiber calculation'
         self.view_time(self.times, self.flux_at_surface, 'Flux of DEET ($\mathrm{mg\cdot cm/s}$)')
 
     def solve_step(self, step):
@@ -712,7 +717,7 @@ class FiberModel(object):
         else:            
             if self.submethod == 'odeintw':
                 raise Exception, 'Not supported'
-            elif  self.submethod == 'odew':
+            elif  self.submethod in ['odew', 'odew_step']:
                 res = self.solve_ode_step(step)
             elif self.submethod == 'odeintu':
                 raise Exception, 'Not supported'
@@ -756,26 +761,25 @@ class FiberModel(object):
         self.viewerplotcount = 0
         for time, con in zip(times[1:], conc[1:][:]):
             self.solution_view.setValue(con)
+            self.viewer.axes.set_title('Fiber Conc vs radius at time %s' %str(time))
+            self.viewer.axes.set_xlabel('Radius')
+            self.viewer.axes.set_ylabel('Conc')
             if self.viewerplotcount == 0:
                self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'conc%s.png' % str(int(10*time)))
-               self.viewer.axes.set_title('time %s' %str(time))
             else:
                 self.viewer.plot()
-                self.viewer.axes.set_title('time %s' %str(time))
+                
             self.viewerplotcount += 1
             self.viewerplotcount = self.viewerplotcount % self.plotevery   
                 
     def view_time(self, times, conc, title=None):
         draw_time = times/(3600.*24.*30.) # convert seconds to months
         draw_conc = conc *1.0e4
-        plt.ion()
         plt.figure(num=None)
         plt.plot(draw_time, draw_conc, '-', color = 'red')
-        #plt.xlim(0.0, 3.0)
         plt.xlabel('Time (month)')
         plt.ylabel(title)
         plt.show()
-        plt.ioff()
 
     def dump_solution(self): 
         """write out the solution to disk for future use"""
