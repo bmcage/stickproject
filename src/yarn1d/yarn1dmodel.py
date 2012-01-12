@@ -44,7 +44,6 @@ from copy import copy
 #
 #-------------------------------------------------------------------------
 import lib.utils.utils as utils
-import lib.utils.gridutils as GridUtils
 import yarn.config as conf
 from fiber1d.config import Fiber1dConfigManager
 from fiber1d.fibermodel import FiberModel
