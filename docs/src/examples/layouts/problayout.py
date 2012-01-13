@@ -7,7 +7,6 @@ import os, sys
 import numpy as np
 import scipy as sp
 import pylab
-import matplotlib
 from matplotlib.patches import Circle, Wedge, Polygon, Ellipse
 from matplotlib.collections import PatchCollection
 
@@ -89,8 +88,9 @@ fibf.close()
 
 #read the statistic data from a real blended yarn from which the probability 
 #distribution in the ini file has been derived
-data_polyester = np.loadtxt('/home/lipei/git/stickproject/docs/src/examples/fiber_polyester.csv')
-data_cotton = np.loadtxt('/home/lipei/git/stickproject/docs/src/examples/fiber_cotton.csv')
+path = os.path.dirname(os.path.abspath(__file__))
+data_polyester = np.loadtxt(os.path.join(path,'../fiber_polyester.csv'))
+data_cotton = np.loadtxt(os.path.join(path,'../fiber_cotton.csv'))
 
 x_position_real_fiber = []
 y_position_real_fiber = []
@@ -110,7 +110,9 @@ fiber_kind = np.zeros(len(radius_real_fiber), int)
 fiber_kind[len(data_polyester):] = 1
 
 from yarn2d.fiber_layout import plot_yarn
-from yarn2d.arearatioprobability import calculate_proportion
+from yarn2d.arearatioprobability import (calculate_proportion, 
+            plot_ratio_function)
+
 plot_yarn(x_position_real_fiber, y_position_real_fiber, radius_real_fiber, 
           fiber_kind, title='Real fiber-yarn layout')
 
@@ -141,7 +143,7 @@ ouroptions = {
                 }
 from yarn2d.fiber_layout import virtlocoverlaplayout
 #After generating n times of iteration, plot prob func result from the average ratio value
-from analysis_plot import plot_ratio_function
+
 iteration = 1
 each_time_ratio = [] 
 for i in range(iteration):
@@ -182,12 +184,3 @@ raw_input("finish one loop for one kind of fiber")
         #TODO PEI
 print 'layout created in directory temp'
 raw_input('Press key to quit example')
-
-
-
-    
-    
-    #return 0
-
-def function_ratio_input(self):
-    return 0
