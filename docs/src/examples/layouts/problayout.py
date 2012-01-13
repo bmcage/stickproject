@@ -11,6 +11,7 @@ import matplotlib
 from matplotlib.patches import Circle, Wedge, Polygon, Ellipse
 from matplotlib.collections import PatchCollection
 
+
 # We start with inifile settings in 
 ini_yarn = """
 [general]
@@ -140,27 +141,53 @@ ouroptions = {
                 }
 from yarn2d.fiber_layout import virtlocoverlaplayout
 #After generating n times of iteration, plot prob func result from the average ratio value
-iteration = 10
-each_time_ratio = [] * iteration
-
+from analysis_plot import plot_ratio_function
+iteration = 1
+each_time_ratio = [] 
 for i in range(iteration):
     x_position, y_position, all_radius_fibers, \
                     fiber_kind, type_fiber = virtlocoverlaplayout(ouroptions)
-##    plot_yarn(x_position, y_position, all_radius_fibers, 
-##              fiber_kind, title='Realization %d' % i)
-    probs = [0]* type_fiber
+    plot_yarn(x_position, y_position, all_radius_fibers, 
+              fiber_kind, title='Realization %d' % i)
+    raw_input("show the figures")
+    ratio_each = [0] * type_fiber
+    #zone_position = [0]
     for i_type in sp.arange(type_fiber):
-        
+        x_position_cal = []
+        y_position_cal = []
         for i_fiber in sp.arange(len(fiber_kind)):
             if fiber_kind[i_fiber] == i_type:
-                x_position_cal.append()
-    probs = calculate_proportion(grid.radius_yarn, all_radius_fibers, x_position, 
-            y_position, nrzones=5)
-     
+                x_position_cal.append(x_position[i_fiber])
+                y_position_cal.append(y_position[i_fiber])
+        x_position_cal = np.array(x_position_cal)
+        y_position_cal = np.array(y_position_cal)
+        probs = calculate_proportion(grid.radius_yarn, all_radius_fibers, 
+                x_position_cal, y_position_cal, nrzones=5)
+        zone_position =sp.zeros(len(probs[0]) + 1, float)
+        zone_position[0] = 0.
+        zone_position[1:] = probs[0][:]
+        zone_position[-1] = 1.
+        print 'the zone_position', zone_position
+        ratio_each[i_type] = sp.ones(len(probs[-1]), float)
+        ratio_each[i_type][:] = probs[-1][:]
+        #the ratio value on the yarn's edge
+        print 'ratio value', ratio_each
+        each_time_ratio.append(ratio_each[i_type])
+        raw_input("finish one kind")
+
+plot_ratio_function(zone_position, each_time_ratio, type_fiber, grid.prob_area)
+raw_input("finish one loop for one kind of fiber")
     #for prob in probs:
         #prob has zone_point and ratio_each, here we plot prob func of the fiber
         #TODO PEI
-        
 print 'layout created in directory temp'
 raw_input('Press key to quit example')
 
+
+
+    
+    
+    #return 0
+
+def function_ratio_input(self):
+    return 0

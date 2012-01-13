@@ -202,7 +202,8 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
                         1. / 2. * sp.power(zone_radius[i_circle], 2.) * sp.sin(beta_r_zone)
                     area_fib_zone[i_circle] += area_circ + area_triangle + \
                         area_curve
-                    part_fib = area_circ + area_triangle + area_curve 
+                    part_fib = area_circ + area_triangle + area_curve
+                    print i_circle, len(area_fib_zone)
                     area_fib_zone[i_circle +1] += sp.pi * sp.power(rad_fib[i_fib], 2.) - part_fib
                     i_fiber_calculation += 1
                 elif distan_fib_central[i_fib] > zone_radius[i_circle] and distan_fib_central[i_fib] \
