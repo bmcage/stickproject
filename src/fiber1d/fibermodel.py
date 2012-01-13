@@ -85,7 +85,6 @@ class FiberModel(object):
         self.cfg = config
         self.verbose = self.cfg.get('general.verbose')
         self.temp = 273.15 + 21 #temperature in Kelvin
-        self.out_conc = 0
         self.datatime = []
         self.method = self.cfg.get('general.method')
         if not (self.method in METHOD):
@@ -111,6 +110,7 @@ class FiberModel(object):
             print "Timestep used in fiber model:", self.delta_t
         #storage for output
         self.fiber_surface = sp.empty(len(self.times), float)
+        #the radial flux at surface. Do times 2 pi radius() to obtain all flux
         self.flux_at_surface = sp.empty(len(self.times), float)
         
         #print 'the times', self.times
@@ -122,11 +122,11 @@ class FiberModel(object):
         self.boundary_fib_left = self.cfg.get('boundary.boundary_fib_left')
         self.boundary_fib_right = self.cfg.get('boundary.boundary_fib_right')
         self.boundary_transf_right = self.cfg.get('boundary.transfer_right')
-        if self.bound_right == EVAP or EVAPYARN:
+        if self.bound_right == EVAP:
             self.evap_satconc = eval(self.cfg.get('boundary.evap_satconc'))
             self.evap_transfer = self.cfg.get('boundary.evap_transfer')
             self.evap_minbound = self.cfg.get('boundary.evap_minbound')
-            self.evap_Cf = eval(self.cfg.get('boundary.evap_Cf'))
+            self.out_conc = eval(self.cfg.get('boundary.out_conc'))
         
         #data for stepwise operation
         self.initialized = False
@@ -300,6 +300,8 @@ class FiberModel(object):
         """
         Method that takes BC into account to set flux on edge
         Data is written to flux_edge, w_rep contains solution in the cell centers
+        This is the flux of w over radius! So times 2 pi R for full flux w, or
+        for C times 2 pi.
         """
         if self.bound_left == FLUX:
             if abs(self.grid_edge[0]) < 1e-10 and not (self.boundary_fib_left == 0):
@@ -309,14 +311,14 @@ class FiberModel(object):
                 flux_edge[0] = 0
             else:
                 flux_edge[0] = -self.boundary_fib_left * \
-                                (self.grid_edge[0] + w_rep[0]/self.grid_edge[0])
+                                self.grid_edge[0] #+ w_rep[0]/self.grid_edge[0]
         else:
             print 'ERROR: boundary type left not implemented'
             sys.exit(0)
         #calculate normal val with w_rep = C*r, instead of C:
         flux_edge[-1] = self._bound_flux_uR(w_rep[-1]/self.grid_edge[-1], t)
-        #and correct 
-        flux_edge[-1] *= self.grid_edge[-1] + w_rep[-1]/self.grid_edge[-1]
+        #and correct, flux needed is r dC/dr in the PDE, not dw/dr 
+        flux_edge[-1] = flux_edge[-1] * self.grid_edge[-1] #+ w_rep[-1]/self.grid_edge[-1]
 
     def _bound_flux_uR(self, conc_r, t):
         """
@@ -330,19 +332,13 @@ class FiberModel(object):
             return self.boundary_transf_right * conc_r \
                              * self.porosity_domain[-1]
         elif self.bound_right == EVAP:
-            # evaporation to the right
-            eCf = self.evap_Cf(t)
+            eCy = self.out_conc(t)
             eCs = self.evap_satconc(self.temp)
-            return self.porosity_domain[-1] * self.evap_transfer * (eCs - eCf) \
-                    * Heaviside_oneside(conc_r - self.evap_minbound, eCs - eCf)
-        elif self.bound_right == EVAPYARN:
-            eCf = self.evap_Cf(t)
-            eCs = self.evap_satconc(self.temp)
-            return (2 * math.pi * self.radius() * self.porosity_domain[-1] 
-                    * self.evap_transfer * (eCs - self.out_conc) 
+            return (self.porosity_domain[-1] 
+                    * self.evap_transfer * (eCs - eCy) 
                     * Heaviside_oneside(conc_r - self.evap_minbound, 
-                                        eCs - self.out_conc)
-                   ) 
+                                        eCs - eCy)
+                   )
 
     def _set_bound_fluxu(self, flux_edge, conc_r, t):
         """
@@ -534,9 +530,9 @@ class FiberModel(object):
                         * self.porosity_domain[-1] \
                         * self.evap_transfer
             satevap = self.evap_satconc(self.temp)
-            flux_outevap = lambda M, t:  coeffevap * (satevap - self.evap_Cf(t)) \
+            flux_outevap = lambda M, t:  coeffevap * (satevap - self.out_conc(t)) \
                                 * Heaviside_oneside(M/V-self.evap_minbound, 
-                                                    satevap - self.evap_Cf(t))
+                                                    satevap - self.out_conc(t))
         else:
             raise Exception, 'ERROR: boundary type right not implemented'
         tstep = 0

@@ -198,7 +198,8 @@ class Yarn1DModel(object):
         uniform. 
         The flux is the BC: S*h(C_equi - C_yarn(t))*H(C-C_b,C_equi-C_yarn(t))
         """
-        self.cfg_fiber[-1].set("boundary.type_right", 'outerconc_evaporation') 
+        TODO_CHECK_NEXT
+        self.cfg_fiber[-1].set("boundary.type_right", 'evaporation') 
         
         for ind, model in enumerate(self.fiber_models):
             model.out_conc = self.conc1[time][-1]
