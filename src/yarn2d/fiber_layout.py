@@ -791,26 +791,22 @@ def virtlocoverlaplayout(options):
     fig = pylab.figure()
     ax = fig.add_subplot(111, xlim = (-1.1, 1.1), ylim = (-1.1, 1.1))
     
-    patches_1 = []
-    patches_2 = []
-    for x_center, y_center, radii in zip(x_polyester[:], y_polyester[:], radius_poly[:]):
-        circle = Circle((x_center, y_center), radii, facecolor = 'g', alpha = 0.4)
-        patches_1.append(circle)
-    angle = sp.zeros(len(x_cotton), float)
-    for i_cotton in sp.arange(len(x_cotton)):
-        angle[i_cotton] = np.random.uniform(0.0, 180.0)
-    for x_center, y_center, radii, angle in zip(x_cotton[:], y_cotton[:], radius_cotton[:], angle[:]):
-        ellipse = Ellipse((x_center, y_center), radii, radii*1.5, angle = angle, alpha = 0.4)
-        patches_2.append(ellipse)
-    p_1 = PatchCollection(patches_1, facecolor = 'red', cmap = matplotlib.cm.jet, alpha = 0.4)
-    p_2 = PatchCollection(patches_2, facecolor = 'black', cmap = matplotlib.cm.jet, alpha = 0.4)
-    ax.add_collection(p_1)
-    ax.add_collection(p_2)    
-    plot_yarn(x_position, y_position, all_radius_fiber)
-    pylab.show()
-    plot_yarn(x_position_alpha, y_position_alpha, all_radius_fiber)
-    pylab.show()
-    
+##    patches_1 = []
+##    patches_2 = []
+##    for x_center, y_center, radii in zip(x_polyester[:], y_polyester[:], radius_poly[:]):
+##        circle = Circle((x_center, y_center), radii, facecolor = 'g', alpha = 0.4)
+##        patches_1.append(circle)
+##    angle = sp.zeros(len(x_cotton), float)
+##    for i_cotton in sp.arange(len(x_cotton)):
+##        angle[i_cotton] = np.random.uniform(0.0, 180.0)
+##    for x_center, y_center, radii, angle in zip(x_cotton[:], y_cotton[:], radius_cotton[:], angle[:]):
+##        ellipse = Ellipse((x_center, y_center), radii, radii*1.5, angle = angle, alpha = 0.4)
+##        patches_2.append(ellipse)
+##    p_1 = PatchCollection(patches_1, facecolor = 'red', cmap = matplotlib.cm.jet, alpha = 0.4)
+##    p_2 = PatchCollection(patches_2, facecolor = 'black', cmap = matplotlib.cm.jet, alpha = 0.4)
+##    ax.add_collection(p_1)
+##    ax.add_collection(p_2)    
+
     filename_2 = utils.OUTPUTDIR + os.sep + "proportion_vl_overlap.gz"
     filename_3 = utils.OUTPUTDIR + os.sep + "proportion_vl_overlap_alpha.gz"
 
