@@ -178,7 +178,7 @@ for i in range(iteration):
         raw_input("finish one kind")
 
 plot_ratio_function(zone_position, each_time_ratio, type_fiber, grid.prob_area)
-raw_input("finish one loop for one kind of fiber")
+#meanraw_input("finish one loop for one kind of fiber")
     #for prob in probs:
         #prob has zone_point and ratio_each, here we plot prob func of the fiber
         #TODO PEI

@@ -788,8 +788,8 @@ def virtlocoverlaplayout(options):
     x_cotton = np.array(x_cotton)
     y_cotton = np.array(y_cotton)
     radius_cotton = np.array(radius_cotton)
-    fig = pylab.figure()
-    ax = fig.add_subplot(111, xlim = (-1.1, 1.1), ylim = (-1.1, 1.1))
+##    fig = pylab.figure()
+##    ax = fig.add_subplot(111, xlim = (-1.1, 1.1), ylim = (-1.1, 1.1))
     
 ##    patches_1 = []
 ##    patches_2 = []
