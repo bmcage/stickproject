@@ -308,7 +308,8 @@ def virtloclayout(options):
                                             / delta_r_i))
         step = grid[1] - grid[0]
         disc_vals = original_function_pro(grid)
-        each_num_pro.append(2*step*sp.sum(disc_vals * grid))
+
+        each_num_pro.append(2 * step * sp.sum(disc_vals * grid))
         each_num_integration[i_circle] = prev_int + (each_num_pro[-1] / 
                                                    (oradius_fiber ** 2.))
         prev_int = '%.2f'% (each_num_integration[i_circle])
@@ -546,10 +547,8 @@ def virtlocoverlaplayout(options):
                 'number_fiber_blend' : [onumber_fiber_blend[i_type]],
                 'radius_fiber' : [oradius_fiber[i_type]],
                 'radius_yarn' : oradius_yarn,
-                
                 'theta_value' : otheta_value,
                 'beta_value' : obeta_value,
-                
                 'mean_deviation': omean_deviation[i_type],
                 'prob_area': oprob_area[i_type]
                 }
@@ -601,10 +600,8 @@ def virtlocoverlaplayout(options):
                 'number_fiber_blend' : [onumber_fiber_each[i_type]],
                 'radius_fiber' : [oradius_fiber[i_type]],
                 'radius_yarn' : oradius_yarn,
-                
                 'theta_value' : otheta_value,
                 'beta_value' : obeta_value,
-                
                 'mean_deviation': omean_deviation[i_type],
                 'prob_area': oprob_area[i_type]
         }
@@ -621,11 +618,10 @@ def virtlocoverlaplayout(options):
         fiber_kind_shift[i_type][:] = afiber_kind_shift[:]
         each_num_circle_shift[i_type] = sp.empty(len(area_ring_zone_shift),int)
         each_num_circle_shift[i_type][:] = each_circle_zone_num_shift[:]
-        
         zone_position_shifted, ratio_shifted = calculate_proportion(oradius_yarn,
                                             aradius_fiber_shift, ax_position_shift,
                                             ay_position_shift)
-
+        
         ##print 'the shifted distribution', ratio_shifted
         ##raw_input("next step")
         
@@ -668,6 +664,7 @@ def virtlocoverlaplayout(options):
         begin_point_shift = 0
         end_point_shift = 0
         position_each_shift = []
+        #left_num = left_num_shift
         for i_circle in sp.arange(len(each_num_circle_shift[ind])):
             number_chosen = int(each_num_circle_shift[ind][i_circle] / 2.)
             i_half_each = 0
@@ -696,7 +693,7 @@ def virtlocoverlaplayout(options):
                     position_random = int(a_position)
                     determine_value = (position_random == sp.array(position_each_shift))
                     while determine_value.any() == True:
-                        a_position = p.random.uniform(begin_point_shift, 
+                        a_position = np.random.uniform(begin_point_shift, 
                                 end_point_shift)
                         position_random = int(a_position)
                         determine_value = (position_random == position_each_shift)
@@ -704,6 +701,8 @@ def virtlocoverlaplayout(options):
                         position_each_shift.append(position_random)
                     i_half_each += 1
         position_half_shift[ind] = sp.empty(left_num_shift,int)
+        #position_half_shift[ind] = sp.empty(len(position_each_shift),int)
+        print len(position_half_shift[ind]), len(position_each_shift)
         for i_position in sp.arange(len(position_half_shift[ind])):
             position_half_shift[ind][i_position] = position_each_shift[i_position]   
 
@@ -726,6 +725,8 @@ def virtlocoverlaplayout(options):
     y_p_s = sp.zeros(len(x_position_random_shift[0]))
     x_p_s[:] = x_position_random_shift[0][:]
     y_p_s[:] = y_position_random_shift[0][:]
+
+    
     zone_position_1, ratio_no_shift = calculate_proportion(oradius_yarn, 
                                     radius_fiber[0], x_p, y_p)
     zone_position_2, ratio_shift_half = calculate_proportion(oradius_yarn, 
@@ -758,15 +759,34 @@ def virtlocoverlaplayout(options):
     y_position_alpha = sp.empty(len(y_position), float)
     x_position_alpha[:] = x_position[:]
     y_position_alpha[:] = y_position[:]
-    zone_position_1, ratio_no_shift = calculate_proportion(oradius_yarn, 
-                                   all_radius_fiber, x_position, y_position)
-    ##print 'before removing the overlap', ratio_no_shift
-    ##raw_input("enter to continue")
+    
+#before removing overlap, the ratio value in each ring zone for each kind of fiber
+    for i_type in sp.arange(len(onumber_fiber_blend)):
+        x_no_shift = []
+        y_no_shift = []
+        radius_no_shift = []
+        for i_position in sp.arange(len(x_position)):
+            if fiber_kind[i_position] == i_type:
+                x_no_shift.append(x_position[i_position])
+                y_no_shift.append(y_position[i_position])
+                radius_no_shift.append(all_radius_fiber[i_position])
+        x_no_shift = np.array(x_no_shift)
+        y_no_shift = np.array(y_no_shift)
+        radius_no_shift = np.array(all_radius_fiber)
+        zone_position_no_shift, ratio_no_shift = calculate_proportion(oradius_yarn,
+                                            radius_no_shift, x_no_shift, y_no_shift)
+        print 'before removing the ratio value for each kind', ratio_no_shift
+        raw_input('check the ratio value before removing overlap')
+##    zone_position_1, ratio_no_shift = calculate_proportion(oradius_yarn, 
+##                                   all_radius_fiber, x_position, y_position)
+##    plot_yarn(x_position, y_position, all_radius_fiber)
+##    print 'before removing the overlap', ratio_no_shift
+##    raw_input("enter to continue")
     move_fibers_alpha(x_position_alpha, y_position_alpha, all_radius_fiber, 
                     oradius_yarn, omean_deviation)
     move_fibers_nonoverlap(x_position, y_position, all_radius_fiber, oradius_yarn, 
                     fiber_kind, omean_deviation)
-#   
+   
     x_polyester = []
     y_polyester = []
     x_cotton = []
@@ -1075,9 +1095,9 @@ def plot_yarn(x_position, y_position, radius_fiber, fiber_kind=None, title=None)
             patch.append(circle)
     #add the yarn
     ax.xaxis.set_ticks(np.arange(-1., 1.1, 0.5))
-    ax.xaxis.set_ticklabels(["-$R$","-0.5$R$","0","0.5$R$", "R"])
+    #ax.xaxis.set_ticklabels(["-$R$","-0.5$R$","0","0.5$R$", "R"])
     ax.yaxis.set_ticks(np.arange(-1., 1.1, 0.5))
-    ax.yaxis.set_ticklabels(["-$R$","-0.5$R$","0","0.5$R$", "R"])
+    #ax.yaxis.set_ticklabels(["-$R$","-0.5$R$","0","0.5$R$", "R"])
 ##    fixup_subplot(ax.color)
 ##    fig.get_gca()
 ##    fig.clean()
@@ -1085,8 +1105,8 @@ def plot_yarn(x_position, y_position, radius_fiber, fiber_kind=None, title=None)
 ##    fig.xticks([-1.0, -0.5, 0.0, 0.5, 1.0])
 ##    fig.xticks_label('R')
 ##    fig.axes.set_xlabel('$X$')
-    #circle = Circle((0., 0.), 1.0)
-    #patches.append(circle)
+    circle_1 = Circle((0., 0.), 1.0)
+    patch.append(circle_1)
     for ind, patch in enumerate(patches):
         p = PatchCollection(patch, cmap = matplotlib.cm.jet, alpha = 0.4,
                             color=colors[ind])

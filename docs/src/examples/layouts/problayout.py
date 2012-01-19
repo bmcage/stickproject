@@ -29,7 +29,7 @@ number_fiber = 144
 blend = [51.4, 48.6]
 eps_value = 0.001
 fiber_config = ['tmpfiber1.ini', 'tmpfiber2.ini']
-prob_area = '[lambda r: 0.0173 * (0.360 * r**4  -3.397 * r ** 3 + 4.531 * r ** 2 - 1.979 * r + 0.496), lambda r: 0.01975 * (-1.061 * r ** 4 + 0.397 * r ** 3 + 0.606 * r ** 2 - 0.093* r + 0.152)]'
+prob_area = '[ lambda r: 0.0230 * (2.67999478 * r ** 4. -5.66339751 * r ** 3. + 3.07086875 * r ** 2. - 0.26131345 * r + 0.17273968), lambda r: 0.0275 * (1.13227791 * r **4 - 4.14156084 * r ** 3 + 4.39219104 * r ** 2 - 1.91494891 * r + 0.53275704)]'
 [plot]
 maxval = 0.0005
 plotevery = 10
@@ -47,7 +47,7 @@ verbose = True
 radius_pure_fiber = 0.052
 form = 'circle'
 nrlayers = 2
-mean_deviation = 0.0053
+mean_deviation = 0.0074
 [fiberlayer_0]
 thickness = 0.00085
 [fiberlayer_1]
@@ -66,7 +66,7 @@ radius_pure_fiber = 0.055
 form = 'ellipse'
 eccentricity = 0.7
 nrlayers = 2
-mean_deviation = 0.00541
+mean_deviation = 0.012
 [fiberlayer_0]
 thickness = 0.001
 [fiberlayer_1]
@@ -94,18 +94,37 @@ data_cotton = np.loadtxt(os.path.join(path,'../fiber_cotton.csv'))
 
 x_position_real_fiber = []
 y_position_real_fiber = []
+x_position_polyester = []
+y_position_polyester = []
+x_position_cotton = []
+y_position_cotton = []
+
 radius_real_fiber = []
+radius_polyester = []
+radius_cotton = []
 for i_polyester in sp.arange(len(data_polyester)):
-  x_position_real_fiber.append(data_polyester[i_polyester][0])
-  y_position_real_fiber.append(data_polyester[i_polyester][1])
-  radius_real_fiber.append(data_polyester[i_polyester][2])
+    x_position_real_fiber.append(data_polyester[i_polyester][0])
+    y_position_real_fiber.append(data_polyester[i_polyester][1])
+    x_position_polyester.append(data_polyester[i_polyester][0])
+    y_position_polyester.append(data_polyester[i_polyester][1])
+    radius_real_fiber.append(data_polyester[i_polyester][2])
+    radius_polyester.append(data_polyester[i_polyester][2])
 for i_cotton in sp.arange(len(data_cotton)):
-  x_position_real_fiber.append(data_cotton[i_cotton][0])
-  y_position_real_fiber.append(data_cotton[i_cotton][1])
-  radius_real_fiber.append(data_cotton[i_cotton][2])
+    x_position_real_fiber.append(data_cotton[i_cotton][0])
+    y_position_real_fiber.append(data_cotton[i_cotton][1])
+    x_position_cotton.append(data_cotton[i_cotton][0])
+    y_position_cotton.append(data_cotton[i_cotton][1])
+    radius_real_fiber.append(data_cotton[i_cotton][2])
+    radius_cotton.append(data_cotton[i_cotton][2])
 x_position_real_fiber = np.array(x_position_real_fiber)
 y_position_real_fiber = np.array(y_position_real_fiber)
+x_position_polyester = np.array(x_position_polyester)
+y_position_polyester = np.array(y_position_polyester)
+x_position_cotton = np.array(x_position_cotton)
+y_position_cotton = np.array(y_position_cotton)
 radius_real_fiber = np.array(radius_real_fiber)
+radius_polyester = np.array(radius_polyester)
+radius_cotton = np.array(radius_cotton)
 fiber_kind = np.zeros(len(radius_real_fiber), int)
 fiber_kind[len(data_polyester):] = 1
 
@@ -115,6 +134,45 @@ from yarn2d.arearatioprobability import (calculate_proportion,
 
 plot_yarn(x_position_real_fiber, y_position_real_fiber, radius_real_fiber, 
           fiber_kind, title='Real fiber-yarn layout')
+
+prob_real = calculate_proportion(1.0, radius_real_fiber, x_position_real_fiber, y_position_real_fiber,  
+           nrzones=5.)
+
+prob_poly = calculate_proportion(1.0, radius_polyester, x_position_polyester, y_position_polyester,
+            nrzones = 5.)
+
+prob_cotton = calculate_proportion(1.0, radius_cotton, x_position_cotton, y_position_cotton,
+            nrzones = 5.)
+
+zone_position_real = sp.ones(len(prob_real[0]) + 1, float)
+zone_position_real[0] = 0.
+zone_position_real[1:] = prob_real[0][:]
+zone_position_real[-1] = 1.
+ratio_poly = sp.zeros(len(prob_poly[-1]) + 1, float)
+ratio_cotton = sp.zeros(len(prob_cotton[-1])+1 , float)
+ratio_poly[:-1] = prob_poly[-1][:]
+ratio_cotton[:-1] = prob_cotton[-1][:]
+print len(zone_position_real), len(ratio_poly), len(x_position_polyester), len(x_position_cotton)
+poly_polyester = np.poly1d(np.polyfit(zone_position_real, ratio_poly, 4))
+poly_cotton = np.poly1d(np.polyfit(zone_position_real, ratio_cotton, 4))
+draw_real = sp.linspace(0., 1.0, 50)
+print np.polyfit(zone_position_real, ratio_poly, 4)
+print np.polyfit(zone_position_real, ratio_cotton, 4)
+raw_input("record the coefficients of polynomial equations")
+
+pylab.figure()
+pylab.subplot(211)
+pylab.plot(zone_position_real, ratio_poly, 'o')
+pylab.plot(draw_real, poly_polyester(draw_real), '--')
+pylab.xlim(0., 1.05)
+pylab.ylim(0., 0.8)
+pylab.subplot(212)
+pylab.plot(zone_position_real, ratio_cotton, '*')
+pylab.plot(draw_real, poly_cotton(draw_real), '-')
+pylab.xlim(0., 1.05)
+pylab.ylim(0., 0.8)
+pylab.axis()
+pylab.show()
 
 #set up a yarn computation
 from yarn.config import YarnConfigManager
@@ -144,14 +202,13 @@ ouroptions = {
 from yarn2d.fiber_layout import virtlocoverlaplayout
 #After generating n times of iteration, plot prob func result from the average ratio value
 
-iteration = 1
+iteration = 10
 each_time_ratio = [] 
 for i in range(iteration):
     x_position, y_position, all_radius_fibers, \
                     fiber_kind, type_fiber = virtlocoverlaplayout(ouroptions)
     plot_yarn(x_position, y_position, all_radius_fibers, 
               fiber_kind, title='Realization %d' % i)
-    raw_input("show the figures")
     ratio_each = [0] * type_fiber
     #zone_position = [0]
     for i_type in sp.arange(type_fiber):
@@ -169,13 +226,11 @@ for i in range(iteration):
         zone_position[0] = 0.
         zone_position[1:] = probs[0][:]
         zone_position[-1] = 1.
-        print 'the zone_position', zone_position
+
         ratio_each[i_type] = sp.ones(len(probs[-1]), float)
         ratio_each[i_type][:] = probs[-1][:]
         #the ratio value on the yarn's edge
-        print 'ratio value', ratio_each
         each_time_ratio.append(ratio_each[i_type])
-        raw_input("finish one kind")
 
 plot_ratio_function(zone_position, each_time_ratio, type_fiber, grid.prob_area)
 #meanraw_input("finish one loop for one kind of fiber")
