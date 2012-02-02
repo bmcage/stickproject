@@ -48,7 +48,7 @@ SHORTOPTS = "i:o"
 #solution methods and the possible submethods
 METHOD = {
     'FVM': ('Finite Volume Method discretization', 
-            ['odew', 'odeu', 'fipy', 'odew_step']),
+            ['cvode', 'cvode_step', 'odew', 'odeu', 'fipy', 'odew_step']),
     'SIMPLE': ('A constant mass approximation: dM/dt = - flux_surface',
             ['standard']),
     }
@@ -105,7 +105,7 @@ class Fiber1dConfigManager(ConfigManager):
         self.register("general.read", False)
         self.register("general.verbose", False)
         self.register("general.method", 'FVM')
-        self.register("general.submethod", 'odew')
+        self.register("general.submethod", 'cvode')
         self.register("general.fiber_kind", 'polyester')
 
         self.register("fiber.radius_pure_fiber", 0.01,
