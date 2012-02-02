@@ -30,7 +30,7 @@ import sys
 import const
 import numpy as np
 import scipy as sp
-from scipy.integrate import odeint, ode, trapz
+from scipy.integrate import ode, trapz
 import matplotlib.pyplot as plt
 import time
 
@@ -374,10 +374,6 @@ class FiberModel(object):
         flux_edge[-1] = self._bound_flux_uR(conc_r[-1], t)
 
     def f_conc1_ode(self, t, w_rep):
-        return self.f_conc1(w_rep, t)
-
-    def f_conc1(self, w_rep, t):
-        #print 'w_rep', w_rep
         grid = self.grid
         n_cell = len(grid)
         #Initialize the left side of ODE equations
@@ -399,9 +395,6 @@ class FiberModel(object):
         return diff_w_t
     
     def f_conc1_odeu(self, t, conc_r):
-        return self.f_conc1u(conc_r, t)
-    
-    def f_conc1u(self, conc_r, t):
         grid = self.grid
         n_cell = len(grid)
         #Initialize the left side of ODE equations
@@ -423,21 +416,6 @@ class FiberModel(object):
                         / self.porosity_domain[:])
         return diff_u_t
     
-    def solve_odeint(self):
-        self.__tmp_diff_w_t = sp.empty(n_cell, float)
-        self.__tmp_flux_edge = sp.empty(n_cell+1, float)
-        initial_w = self.initial_c1 * self.grid
-        self.solv=odeint(self.f_conc1, initial_w, self.times, rtol=1.0e-9, atol = 1.0e-10)
-        self.conc1=self.solv/ self.grid
-        self.view_sol(self.times, self.conc1)
-
-    def solve_odeintu(self):
-        self.__tmp_diff_w_t = sp.empty(n_cell, float)
-        self.__tmp_flux_edge = sp.empty(n_cell+1, float)
-        self.solv=odeint(self.f_conc1u, initial_c1, self.times)
-        self.conc1=self.solv
-        self.view_sol(self.times, self.conc1)
-
     def solve_ode_init(self):
         """
         Initialize the ode solver
@@ -680,34 +658,29 @@ class FiberModel(object):
         if self.method == 'FVM':
             if self.submethod == 'fipy':
                 self.solve_fipy()
-            else:            
-                if self.submethod == 'odeintw':
-                    self.solve_odeint()
-                elif  self.submethod == 'odew':
-                    self.solve_ode()
-                elif  self.submethod == 'odew_step':
-                    self.solve_ode_init()
-                    self.solution_view = CellVariable(name = "fiber concentration", 
-                                mesh = self.mesh_fiber,
-                                value = self.conc1[0][:])
-                    self.viewer =  Matplotlib1DViewer(vars = self.solution_view, 
-                                            datamin=0., 
-                                            datamax=1.2 * self.conc1[0].max())
-                    self.viewer.axes.set_title('time 0.0')
-                    self.viewer.plot()
-                    self.viewerplotcount = 1
-                    for nrt, time in enumerate(self.times[1:]):
-                        res = self.solve_ode_step(self.delta_t, needreinit=False)
-                        if self.viewerplotcount == 0:
-                            self.solution_view.setValue(self.conc1[nrt+1])
-                            self.viewer.axes.set_title('time %s' %str(time))
-                            self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'conc%s.png' % str(int(10*time)))
-                        self.viewerplotcount += 1
-                        self.viewerplotcount = self.viewerplotcount % self.plotevery
-                elif self.submethod == 'odeintu':
-                    self.solve_odeintu()
-                elif self.submethod == 'odeu':
-                    self.solve_odeu()
+            elif  self.submethod == 'odew':
+                self.solve_ode()
+            elif  self.submethod == 'odew_step':
+                self.solve_ode_init()
+                self.solution_view = CellVariable(name = "fiber concentration", 
+                            mesh = self.mesh_fiber,
+                            value = self.conc1[0][:])
+                self.viewer =  Matplotlib1DViewer(vars = self.solution_view, 
+                                        datamin=0., 
+                                        datamax=1.2 * self.conc1[0].max())
+                self.viewer.axes.set_title('time 0.0')
+                self.viewer.plot()
+                self.viewerplotcount = 1
+                for nrt, time in enumerate(self.times[1:]):
+                    res = self.solve_ode_step(self.delta_t, needreinit=False)
+                    if self.viewerplotcount == 0:
+                        self.solution_view.setValue(self.conc1[nrt+1])
+                        self.viewer.axes.set_title('time %s' %str(time))
+                        self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'conc%s.png' % str(int(10*time)))
+                    self.viewerplotcount += 1
+                    self.viewerplotcount = self.viewerplotcount % self.plotevery
+            elif self.submethod == 'odeu':
+                self.solve_odeu()
             if self.verbose:
                 print 'end mass = ', self.calc_mass(self.conc1[-1])
         elif self.method == 'SIMPLE':
@@ -731,15 +704,10 @@ class FiberModel(object):
         global res
         if self.submethod == 'fipy':
             res = self.solve_fipy_step()
-        else:            
-            if self.submethod == 'odeintw':
-                raise Exception, 'Not supported'
-            elif  self.submethod in ['odew', 'odew_step']:
-                res = self.solve_ode_step(step)
-            elif self.submethod == 'odeintu':
-                raise Exception, 'Not supported'
-            elif self.submethod == 'odeu':
-                raise Exception, 'Not supported'
+        elif  self.submethod in ['odew', 'odew_step']:
+            res = self.solve_ode_step(step)
+        elif self.submethod == 'odeu':
+            raise Exception, 'Not supported'
         return res
 
     def solve_init(self):
@@ -749,18 +717,12 @@ class FiberModel(object):
         if self.method == 'FVM':
             if self.submethod == 'fipy':
                 self.solve_fipy()
-            else:            
-                if self.submethod == 'odeintw':
-                    raise Exception, 'Not supported to step for odeint'
-                elif  self.submethod in ['odew', 'odew_step']:
-                    self.solve_ode_init()
-                elif self.submethod == 'odeintu':
-                    raise Exception, 'Not supported to step for odeint'
-                    self.solve()
-                elif self.submethod == 'odeu':
-                    self.solve_ode_init()
-                else:
-                    raise NotImplementedError
+            elif  self.submethod in ['odew', 'odew_step']:
+                self.solve_ode_init()
+            elif self.submethod == 'odeu':
+                self.solve_ode_init()
+            else:
+                raise NotImplementedError
         elif self.method == 'SIMPLE':
             self.solve_simple_init()
         else:
