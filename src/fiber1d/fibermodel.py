@@ -72,6 +72,18 @@ class FiberModel(object):
     fiber1d.FiberModel is a special diffusion model for a single radial 
     symmetric fiber which is composed of a specific material (cotton, polyester,...)
     and has a number of coatings.
+    
+    The equation solved is \partial_t C = 1/r \partial_r (r D \partial_r C). 
+    So the flux of rC over an interface is r D \partial_r C, or in other words,
+    in radial components, the flux is r times the flux in x component
+    
+    If a flux boundary condition is given as F, it is interpreted as 
+    requiring \partial_r C . n = F.
+    This is done by setting the normal flux of r D \partial_r C = r D F
+    
+    If an evaporation boundary condition is given, we assume an outward flux
+    at the surface of S h_lg (C_sat(T) - C_free) H(C - C_bo), so again, 
+    radially, this is multiplied with r.
     """
     def __init__(self, config):
         """ 
@@ -310,15 +322,19 @@ class FiberModel(object):
             if self.boundary_fib_left == 0:
                 flux_edge[0] = 0
             else:
+                # a FVM cannot do pure Neumann condition, instead we set the
+                # FVM flux D \partial_x C with the value we want for \partial_x C.
+                # eg: \partial_x C = F, set D \partial_x C = D F. 
+                # for radial coordinates, this flux times r.
                 flux_edge[0] = -self.boundary_fib_left * \
-                                self.grid_edge[0] #+ w_rep[0]/self.grid_edge[0]
+                                self.grid_edge[0] * self.diff_coef[0]
         else:
             print 'ERROR: boundary type left not implemented'
             sys.exit(0)
         #calculate normal val with w_rep = C*r, instead of C:
         flux_edge[-1] = self._bound_flux_uR(w_rep[-1]/self.grid_edge[-1], t)
-        #and correct, flux needed is r dC/dr in the PDE, not dw/dr 
-        flux_edge[-1] = flux_edge[-1] * self.grid_edge[-1] #+ w_rep[-1]/self.grid_edge[-1]
+        #and correct, flux needed is r times the x coord flux
+        flux_edge[-1] = flux_edge[-1] * self.grid_edge[-1]
 
     def _bound_flux_uR(self, conc_r, t):
         """
@@ -326,12 +342,17 @@ class FiberModel(object):
         the BC
         """
         if self.bound_right == FLUX:
-            return self.boundary_fib_right 
+            # a FVM cannot do pure Neumann condition, instead we set the
+            # FVM flux D \partial_x C with the value we want for \partial_x C.
+            # eg: \partial_x C = F, set D \partial_x C = D F
+            return self.boundary_fib_right * self.diff_coef[-1]
         elif self.bound_right == TRANSFER:
-            # a transfer coeff to the right
+            # a transfer coeff to the right, which is a given flux of
+            # h_tf * C
             return self.boundary_transf_right * conc_r \
                              * self.porosity_domain[-1]
         elif self.bound_right == EVAP:
+            # flux S h_lg (C_sat(T) - C_free) H(C - C_bo)
             eCy = self.out_conc(t)
             eCs = self.evap_satconc(self.temp)
             return (self.porosity_domain[-1] 
@@ -346,7 +367,7 @@ class FiberModel(object):
         Data is written to flux_edge, conc_r contains solution in the cell centers
         """
         if self.bound_left == FLUX:
-            flux_edge[0] = -self.boundary_fib_left
+            flux_edge[0] = -self.boundary_fib_left * self.diff_coef[0]
         else:
             print 'ERROR: boundary type left not implemented'
             sys.exit(0)
