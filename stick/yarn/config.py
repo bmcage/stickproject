@@ -71,17 +71,34 @@ class YarnConfigManager(ConfigManager):
 
     __instance = {}
     
-    def get_instance(inifile):
+    def get_instance(inifile, realdatastr=None):
         """ Use this function to get the instance of the ConfigManager 
         that will work on inifile
+        The configuration can be obtained with a filename or with the original
+        string given to get_instance, i.e., file '/home/me/myinifile.ini' can 
+        be obtained with '/home/me/myinifile.ini' and 'myinifile.ini'
         """
-        if inifile not in YarnConfigManager.__instance:
+        inifilebase = os.path.basename(inifile)
+        if inifile in YarnConfigManager.__instance:
+            return YarnConfigManager.__instance[inifile]
+        elif inifilebase  in YarnConfigManager.__instance:
+            return YarnConfigManager.__instance[inifilebase]
+        else:
             YarnConfigManager.__instance[inifile] = None # Set to 1 for __init__()
-            YarnConfigManager.__instance[inifile] = YarnConfigManager(inifile)
+            YarnConfigManager.__instance[inifile] = YarnConfigManager(inifile,
+                                                        realdatastr)
+            YarnConfigManager.__instance[inifilebase] = YarnConfigManager.__instance[inifile]
         return YarnConfigManager.__instance[inifile]
     get_instance = staticmethod(get_instance)
-    
-    def __init__(self, filename = INIFILE_DEFAULT):
+
+    def delete(inifile):
+        """remove the instance inifile from the loaded configurations"""
+        del YarnConfigManager.__instance[inifile]
+        if inifile != os.path.basename(inifile):
+            del YarnConfigManager.__instance[os.path.basename(inifile)]
+    delete = staticmethod(delete)
+
+    def __init__(self, filename = INIFILE_DEFAULT, realdatastr=None):
         """ 
         A singleton implementation of config.ConfigManager
         """
@@ -89,7 +106,7 @@ class YarnConfigManager(ConfigManager):
                 YarnConfigManager.__instance[filename] is not None):
             raise Exception("This class is a singleton per filename. "
                             "Use the get_instance() method")
-        ConfigManager.__init__(self, filename)
+        ConfigManager.__init__(self, filename, realdatastr)
 
     def register_defaults(self):
         """default ini settings for a DiffusionIT problem"""

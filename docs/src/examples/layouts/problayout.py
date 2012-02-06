@@ -12,7 +12,7 @@ from matplotlib.collections import PatchCollection
 
 
 # We start with inifile settings in 
-ini_yarn = """
+ini_yarn = u"""
 [general]
 method = 'FVM'
 submethod = 'fipy'
@@ -37,7 +37,7 @@ plotevery = 10
 writeevery = 100
 """
 
-ini_fiber1 = """
+ini_fiber1 = u"""
 [general]
 method = 'FVM'
 submethod = 'odew'
@@ -55,7 +55,7 @@ thickness = 0.00085
 [plot]
 plotevery = 1
 """
-ini_fiber2 = """
+ini_fiber2 = u"""
 [general]
 method = 'FVM'
 submethod = 'odew'
@@ -74,17 +74,6 @@ thickness = 0.001
 [plot]
 plotevery = 10
 """
-#create the ini files
-yarnf = open('tmpyarn.ini', 'w')
-yarnf.write(ini_yarn)
-yarnf.close()
-fibf = open('tmpfiber1.ini', 'w')
-fibf.write(ini_fiber1)
-fibf.close()
-fibf = open('tmpfiber2.ini', 'w')
-fibf.write(ini_fiber2)
-fibf.close()
-
 
 #read the statistic data from a real blended yarn from which the probability 
 #distribution in the ini file has been derived
@@ -175,9 +164,12 @@ pylab.axis()
 pylab.show()
 
 #set up a yarn computation
+from fiber.config import FiberConfigManager
 from yarn.config import YarnConfigManager
 from lib.utils.utils import set_outputdir
-cfg = YarnConfigManager.get_instance('tmpyarn.ini')
+cfgf1 = FiberConfigManager.get_instance('tmpfiber1.ini', realdatastr=ini_fiber1)
+cfgf2 = FiberConfigManager.get_instance('tmpfiber2.ini', realdatastr=ini_fiber2)
+cfg = YarnConfigManager.get_instance('tmpyarn.ini', realdatastr=ini_yarn)
 #create outputdir if not existing
 if not os.path.isdir('temp'):
     os.mkdir('temp')
