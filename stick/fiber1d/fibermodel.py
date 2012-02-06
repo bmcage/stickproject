@@ -153,6 +153,7 @@ class FiberModel(object):
         
         #data for stepwise operation
         self.initialized = False
+        self.solver = None
         
         self.__Rf_pure = None
         self.__Rf = None
@@ -433,6 +434,8 @@ class FiberModel(object):
         """
         Initialize the cvode solver
         """
+        if not HAVE_ODES:
+            raise Exception, 'Not possible to solve with given method, scikits.odes not available'
         self.initial_t = self.times[0]
         self.step_old_time = self.initial_t
         self.step_old_sol = self.initial_w1
@@ -908,7 +911,8 @@ class FiberModel(object):
             raw_input("Finished fiber1d run")
 
     def __del__(self):
-        if self.method == 'FVM':
-            if self.submethod in ['cvode', 'cvode_step']:
-                #remove the memory
+        if self.method == 'FVM' and self.submethod in ['cvode', 'cvode_step']:
+            #remove the memory
+            if self.solver:
                 del self.solver
+            self.solver = None

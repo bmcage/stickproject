@@ -97,7 +97,7 @@ class FiberConfigManager(ConfigManager):
             FiberConfigManager.__instance[inifile] = FiberConfigManager(inifile,
                                                                 realdatastr)
             FiberConfigManager.__instance[inifilebase] = FiberConfigManager.__instance[inifile]
-        
+        return FiberConfigManager.__instance[inifile]
     get_instance = staticmethod(get_instance)
 
     def delete(inifile):
