@@ -31,6 +31,7 @@ This package implements access to configuration.
 #---------------------------------------------------------------
 import os
 import time
+import io
 import ConfigParser
 import errno
 
@@ -93,7 +94,7 @@ class ConfigManager(object):
     settings are stored.
     """
     
-    def __init__(self, filename):
+    def __init__(self, filename, realdatastr=None):
         """ 
         Configure manager constructor takes an optional filename.
 
@@ -121,6 +122,7 @@ class ConfigManager(object):
         """
         self._cb_id = 0 # callback id counter
         self.filename = filename
+        self.realdata = realdatastr
         self.callbacks = {}
         self.default = {}
         self.help = {}
@@ -179,9 +181,15 @@ class ConfigManager(object):
         """ 
         Loads an .ini into self.data.
         """
-        if self.filename and os.path.exists(self.filename):
+        if self.filename:
             parser = ConfigParser.ConfigParser()
-            parser.read(self.filename)
+            if self.realdata is not None:
+                sb = io.StringIO(self.realdata)
+                parser.readfp(sb)
+            elif os.path.exists(self.filename):
+                parser.read(self.filename)
+            else:
+                raise ValueError, 'The file %s cannot be found' % self.filename
             for sec in parser.sections():
                 name = sec.lower()
                 if name not in self.data:
@@ -192,7 +200,9 @@ class ConfigManager(object):
                     value = eval_item(setting)
                     #Now, let's test and set:
                     if name in self.default and opt.lower() in self.default[name]:
-                        if type(value) == type(self.default[name][opt.lower()]):
+                        if ((isinstance(value, basestring) 
+                        and isinstance(self.default[name][opt.lower()], basestring))
+                        or (type(value) == type(self.default[name][opt.lower()]))):
                             self.data[name][opt.lower()] = value
                         else:
                             print ("WARNING: ignoring key with wrong type "

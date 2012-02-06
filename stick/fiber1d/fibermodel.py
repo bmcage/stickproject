@@ -659,7 +659,8 @@ class FiberModel(object):
             self.fiber_surface[tstep] = self.simple_sol[tstep] / V
             self.flux_at_surface[tstep] = self._bound_flux_uR(
                                             self.fiber_surface[tstep], time)
-        self.view_time(self.times, self.simple_sol, 'mass in cross section fiber')
+        if self.cfg.get('plot.plotmass'):
+            self.view_time(self.times, self.simple_sol, 'Mass in cross section fiber')
 
     def solve_odeu(self):
         self.initial_t = self.times[0]
@@ -684,7 +685,8 @@ class FiberModel(object):
         self.solution_fiber = CellVariable(name = "fiber concentration", 
                                 mesh = self.mesh_fiber,
                                 value = self.initial_c1 * self.porosity_domain, hasOld = 1)
-        self.viewer =  Viewer(vars = self.solution_fiber / self.porosity_domain, datamin=0., datamax= 1.1)
+        if self.plotevery:
+            self.viewer =  Viewer(vars = self.solution_fiber / self.porosity_domain, datamin=0., datamax= 1.1)
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
 
         if self.bound_left == FLUX and self.bound_right == FLUX:
@@ -755,13 +757,14 @@ class FiberModel(object):
         """
         
         def run_every_step(object, time, conc):
-            if object.viewerplotcount == 0:
-                object.solution_view.setValue(conc)
-                object.viewer.axes.set_title('time %s' %str(time))
-                object.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'conc%s.png' % str(int(10*time)))
-            object.viewerplotcount += 1
-            object.viewerplotcount = self.viewerplotcount % self.plotevery
-                    
+            if self.plotevery:
+                if object.viewerplotcount == 0:
+                    object.solution_view.setValue(conc)
+                    object.viewer.axes.set_title('time %s' %str(time))
+                    object.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'conc%s.png' % str(int(10*time)))
+                object.viewerplotcount += 1
+                object.viewerplotcount = self.viewerplotcount % self.plotevery
+
         if self.method == 'FVM':
             if self.submethod == 'fipy':
                 self.solve_fipy()
@@ -769,30 +772,32 @@ class FiberModel(object):
                 self.solve_odes()
             elif self.submethod == 'cvode_step':                    
                 self.solve_odes_init()
-                self.solution_view = CellVariable(name = "fiber concentration", 
+                if self.plotevery:
+                    self.solution_view = CellVariable(name = "fiber concentration", 
                             mesh = self.mesh_fiber,
                             value = self.conc1[0][:])
-                self.viewer =  Matplotlib1DViewer(vars = self.solution_view, 
+                    self.viewer =  Matplotlib1DViewer(vars = self.solution_view, 
                                         datamin=0., 
                                         datamax=1.2 * self.conc1[0].max())
-                self.viewer.axes.set_title('time 0.0')
-                self.viewer.plot()
-                self.viewerplotcount = 1
+                    self.viewer.axes.set_title('time 0.0')
+                    self.viewer.plot()
+                    self.viewerplotcount = 1
                 self.solve_odes(run_per_step =run_every_step, viewend=False)
 
             elif  self.submethod == 'odew':
                 self.solve_ode()
             elif  self.submethod == 'odew_step':
                 self.solve_ode_init()
-                self.solution_view = CellVariable(name = "fiber concentration", 
+                if self.plotevery:
+                    self.solution_view = CellVariable(name = "fiber concentration", 
                             mesh = self.mesh_fiber,
                             value = self.conc1[0][:])
-                self.viewer =  Matplotlib1DViewer(vars = self.solution_view, 
+                    self.viewer =  Matplotlib1DViewer(vars = self.solution_view, 
                                         datamin=0., 
                                         datamax=1.2 * self.conc1[0].max())
-                self.viewer.axes.set_title('time 0.0')
-                self.viewer.plot()
-                self.viewerplotcount = 1
+                    self.viewer.axes.set_title('time 0.0')
+                    self.viewer.plot()
+                    self.viewerplotcount = 1
                 self.solve_ode(run_per_step =run_every_step, viewend=False)
             elif self.submethod == 'odeu':
                 self.solve_odeu()
@@ -804,7 +809,8 @@ class FiberModel(object):
             raise NotImplementedError, 'Method %s is not implemented' % self.method
         if self.verbose:
             print 'Finished the fiber calculation'
-        self.view_time(self.times, self.flux_at_surface, 'Flux of DEET ($\mathrm{mg\cdot cm/s}$)')
+        if self.cfg.get('plot.plotflux'):
+            self.view_time(self.times, self.flux_at_surface, 'Flux of DEET ($\mathrm{mg\cdot cm/s}$)')
 
     def do_step(self, stoptime):
         """
@@ -850,20 +856,22 @@ class FiberModel(object):
         self.solution_view = CellVariable(name = "fiber concentration", 
                             mesh = self.mesh_fiber,
                             value = conc[0][:])
-        self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.20*conc.max())
+        if self.plotevery:
+            self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.20*conc.max())
         self.viewerplotcount = 0
         for time, con in zip(times[1:], conc[1:][:]):
             self.solution_view.setValue(con)
-            self.viewer.axes.set_title('Fiber Conc vs radius at time %s' %str(time))
-            self.viewer.axes.set_xlabel('Radius')
-            self.viewer.axes.set_ylabel('Conc')
-            if self.viewerplotcount == 0:
-               self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'conc%s.png' % str(int(10*time)))
-            else:
-                self.viewer.plot()
-                
-            self.viewerplotcount += 1
-            self.viewerplotcount = self.viewerplotcount % self.plotevery   
+            if self.plotevery:
+                self.viewer.axes.set_title('Fiber Conc vs radius at time %s' %str(time))
+                self.viewer.axes.set_xlabel('Radius')
+                self.viewer.axes.set_ylabel('Conc')
+                if self.viewerplotcount == 0:
+                   self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'conc%s.png' % str(int(10*time)))
+                else:
+                    self.viewer.plot()
+                    
+                self.viewerplotcount += 1
+                self.viewerplotcount = self.viewerplotcount % self.plotevery   
 
     def view_time(self, times, conc, title=None):
         draw_time = times/(3600.*24.*30.) # convert seconds to months
@@ -898,3 +906,9 @@ class FiberModel(object):
             self.dump_solution()
         if wait:
             raw_input("Finished fiber1d run")
+
+    def __del__(self):
+        if self.method == 'FVM':
+            if self.submethod in ['cvode', 'cvode_step']:
+                #remove the memory
+                del self.solver

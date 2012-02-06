@@ -80,17 +80,23 @@ class FiberConfigManager(ConfigManager):
 
     __instance = {}
     
-    def get_instance(inifile):
+    def get_instance(inifile, realdatastr=None):
         """ Use this function to get the instance of the ConfigManager 
         that will work on inifile
         """
         if inifile not in FiberConfigManager.__instance:
             FiberConfigManager.__instance[inifile] = None # Set for __init__()
-            FiberConfigManager.__instance[inifile] = FiberConfigManager(inifile)
+            FiberConfigManager.__instance[inifile] = FiberConfigManager(inifile,
+                                                                realdatastr)
         return FiberConfigManager.__instance[inifile]
     get_instance = staticmethod(get_instance)
-    
-    def __init__(self, filename = INIFILE_DEFAULT):
+
+    def delete(inifile):
+        """remove the instance inifile from the loaded configurations"""
+        del FiberConfigManager.__instance[inifile]
+    delete = staticmethod(delete)
+
+    def __init__(self, filename = INIFILE_DEFAULT, realdatastr=None):
         """ 
         A singleton implementation of config.ConfigManager
         """
@@ -98,7 +104,7 @@ class FiberConfigManager(ConfigManager):
                 FiberConfigManager.__instance[filename] is not None):
             raise Exception("This class is a singleton per filename. "
                             "Use the get_instance() method")
-        ConfigManager.__init__(self, filename)
+        ConfigManager.__init__(self, filename, realdatastr)
 
     def register_defaults(self):
         """default ini settings for a fiber1d problem"""
@@ -131,6 +137,7 @@ class FiberConfigManager(ConfigManager):
         self.register("fiberlayer_0.thickness", 0.0017,
             "thickness/width of the coating in mm")
         self.register("fiberlayer_0.diffusion_coef", 5.2e-9)
+        self.register("fiberlayer_0.diffusion_polymer_exp_factor", 0.)
         self.register("fiberlayer_0.init_conc", 'lambda x: 0.70')
         self.register("fiberlayer_0.porosity_layer", 1.0)
 
@@ -156,6 +163,9 @@ class FiberConfigManager(ConfigManager):
         self.register("time.time_period", 500.)
         self.register("time.dt", 5.0)
         #plot section
+        self.register("plot.plotflux", True, 'plot outflux over time')
+        self.register("plot.plotmass", True, 'plot mass over time')
         self.register("plot.plotevery", 10,
-            "When plotting over time, indicate how many steps dt to skip before plotting again")
+            "When plotting over time, indicate how many steps dt to skip before plotting again."
+            " If 0, no plot occurs")
 
