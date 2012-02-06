@@ -48,7 +48,7 @@ import lib.utils.utils as utils
 from fipy import Gmsh2D
 from fipy import *
 from yarn.config import FIBERLAYOUTS
-from fiber1d.config import Fiber1dConfigManager, FIBER_FORM, CIRCLE, ELLIPSE
+from fiber.config import FiberConfigManager, FIBER_FORM, CIRCLE, ELLIPSE
 
 from virtlocgeom import *
 from fiber_layout import *
@@ -101,7 +101,7 @@ class Yarn2dGrid(object):
             if not os.path.isabs(filename):
                 filename = os.path.normpath(os.path.join(
                             os.path.dirname(self.cfg.filename), filename))
-            cfg_fiber = Fiber1dConfigManager.get_instance(filename)
+            cfg_fiber = FiberConfigManager.get_instance(filename)
             self.Rf.append(cfg_fiber.get('fiber.radius_pure_fiber'))
             for i in range(cfg_fiber.get('fiber.nrlayers')):
                 section = 'fiberlayer_%i' % i

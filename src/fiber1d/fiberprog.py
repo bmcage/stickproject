@@ -35,7 +35,7 @@ import getopt
 #-------------------------------------------------------------------------
 from lib.utils.utils import set_outputdir
 import const
-import fiber1d.config as conf
+import fiber.config as conf
 
 #-------------------------------------------------------------------------
 #
@@ -78,7 +78,7 @@ def main(argv=None):
             writeini = True
     
     #Parse ini file to obtain parameters.
-    cfg = conf.Fiber1dConfigManager.get_instance(inifile)
+    cfg = conf.FiberConfigManager.get_instance(inifile)
     
     #create outputdir if not existing
     if not os.path.isdir(outputdir):

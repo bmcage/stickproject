@@ -45,7 +45,7 @@ from copy import copy
 #-------------------------------------------------------------------------
 import lib.utils.utils as utils
 import yarn.config as conf
-from fiber1d.config import Fiber1dConfigManager
+from fiber.config import FiberConfigManager
 from fiber1d.fibermodel import FiberModel
 
 #-------------------------------------------------------------------------
@@ -97,7 +97,7 @@ class Yarn1DModel(object):
             if not os.path.isabs(filename):
                 filename = os.path.normpath(os.path.join(
                             os.path.dirname(self.cfg.filename), filename))
-            self.cfg_fiber.append(Fiber1dConfigManager.get_instance(filename))
+            self.cfg_fiber.append(FiberConfigManager.get_instance(filename))
             #set values from the yarn on this inifile
             self.cfg_fiber[-1].set("time.time_period", self.time_period)
             #if self.cfg_fiber[-1].get("time.dt") > self.cfg.get("time.time_period"):

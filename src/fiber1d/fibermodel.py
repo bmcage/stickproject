@@ -48,7 +48,7 @@ except:
 #-------------------------------------------------------------------------
 import lib.utils.utils as utils
 import lib.utils.gridutils as GridUtils
-from fiber1d.config import (METHOD, FLUX, TRANSFER, EVAP, EVAPYARN,
+from fiber.config import (METHOD, FLUX, TRANSFER, EVAP, EVAPYARN,
                     BOUND_TYPE, FIBER_FORM,
                     CIRCLE, ELLIPSE)
 
