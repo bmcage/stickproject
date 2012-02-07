@@ -166,7 +166,7 @@ class FiberConfigManager(ConfigManager):
         self.register("boundary.evap_minbound", 0.,
             "The amount of concentration that cannot be removed by evaporation"
             ", so C_bo in the eq flux = S h_lg (C_sat(T) - C_free) H(C - C_bo)")
-        self.register("boundary.out_conc", "lambda t: 0.",
+        self.register("boundary.out_conc", "lambda t, data: 0.",
             "Function to return the amount of free compound at the surface of"
             " the fiber in terms of the time. So C_free in the eq "
             " flux = S h_lg (C_sat(T) - C_free) H(C - C_bo) ")

@@ -129,6 +129,8 @@ class YarnConfigManager(ConfigManager):
         self.register("domain.fiberlayout_method", 'random',
             "Method for the fiber layout, one of " 
             + ",".join(FIBERLAYOUTS.keys()))
+        self.register("domain.n_edge", 10, 'For 1D modelling, how many edges '
+            'the domain mesh has.')
         self.register("domain.theta_value", 0.05)
         self.register("domain.beta_value", 0.04)
         self.register("domain.radius_first_center_virtloc", 0.)
@@ -145,10 +147,10 @@ class YarnConfigManager(ConfigManager):
         self.register("fiber.prob_area", '[lambda r: r ** 2]')
 
         #initial section
-        self.register("initial.init_conc", 0., 
-            "Initial concentration of tracked compound in the yarn")
+        self.register("initial.init_conc", 'lambda x: 0.', 
+            "Initial concentration of tracked compound in the yarn in terms of radius")
         
-        self.register("diffusion.diffusion_conc", 2e-5,
+        self.register("diffusion.diffusion_coeff", 2e-5,
             "Diffusion coefficient of tracked compound in the yarn")
         self.register("boundary.boundary_exterior", 0.0)
         self.register("boundary.boundary_interior", 1.0)
@@ -166,7 +168,5 @@ class YarnConfigManager(ConfigManager):
             "When plotting tracked compound, set a max value for vertical axis")
         self.register("plot.plotevery", 10,
             "When plotting over time, indicate how many steps dt to skip before plotting again")
-
-        #writeout section
-        self.register("writeout.writeevery", 100,
+        self.register("plot.writeevery", 0,
             "When writing data out over time, indicate how many steps dt to skip")

@@ -99,8 +99,7 @@ def main(argv=None):
     model = Yarn1DModel(cfg)
     
     #pass further execution to the model
-    model.run()
+    model.run(wait=True)
 
 if __name__ == "__main__":
     main()
-

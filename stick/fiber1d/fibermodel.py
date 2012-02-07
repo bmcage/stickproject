@@ -105,6 +105,7 @@ class FiberModel(object):
         self.verbose = self.cfg.get('general.verbose')
         self.temp = 273.15 + 21 #temperature in Kelvin
         self.datatime = []
+        self.name = '0'
         self.method = self.cfg.get('general.method')
         if not (self.method in METHOD):
             print 'ERROR: unkown solution method %s' % self.method
@@ -153,6 +154,7 @@ class FiberModel(object):
         
         #data for stepwise operation
         self.initialized = False
+        self.yarndata = None
         self.solver = None
         
         self.__Rf_pure = None
@@ -365,8 +367,9 @@ class FiberModel(object):
                              * self.porosity_domain[-1]
         elif self.bound_right == EVAP:
             # flux S h_lg (C_sat(T) - C_free) H(C - C_bo)
-            eCy = self.out_conc(t)
+            eCy = self.out_conc(t, self.yarndata)
             eCs = self.evap_satconc(self.temp)
+
             return (self.porosity_domain[-1] 
                     * self.evap_transfer * (eCs - eCy) 
                     * Heaviside_oneside(conc_r - self.evap_minbound, 
@@ -441,6 +444,8 @@ class FiberModel(object):
         self.step_old_sol = self.initial_w1
         #data storage
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
+        self.ret_y = sp.empty(len(self.initial_c1), float)
+
         self.conc1[0][:] = self.initial_c1
         n_cell = len(self.grid)
         self.__tmp_diff_w_t = sp.empty(n_cell, float)
@@ -456,7 +461,7 @@ class FiberModel(object):
         """
         self.initial_t = self.times[0]
         self.solver = sc_ode('cvode', self.f_conc1_odes,
-                             max_steps=50000)
+                             max_steps=50000, lband=1, uband=1)
         self.solver.init_step(self.step_old_time, self.step_old_sol)
 
     def solve_odes(self, run_per_step = None, viewend = True):
@@ -494,26 +499,28 @@ class FiberModel(object):
         if needreinit = True, the solver is initialized first with the
             data present in step_old_time amd step_old_sol
         """
-        solver.set_options('tcrit', stoptime)
+        assert stoptime > self.step_old_time, "%f > %f" % (stoptime, self.step_old_time)
         if not self.initialized:
             raise Exception, 'Solver ode not initialized'
         if needreinit:
             self.solve_odes_reinit()
-        #create tiems at which we want output
-        times = sp.arange(self.step_old_time, stoptime, self.delta_t)
-        ret_y = sp.empty(len(self.step_old_sol), float)
+        else:
+            self.solver.set_tcrit(tcrit=stoptime)
+        compute = True
         #even is step is large, we don't compute for a longer time than delta_t
-        for time in times[1:]:
-            flag, realtime = self.solver(time, ret_y)
-            if flag != 0:
+        while compute:
+            t = self.step_old_time + self.delta_t
+            if  t >= stoptime - self.delta_t/100.:
+                t = stoptime
+                compute = False
+            flag, realtime = self.solver.step(t, self.ret_y)
+            if flag < 0:
                 raise Exception, 'could not find solution'
         
-        flag, realtime = self.solver(stoptime, ret_y)
-        if flag != 0:
-            raise Exception, 'could not find solution'
         self.step_old_time = realtime
-        self.step_old_sol = ret_y
-        return realtime, ret_y
+        self.step_old_sol = self.ret_y
+        assert np.allclose(realtime, stoptime, atol=1e-6, rtol=1e-6)
+        return realtime, self.ret_y
 
     def solve_ode_init(self):
         """
@@ -543,34 +550,36 @@ class FiberModel(object):
                             nsteps=50000)
         self.solver.set_initial_value(self.step_old_sol, self.step_old_time)
 
-    def do_step_ode(self, step, needreinit=True):
-        """
-        Solve the fibermodel for one step, continuing from the present
-        state, return the time and r* concentration after step
-        It is needed that run_init and solve_init method have been called
-        before calling this method.
-        
-        """
-        if not self.initialized:
-            raise Exception, 'Solver ode not initialized'
-        if needreinit:
-            self.solve_ode_reinit()
-        curt = self.solver.t
-        #print 'curt value', curt
-        while self.solver.t < curt + step - self.delta_t /10. and \
-        self.solver.t < self.step_old_time + step - self.delta_t /10.:
-            self.solver.integrate(self.solver.t + self.delta_t)
-            if not self.solver.successful():
-                raise Exception, 'could not find solution'
-
-        #return the concentration after step
-        self.solver.integrate(curt + step)
-        if not self.solver.successful():
-            raise Exception, 'could not find solution'
-        self.step_old_time += step
-        self.step_old_sol = self.solver.y
-        assert abs(self.solver.t - self.step_old_time) < 1e-15, "%f %f %g" % (self.solver.t, self.step_old_time, self.solver.t- self.step_old_time)
-        return self.solver.t, self.solver.y
+##    def do_step_ode(self, step, needreinit=True):
+##        """
+##        Solve the fibermodel for one step, continuing from the present
+##        state, return the time and r* concentration after step
+##        It is needed that run_init and solve_init method have been called
+##        before calling this method.
+##        
+##        """
+##        if not self.initialized:
+##            raise Exception, 'Solver ode not initialized'
+##        if needreinit:
+##            self.solve_ode_reinit()
+##        else:
+##            raise Exception, 'odew method requires reinit for stepwize operation'
+##        curt = self.solver.t
+##        #print 'curt value', curt
+##        while self.solver.t < curt + step - self.delta_t /10. and \
+##        self.solver.t < self.step_old_time + step - self.delta_t /10.:
+##            self.solver.integrate(self.solver.t + self.delta_t)
+##            if not self.solver.successful():
+##                raise Exception, 'could not find solution'
+##
+##        #return the concentration after step
+##        self.solver.integrate(curt + step)
+##        if not self.solver.successful():
+##            raise Exception, 'could not find solution'
+##        self.step_old_time += step
+##        self.step_old_sol = self.solver.y
+##        assert abs(self.solver.t - self.step_old_time) < 1e-15, "%f %f %g" % (self.solver.t, self.step_old_time, self.solver.t- self.step_old_time)
+##        return self.solver.t, self.solver.y
         
     def solve_ode(self, run_per_step = None, viewend = True):
         self.solve_ode_init()
@@ -815,7 +824,7 @@ class FiberModel(object):
         if self.cfg.get('plot.plotflux'):
             self.view_time(self.times, self.flux_at_surface, 'Flux of DEET ($\mathrm{mg\cdot cm/s}$)')
 
-    def do_step(self, stoptime):
+    def do_step(self, stoptime, needreinit=True):
         """
         Solve the diffusion process in the fiber up to stoptime 
         &C/&t = 1/r * &(Dr&C/&r) / &r
@@ -824,12 +833,11 @@ class FiberModel(object):
         The resulting time and r*concentration is returned
         """
         if  self.submethod in ['cvode', 'cvode_step']:
-            res = self.do_step_odes(step)
-        elif  self.submethod in ['odew', 'odew_step']:
-            res = self.do_step_ode(step)
-        elif self.submethod == 'odeu':
+            return self.do_step_odes(stoptime, needreinit)
+        #elif  self.submethod in ['odew', 'odew_step']:
+        #    res = self.do_step_ode(step)
+        else:
             raise Exception, 'Not supported'
-        return res
 
     def solve_init(self):
         """
@@ -869,9 +877,9 @@ class FiberModel(object):
                 self.viewer.axes.set_xlabel('Radius')
                 self.viewer.axes.set_ylabel('Conc')
                 if self.viewerplotcount == 0:
-                   self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'conc%s.png' % str(int(10*time)))
-                else:
-                    self.viewer.plot()
+                   self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'fiber%sconc%08.4f.png' % (name,time))
+                #else:
+                #    self.viewer.plot()
                     
                 self.viewerplotcount += 1
                 self.viewerplotcount = self.viewerplotcount % self.plotevery   

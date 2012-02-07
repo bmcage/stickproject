@@ -31,8 +31,15 @@ import sys
 import const
 import numpy as np
 import scipy as sp
-from scipy.integrate import ode
-from scipy.integrate import vode
+
+HAVE_ODES = False
+try:
+    from scikits.odes import ode as sc_ode
+    HAVE_ODES = True
+except:
+    print 'Could not load scikits.odes, odes solver not available'
+
+
 import matplotlib.pyplot as plt
 import sets
 import time
@@ -76,22 +83,24 @@ class Yarn1DModel(object):
         """
         self.datatime = []
         self.cfg = config
+        self.verbose = self.cfg.get('general.verbose')
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
-        self.steps = int(self.time_period / self.delta_t)
-        self.times = empty(self.steps+1, float)
-        i=1
-        self.times[0] = 0.
-        while i <= self.steps:
-            self.times[i] = self.times[i-1] + self.delta_t
-            i += 1
-            
+        self.steps = int((self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t)
+        self.times = sp.linspace(0., self.time_period, num=self.steps+1)
+        self.delta_t = self.times[1] - self.times[0]
+        if self.verbose:
+            print "Timestep used in yarn1d model:", self.delta_t
+        
+        self.diff_coef = self.cfg.get('diffusion.diffusion_coeff')
+        self.init_conc_func = eval(self.cfg.get('initial.init_conc'))
+        
         self.number_fiber = self.cfg.get('fiber.number_fiber')
         self.blend = self.cfg.get('fiber.blend')
-        self.nrtypefiber = self.cfg.get('fiber.number_type')
-        self.fiber_edge_result = [0] * self.nrtypefiber
-        assert self.nrtypefiber == len(self.blend) == len(self.cfg.get('fiber.fiber_config'))
-            
+        self.nr_models = self.cfg.get('fiber.number_type')
+        assert self.nr_models == len(self.blend) == len(self.cfg.get('fiber.fiber_config'))
+
+        #construct the config for the fibers
         self.cfg_fiber = []
         for filename in self.cfg.get('fiber.fiber_config'):
             if not os.path.isabs(filename):
@@ -100,40 +109,32 @@ class Yarn1DModel(object):
             self.cfg_fiber.append(FiberConfigManager.get_instance(filename))
             #set values from the yarn on this inifile
             self.cfg_fiber[-1].set("time.time_period", self.time_period)
-            #if self.cfg_fiber[-1].get("time.dt") > self.cfg.get("time.time_period"):
-                #self.cfg_fiber[-1].set("time.dt", self.cfg.get("time.time_period"))
-            self.cfg_fiber[-1].set("time.dt", self.delta_t) 
-            self.fiber_radius = self.cfg_fiber[-1].get("fiber.radius_pure_fiber") 
-            self.transfercoef = self.cfg_fiber[-1].get("boundary.transfer_right") 
+            if self.cfg_fiber[-1].get("time.dt") > self.cfg.get("time.dt"):
+                self.cfg_fiber[-1].set("time.dt", self.cfg.get("time.dt"))
+            #we need stepwize solution, we select cvode
+            self.cfg_fiber[-1].set("general.method", 'FVM')
+            self.cfg_fiber[-1].set("general.submethod", 'cvode_step')
+            #we check that boundary is transfer or evaporation
+            bty = self.cfg_fiber[-1].get("boundary.type_right")
+            if bty not in ['evaporation', 'transfer']:
+                raise ValueError, 'Boundary type for a fiber should be evaporation or transfer'
+            if self.verbose:
+                print 'NOTE: Fiber has boundary out of type %s' %  bty
 
-        #create fiber models
-        self.fiber_models = []
-        for cfg in self.cfg_fiber:
-            self.fiber_models.append(FiberModel(cfg))
-        self.nr_models = len(self.fiber_models)
-        self.verbose = self.cfg.get('general.verbose')
-                
         #some memory
         self.cache_index_t_yarn = 0
         self.cache_index_t_fiber = [0] * self.nr_models
         
         #Initialize the tortuosity
         self.tortuosity= self.cfg.get('yarn.tortuosity')
-        #constant diffusion coefficient
-        self.diffusioncoeff = self.cfg.get('diffusion.diffusion_conc')
         self.boundary_transf_right = self.cfg.get('boundary.transfer_conc1')
         self.evap_equilibrium = self.cfg.get('boundary.evap_equilibrium')
         self.nr_fibers = self.cfg.get('fiber.number_fiber')
-        self.blend=self.cfg.get('fiber.blend')
         
         self.plotevery = self.cfg.get("plot.plotevery")
-        
-        #storage for output
-        self.yarn = sp.empty(len(self.times), float)
-        self.flux = sp.empty(len(self.times), float)
-        
-        self.initialized = False
+        self.writeevery = self.cfg.get("plot.writeevery")
 
+        self.initialized = False
 
     def create_mesh(self):
         """
@@ -144,31 +145,49 @@ class Yarn1DModel(object):
         """
         self.beginning_point = 0 #center of the yarn, r=0, with r the distance from center yarn.
         self.end_point = self.cfg.get('domain.yarnradius')
-        self.nr_edge = 10
-        self.diff_coef = [0.]
-        self.init_conc = lambda x: 0.0
+        self.nr_edge = self.cfg.get('domain.n_edge')
         #we now construct the full edge grid
         self.grid_edge = sp.linspace(self.beginning_point, self.end_point, self.nr_edge)
         #construct cell centers from this
         self.grid = (self.grid_edge[:-1] + self.grid_edge[1:])/2.
         #obtain cell sizes
         self.delta_r = self.grid_edge[1:] - self.grid_edge[:-1]
-        #create cylindrical 1D grid over domain.
-        self.mesh_yarn = CylindricalGrid1D(dr=tuple(self.delta_r))
-        self.mesh_yarn.periodicBC = False
-        self.mesh_yarn = self.mesh_yarn + (self.beginning_point,)
+        grid_square = np.power(self.grid_edge, 2)
+        self.delta_rsquare = grid_square[1:] - grid_square[:-1]
+        
+        #create fiber models as needed: one per fibertype and per cell in the yarn model
+        self.fiber_models = [0] * (self.nr_edge - 1)
+        self.fiber_mass = np.empty((self.nr_edge - 1, self.nr_models), float)
+        self.source_mass = np.empty((self.nr_edge - 1, self.nr_models), float)
+        self.source = np.empty(self.nr_edge - 1, float)
+        for ind in range(self.nr_edge-1):
+            self.fiber_models[ind] = []
+            for cfg in self.cfg_fiber:
+                self.fiber_models[ind].append(FiberModel(cfg))
+
+        #create cylindrical 1D grid over domain for using fipy to view.
+        if self.plotevery:
+            self.mesh_yarn = CylindricalGrid1D(dr=tuple(self.delta_r))
+            self.mesh_yarn.periodicBC = False
+            self.mesh_yarn = self.mesh_yarn + (self.beginning_point,)
+
         print 'mesh', self.grid_edge, ', delta_r', self.delta_r
 
     def initial_yarn1d(self):
         """ initial concentration over the domain"""
         self.init_conc = sp.ones(self.nr_edge-1, float)
-        init_conc = self.cfg.get('initial.init_conc')
-        self.init_conc *= init_conc
-        self.conc = CellVariable(name = "Conc. Active Component", 
-                   mesh = self.mesh_yarn, value = self.init_conc)
-        self.viewer = None
-        #self.viewer = Viewer(vars = self.conc, datamin = 0., datamax = None)
-        
+        for ind, r in enumerate(self.grid):
+            self.init_conc[ind] = self.init_conc_func(r)
+
+    def out_conc(self, cellnr, t):
+        """
+        return the concentration of compound in the void zone of cell cellnr at
+        time t
+        """
+        timenowyarn = self.times[self.tstep]
+        if t >= timenowyarn:
+            return self.conc1[self.tstep, cellnr]
+        raise ValueError, 'out concentration should only be requested at a later time'
 
     def solve_fiber_init(self):
         """
@@ -178,287 +197,274 @@ class Yarn1DModel(object):
         discretize the right side of equation. The mesh in this 1-D condition is 
         uniform.
         """        
-        self.nr_timesteps = np.empty((self.nr_models),int)
-        self.timesteps = [0]*self.nr_models
-        self.fiber_surface = [0] * self.nr_models
-        for ind, model in enumerate(self.fiber_models):
-            print 'solving fibermodel', ind
-            model.run_init()
-            self.nr_timesteps[ind] = len(model.times)
-            self.timesteps[ind] = copy(model.times)            
-            self.fiber_surface[ind] = copy(model.fiber_surface)
-            
-    def solve_fiber_step(self, time):
+##        self.nr_timesteps = np.empty((self.nr_models),int)
+##        self.timesteps = [0]*self.nr_models
+##        self.fiber_surface = [0] * self.nr_models
+        
+        for ind, models in enumerate(self.fiber_models):
+            for type, model in enumerate(models):
+                model.run_init()
+                model.solve_init()
+                #rebind the out_conc method to a call to yarn1d
+                model.yarndata = ind
+                model.out_conc = lambda t, data: self.out_conc(data, t)
+                self.fiber_mass[ind, type] = model.calc_mass(model.initial_c1)
+
+    def do_fiber_step(self, stoptime):
         """
-        Solve the diffusion process on the fiber up to time, starting
+        Solve the diffusion process on the fiber up to stoptime, starting
         from where we where last. 
-        &C/&t = 1/r * &(Dr&C/&r) / &r
-        The diffusion coefficient is constant. The finite volume method is used to
-        discretize the right side of equation. The mesh in this 1-D condition is 
-        uniform. 
         The flux is the BC: S*h(C_equi - C_yarn(t))*H(C-C_b,C_equi-C_yarn(t))
         """
-        TODO_CHECK_NEXT
-        self.cfg_fiber[-1].set("boundary.type_right", 'evaporation') 
-        
-        for ind, model in enumerate(self.fiber_models):
-            model.out_conc = self.conc1[time][-1]
-            step = time - model.step_old_time
-            self.fiber_edge_result[ind] = model.run_step(step)[-1]     
-            
+        for ind, models in enumerate(self.fiber_models):
+            for type, model in enumerate(models):
+                time, result = model.do_step(stoptime, needreinit=False)
+                tmp = model.calc_mass(result)
+                self.source_mass[ind, type] = self.fiber_mass[ind, type] - tmp
+                self.fiber_mass[ind, type] = tmp
+
     def _set_bound_flux(self, flux_edge, conc_r):
         """
         Method that takes BC into account to set flux on edge
+        flux here is the flux per radial
         Data is written to flux_edge, conc_r contains solution in the cell centers
         """
-        flux_edge[0]=0.
-        #flux_edge[-1] = -self.boundary_transf_right * (self.evap_equilibrium-conc_r[-1])
-        flux_edge[-1] = self.boundary_transf_right * conc_r[-1]
-   
-    def get_source(self, t):
-        #find right index of interval for t in model.times and in self.times
-        if self.times[self.cache_index_t_yarn] <= t and \
-                t< self.times[self.cache_index_t_yarn+1] :
-            self.index_t_yarn = self.cache_index_t_yarn
-        else:
-            self.index_t_yarn = None
-            i = max([self.cache_index_t_yarn - 1,0])
-            while i < self.steps-1:
-                if self.times[i] <= t and t< self.times[i+1] :
-                    self.index_t_yarn = i
-                    break
-                i += 1
-            if self.index_t_yarn is None:
-                #backward in time, so reducing timestep it seems
-                i = self.cache_index_t_yarn-1
-                while i > 0:
-                    if self.times[i] <= t and t< self.times[i+1] :
-                        self.index_t_yarn = i
-                        break
-                    i -= 1
-            if self.index_t_yarn is None:
-                #no interval found
-                if t > self.times[-1]:
-                    self.index_t_yarn = self.steps-1
-                    print 'time over endtime', t, '>', self.times[-1], ", set index t to max", self.index_t_yarn
-                else:
-                    self.index_t_yarn = self.steps-1
-                    print "endtime,", t, self.times, ", set index t to max", self.index_t_yarn
-                    
-                    #raise exception, 'something wrong'
-        self.cache_index_t_yarn = self.index_t_yarn
+        flux_edge[0] = 0.
+        # tranfer flux, in x: flux_x  = tf * C, so radially per radial a flux
+        #  flux_radial = 2 Pi * radius * flux_x / 2 * Pi
+        flux_edge[-1] = self.boundary_transf_right * conc_r[-1] * self.grid_edge[-1]
+
+    def set_source(self, timestep):
+        """
+        Method to calculate the radial source term
+        Per radial we have the global equation 
+           \partial_t (r C) = \partial_r (D/tau) r \partial_r C + r Source
+        where Source is amount per time per volume released/absorbed
+        This equation is integrated over a shell, and we determine 
+            d_t w, with w = rC, where the sourceterm is \int_{r_i}^{r_{i+1}} r Source
+        and is the term here calculated and stored in self.source
+        As we assume Source constant over a shell, we have
+            sourceterm = Source * \Delta r_i^2 / 2
+        self.source_mass contains per shell how much mass was released in 
+        previous step by a fiber. Suppose this mass is A. 
+        We determine how many fibers there are radially, multiply this with A
+        and divide by volume and timestep to obtain Source
+        """
         
-        #the same now for the time of the fiber models
-        nr = 0
-        self.index_t_fiber = [0]*self.nr_models
-        
-        while nr < self.nr_models:
-            if self.timesteps[nr][self.cache_index_t_fiber[nr]] <= t and \
-                t< self.timesteps[nr][self.cache_index_t_fiber[nr]+1] :
-                self.index_t_fiber[nr] = self.cache_index_t_fiber[nr]
-                #print "interval found in loop 1"
-            else:
-                #self.index_t_fiber[nr] = None
-                i = max([self.cache_index_t_fiber[nr] - 1,0])
-                while i < self.nr_timesteps[nr] - 1:
-                        if self.timesteps[nr][i] <= t and t< self.timesteps[nr][i+1] :
-                            self.index_t_fiber[nr] = i
-                            break
-                        #print 'i', i, "index_t", self.index_t_fiber, "interval found in loop 2"
-                        i += 1                                    
-                if self.index_t_fiber[nr] is None:
-                    #backward in time, so reducing timestep it seems
-                    i = self.cache_index_t_fiber[nr]-1
-                    while i > 0:
-                        if self.timesteps[nr][i] <= t and t< self.timesteps[nr][i+1] :
-                            self.index_t_fiber[nr] = i
-                            break
-                        #print "interval found in loop 3"
-                        i -= 1                    
-                if self.index_t_fiber[nr] is None:
-                    #no interval found
-                    if t > self.timesteps[nr][-1]:
-                        print 'ERROR: time over endtime', t, '>', self.timesteps[nr][-1]
-                        self.index_t_fiber[nr] = self.nr_timesteps[nr] - 1
-                        break
-                    else:
-                        print nr, t, self.timesteps
-                        raise Exception, 'something wrong'
-            self.cache_index_t_fiber[nr] = self.index_t_fiber[nr]
-            nr+=1
+        #nrf is number of fibers in the shell at that grid position
+        # per radial
+        nrf_shell = (self.delta_rsquare/self.end_point**2 * self.nr_fibers 
+                     / 2. / np.pi)
+        for ind, pos in enumerate(self.grid):
+            self.source[ind] = 0.
+            for type, blend in enumerate(self.blend):
+                #nrf is number of fibers of blend in the shell at that grid position
+                # per radial
+                self.source[ind] += self.source_mass[ind, type] * nrf_shell[ind] * blend
+            self.source[ind] /= timestep
+        self.source *= self.delta_rsquare / 2.
 
-        #source term is n*Cf(R,r_i+,t)/2pi=(m*delta(r**2)_i/Ry**2)*Cf(R,r_i+,t)/2pi with n the number of fibers in a shell,
-        #m the number of fibers per yarn.
-        grid_square = np.power(self.grid_edge, 2)
-        self.delta_rsquare = grid_square[1:] - grid_square[:-1]
-        n = self.nr_fibers*self.delta_rsquare/(self.end_point**2)
+##    def get_source(self, t):
+##        #find right index of interval for t in model.times and in self.times
+##        if self.times[self.cache_index_t_yarn] <= t and \
+##                t< self.times[self.cache_index_t_yarn+1] :
+##            self.index_t_yarn = self.cache_index_t_yarn
+##        else:
+##            self.index_t_yarn = None
+##            i = max([self.cache_index_t_yarn - 1,0])
+##            while i < self.steps-1:
+##                if self.times[i] <= t and t< self.times[i+1] :
+##                    self.index_t_yarn = i
+##                    break
+##                i += 1
+##            if self.index_t_yarn is None:
+##                #backward in time, so reducing timestep it seems
+##                i = self.cache_index_t_yarn-1
+##                while i > 0:
+##                    if self.times[i] <= t and t< self.times[i+1] :
+##                        self.index_t_yarn = i
+##                        break
+##                    i -= 1
+##            if self.index_t_yarn is None:
+##                #no interval found
+##                if t > self.times[-1]:
+##                    self.index_t_yarn = self.steps-1
+##                    print 'time over endtime', t, '>', self.times[-1], ", set index t to max", self.index_t_yarn
+##                else:
+##                    self.index_t_yarn = self.steps-1
+##                    print "endtime,", t, self.times, ", set index t to max", self.index_t_yarn
+##                    
+##                    #raise exception, 'something wrong'
+##        self.cache_index_t_yarn = self.index_t_yarn
+##        
+##        #the same now for the time of the fiber models
+##        nr = 0
+##        self.index_t_fiber = [0]*self.nr_models
+##        
+##        while nr < self.nr_models:
+##            if self.timesteps[nr][self.cache_index_t_fiber[nr]] <= t and \
+##                t< self.timesteps[nr][self.cache_index_t_fiber[nr]+1] :
+##                self.index_t_fiber[nr] = self.cache_index_t_fiber[nr]
+##                #print "interval found in loop 1"
+##            else:
+##                #self.index_t_fiber[nr] = None
+##                i = max([self.cache_index_t_fiber[nr] - 1,0])
+##                while i < self.nr_timesteps[nr] - 1:
+##                        if self.timesteps[nr][i] <= t and t< self.timesteps[nr][i+1] :
+##                            self.index_t_fiber[nr] = i
+##                            break
+##                        #print 'i', i, "index_t", self.index_t_fiber, "interval found in loop 2"
+##                        i += 1                                    
+##                if self.index_t_fiber[nr] is None:
+##                    #backward in time, so reducing timestep it seems
+##                    i = self.cache_index_t_fiber[nr]-1
+##                    while i > 0:
+##                        if self.timesteps[nr][i] <= t and t< self.timesteps[nr][i+1] :
+##                            self.index_t_fiber[nr] = i
+##                            break
+##                        #print "interval found in loop 3"
+##                        i -= 1                    
+##                if self.index_t_fiber[nr] is None:
+##                    #no interval found
+##                    if t > self.timesteps[nr][-1]:
+##                        print 'ERROR: time over endtime', t, '>', self.timesteps[nr][-1]
+##                        self.index_t_fiber[nr] = self.nr_timesteps[nr] - 1
+##                        break
+##                    else:
+##                        print nr, t, self.timesteps
+##                        raise Exception, 'something wrong'
+##            self.cache_index_t_fiber[nr] = self.index_t_fiber[nr]
+##            nr+=1
+##
+##        #source term is n*Cf(R,r_i+,t)/2pi=(m*delta(r**2)_i/Ry**2)*Cf(R,r_i+,t)/2pi with n the number of fibers in a shell,
+##        #m the number of fibers per yarn.
+##        grid_square = np.power(self.grid_edge, 2)
+##        self.delta_rsquare = grid_square[1:] - grid_square[:-1]
+##        n = self.nr_fibers*self.delta_rsquare/(self.end_point**2)
+##
+##        fibersurf = 0.
+##        for ind, blend in enumerate(self.blend):
+##            #print "size fiber_surf", size(self.fiber_surface), "size index_t", size(self.index_t_fiber), "ind", ind, "t", self.index_t_fiber[ind]
+##            fiber_surf_t = self.fiber_surface[ind][self.index_t_fiber[ind]]  +\
+##                    (self.fiber_surface[ind][self.index_t_fiber[ind]+1] 
+##                      - self.fiber_surface[ind][self.index_t_fiber[ind]])\
+##                    /(self.timesteps[ind][self.index_t_fiber[ind]+1]
+##                       -self.timesteps[ind][self.index_t_fiber[ind]])\
+##                    *(t-self.timesteps[ind][self.index_t_fiber[ind]])
+##            fibersurf = fibersurf + fiber_surf_t * blend/100
+##        self.source[self.index_t_yarn,:]=n*fibersurf/(2*np.pi)
 
-        fibersurf = 0.
-        for ind, blend in enumerate(self.blend):
-            #print "size fiber_surf", size(self.fiber_surface), "size index_t", size(self.index_t_fiber), "ind", ind, "t", self.index_t_fiber[ind]
-            fiber_surf_t = self.fiber_surface[ind][self.index_t_fiber[ind]]  +\
-                    (self.fiber_surface[ind][self.index_t_fiber[ind]+1] 
-                      - self.fiber_surface[ind][self.index_t_fiber[ind]])\
-                    /(self.timesteps[ind][self.index_t_fiber[ind]+1]
-                       -self.timesteps[ind][self.index_t_fiber[ind]])\
-                    *(t-self.timesteps[ind][self.index_t_fiber[ind]])
-            fibersurf = fibersurf + fiber_surf_t * blend/100
-        self.source[self.index_t_yarn,:]=n*fibersurf/(2*np.pi)
-
-    def f_conc1_ode(self, t,conc_r):
-        return self.f_conc1(conc_r,t)
-
-    def f_conc1(self, conc_r, t):
+    def f_conc1_ode(self, t, conc_r, diff_u_t):
         ##print 't, concr', t, conc_r
         grid = self.grid
         n_cellcenters = len(grid)
-        #get the sourceterm on time t
-        self.get_source(t)
-        #solve a fiber model on radial position r in the yarn
-## TODO: update initial concentration for the fiber model on position r in yarn as the result of the last yarnsolution.
-## for now: 1 fibermodel is solved. The same fibersurface result is used in every cell.        
-        #self.solve_fiber()
-        #self.endconc=sp.empty((self.steps,n_cellcenters),float)
-        #for i in grid:
-                #self.endconc[i][:]=self.fiber_surface[:]            
         #Initialize the flux rate on the edges
-        flux_edge = sp.empty(n_cellcenters+1,float)
+        flux_edge = self.__tmp_flux_edge
         self._set_bound_flux(flux_edge, conc_r)
 
         #calculate flux rate in each edge of the domain
-        diff_u_t = sp.empty(n_cellcenters, float)
-        flux_edge[1:-1] = 2*(self.diffusioncoeff/self.tortuosity)*(self.grid_edge[1:-1]*(conc_r[1:]-conc_r[:-1]))\
-                          /(self.delta_r[:-1]+self.delta_r[1:])
-        diff_u_t=((flux_edge[1:]-flux_edge[:-1])+ self.source[self.index_t_yarn,:])/ (self.grid_edge[:-1]*self.delta_r + np.power(self.delta_r,2)/2) \
-                    
-        ##print 'diff', diff_u_t
-        #raw_input("cont")
-        return diff_u_t    
-    #def solve_odeint(self):
-        #self.conc1=odeint(self.f_conc1, initial_c1, self.times)
-        #self.view_sol(self.times, self.conc1)
-        
-    #def jac(self):
-        #n=self.nr_edge-2
-        #m=2*(self.nr_edge-2)+1
-        #jaco = zeros((n,n))
-        #i=1
-        #j=0
-        #while i <= m-1 and j<=n:
-           # jaco[j,i-1]= self.grid_edge[(i+1)/2]/(self.delta_r[(i+1)/2]+self.delta_r[(i-1)/2])
-           # jaco[j,i+1]= - self.grid_edge[(i+3)/2]/(self.delta_r[(i+3)/2]+self.delta_r[(i+1)/2]) - self.grid_edge[(i+1)/2]/(self.delta_r[(i+1)/2]+self.delta_r[(i-1)/2])
-            #jaco[j,i+3]= self.grid_edge[(i+3)/2]/(self.delta_r[(i+3)/2]+self.delta_r[(i+1)/2])
-            #i+=1
-            #j+=1
-            #print i,j
-        #jaco = jaco*2*(self.diffusioncoeff/self.tortuosity)    
-        #return jaco 
-        
+        flux_edge[1:-1] = (2 * (self.diff_coef/self.tortuosity) *
+                           self.grid_edge[1:-1]*(conc_r[1:]-conc_r[:-1])
+                           /(self.delta_r[:-1]+self.delta_r[1:]))
+        diff_u_t[:] = ( ((flux_edge[1:]-flux_edge[:-1]) + self.source[:])
+                        / self.delta_r[:] 
+                      )
+
+        return diff_u_t
+
     def solve_ode_init(self):
         """
         Initialize the ode solver
         """
         self.initial_t = self.times[0]
         self.step_old_time = self.initial_t
-        self.step_old_sol = self.init_conc
-        self.conc1 = np.empty((len(self.times), len(self.init_conc)), float)
-        self.source = sp.empty((self.steps, self.nr_edge-1), float)      
+        n_cells = len(self.init_conc)
+        self.conc1 = np.empty((len(self.times), n_cells), float)
+        self.ret_y = np.empty(n_cells, float)
+        self.__tmp_flux_edge = sp.empty(n_cells+1, float)
         self.tstep = 0
         self.conc1[0][:] = self.init_conc[:]
-        self.solve_ode_reinit()
-        self.initialized = True    
         
-    def solve_ode_reinit(self):
+        self.solver = sc_ode('cvode', self.f_conc1_ode,
+                             max_steps=50000, lband=1, uband=1)
+        self.solver.init_step(self.step_old_time, self.init_conc)
+        self.initialized = True
+
+    def do_ode_step(self, stoptime):
+        """Solve the yarnmodel up to stoptime, continuing from the present
+           state, return the time, concentration after step
         """
-        Reinitialize the ode solver to start again
-        """
-        self.initial_t = self.times[0]
-        self.solver = ode(self.f_conc1_ode).set_integrator('vode', 
-                            method = 'bdf',lband=1,uband=1,
-                            nsteps=50000)
-        self.solver.set_initial_value(self.step_old_sol, self.step_old_time)
-        
-    def solve_ode_step(self, step, needreinit=True):
-        """Solve the yarnmodel for one step, continuing from the present
-           state, return the concentration after step
-        """
-        if self.delta_t > step*1.001:
-            raise Exception, 'dt set larger than stepsize, decrease: %f > %f' % (self.delta_t, step)
+        self.solver.set_tcrit(tcrit=stoptime)
         if not self.initialized:
             raise Exception, 'Solver ode not initialized'
-        if needreinit:
-            self.solve_ode_reinit()
-        curt = self.solver.t
-        while self.solver.successful() and self.solver.t < curt + step - self.delta_t /10. and \
-        self.solver.t < self.step_old_time + step - self.delta_t /10.:
-            #print 'length of solution', len(self.solver.y)
-            #print 'length of grid', len(self.grid)
-            self.solver.integrate(self.solver.t + self.delta_t)
-            self.tstep += 1
-            #print 'self.solver.y', self.solver.y
-            self.conc1[self.tstep][:] = self.solver.y
-        self.solver.integrate(curt + step)
-        self.step_old_time += step
-        self.step_old_sol = self.solver.y
-        assert self.solver.t == self.step_old_time, "%f %f" % (self.solver.t, self.step_old_time)
-        return self.conc1[-1][:]
-                
-    def solve_ode(self):
-        self.initial_t = 0.
-        endT = self.time_period
-        self.conc1 = np.empty((len(self.times), len(self.init_conc)), float)
-        self.source = sp.empty((self.steps, self.nr_edge-1), float)
-        #r = ode(self.f_conc1_ode,self.jac).set_integrator('vode', method = 'bdf', with_jacobian= True)
-        r = ode(self.f_conc1_ode).set_integrator('vode', method = 'bdf', lband=1, uband=1)
-        r.set_initial_value(self.init_conc, self.initial_t)
-        tstep = 0
-        self.conc1[tstep][:] = self.init_conc[:]
-        while r.successful() and r.t < endT - self.delta_t /10.:
-            r.integrate(r.t + self.delta_t)
-            tstep += 1
-            self.conc1[tstep][:] =  r.y
-            print "r.y", self.conc1[tstep][:]
-        return self.conc1[-1][:]
-        self.view_sol(self.times, self.conc1)
-        raw_input("view solution")
-        
-  
+
+        compute = True
+        #even is step is large, we don't compute for a longer time than delta_t
+        while compute:
+            t = self.step_old_time + self.delta_t
+            if  t >= stoptime - self.delta_t/100.:
+                t = stoptime
+                compute = False
+            flag, realtime = self.solver.step(t, self.ret_y)
+            if flag < 0:
+                raise Exception, 'could not find solution, flag %d' % flag
+        assert np.allclose(realtime, stoptime), "%f %f" % (realtime, stoptime)
+        self.tstep += 1
+        self.conc1[self.tstep][:] = self.ret_y[:]/self.grid[:]
+        self.step_old_time = stoptime
+        return stoptime, self.ret_y
+
     def view_sol(self, times, conc):
         """
         Show the solution in conc with times.
         conc[i][:] contains solution at time times[i]
         """
-        self.solution_view = CellVariable(name = "yarn concentration", mesh = self.mesh_yarn, value = conc[0][:])
-        self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.20*conc.max())
-        self.viewerplotcount = 0
-        for time, con in zip(times[1:], conc[1:][:]):
-            self.solution_view.setValue(con)
-            if self.viewerplotcount == 0:
-               self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'conc%s.png' % str(int(10*time)))
-               self.viewer.axes.set_title('time %s' %str(time))
-            else:
-                self.viewer.plot()
-                self.viewer.axes.set_title('time %s' %str(time))
-            self.viewerplotcount += 1
-            self.viewerplotcount = self.viewerplotcount % self.plotevery 
-            #if time == 200.0:
-             #   dump.write({'space_position': self.grid, 'conc1': con},
-              #              filename = utils.OUTPUTDIR + os.sep + 'ode_t2.gz', extension = '.gz')>>>>>>> ab40eed853b9d1f1ddeeb7b6d537bf516b10c1d6
-            
-    #def solve_ode_step(self):
-        
-                
-    def run(self):        
+        if self.plotevery:
+            self.solution_view = CellVariable(name = "Yarn radial concentration", mesh = self.mesh_yarn, value = conc[0][:])
+            self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.20*conc.max())
+            self.viewerplotcount = 0
+            self.viewerwritecount = 0
+            for time, con in zip(times, conc):
+                self.solution_view.setValue(con)
+                if self.viewerplotcount == 0:
+                   self.viewer.plot()
+                   self.viewer.axes.set_title('time %s' %str(time))
+                self.viewerplotcount += 1
+                self.viewerplotcount = self.viewerplotcount % self.plotevery
+                if self.writeevery:
+                    if self.viewerwritecount == 0:
+                        self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'yarnconc%08.4f.png' % time)
+                    self.viewerwritecount += 1
+                    self.viewerwritecount = self.viewerwritecount % self.writeevery
+
+    def run(self, wait=False): 
         self.create_mesh()
         self.initial_yarn1d()
         self.solve_fiber_init()
         if not self.initialized:
             self.solve_ode_init()
-        print 'concentration yarn=', self.conc1
-        for ind, t in enumerate(self.times[1:]):
-            print 'solving t', t
-            step = self.times[ind+1] - self.times[ind]
-##            for x in self.grid:
-##                print 'grid x'
-            self.solve_fiber_step(step)
-            self.solve_ode_step(step)            
+        
+        print 'Start mass of DEET per grid cell per fiber type'
+        for ind, masses in enumerate(self.fiber_mass):
+            print 'cell', ind,
+            for mass in masses:
+                print mass, ' - ',
+            print ' '
+
+        for t in self.times[1:]:
+            #print 'solving t', t
+            self.do_fiber_step(t)
+            self.set_source(t-self.step_old_time)
+            self.do_ode_step(t)
+
+        print 'Final mass of DEET per grid cell per fiber type'
+        for ind, masses in enumerate(self.fiber_mass):
+            print 'cell', ind,
+            for mass in masses:
+                print mass, ' - ',
+            print ' '
+
+        self.view_sol(self.times, self.conc1)
+
+        if wait:
+            raw_input("Finished fiber1d run")
