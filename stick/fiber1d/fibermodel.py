@@ -498,6 +498,8 @@ class FiberModel(object):
         
         if needreinit = True, the solver is initialized first with the
             data present in step_old_time amd step_old_sol
+            
+        Return: concentration over the grid
         """
         assert stoptime > self.step_old_time, "%f > %f" % (stoptime, self.step_old_time)
         if not self.initialized:
@@ -508,8 +510,9 @@ class FiberModel(object):
             self.solver.set_tcrit(tcrit=stoptime)
         compute = True
         #even is step is large, we don't compute for a longer time than delta_t
+        t = self.step_old_time
         while compute:
-            t = self.step_old_time + self.delta_t
+            t +=  self.delta_t
             if  t >= stoptime - self.delta_t/100.:
                 t = stoptime
                 compute = False
@@ -520,7 +523,7 @@ class FiberModel(object):
         self.step_old_time = realtime
         self.step_old_sol = self.ret_y
         assert np.allclose(realtime, stoptime, atol=1e-6, rtol=1e-6)
-        return realtime, self.ret_y
+        return realtime, self.ret_y / self.grid
 
     def solve_ode_init(self):
         """
