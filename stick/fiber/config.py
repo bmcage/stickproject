@@ -179,4 +179,3 @@ class FiberConfigManager(ConfigManager):
         self.register("plot.plotevery", 10,
             "When plotting over time, indicate how many steps dt to skip before plotting again."
             " If 0, no plot occurs")
-
