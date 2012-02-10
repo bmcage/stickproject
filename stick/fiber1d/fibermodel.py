@@ -106,6 +106,8 @@ class FiberModel(object):
         self.temp = 273.15 + 21 #temperature in Kelvin
         self.datatime = []
         self.name = '0'
+
+        self.solver = None
         self.method = self.cfg.get('general.method')
         if not (self.method in METHOD):
             print 'ERROR: unkown solution method %s' % self.method
@@ -155,7 +157,6 @@ class FiberModel(object):
         #data for stepwise operation
         self.initialized = False
         self.yarndata = None
-        self.solver = None
         
         self.__Rf_pure = None
         self.__Rf = None
@@ -340,8 +341,9 @@ class FiberModel(object):
                 # FVM flux D \partial_x C with the value we want for \partial_x C.
                 # eg: \partial_x C = F, set D \partial_x C = D F. 
                 # for radial coordinates, this flux times r.
-                flux_edge[0] = -self.boundary_fib_left * \
-                                self.grid_edge[0] * self.diff_coef[0]
+                flux_edge[0] =  -(self.porosity_domain[0] * self.diffusion_coeff[0] * 
+                            sp.exp(-self.diffusion_exp_fact[0] * w_rep[0]/self.grid_edge[0]) \
+                        ) * self.boundary_fib_left * self.grid_edge[0]
         else:
             print 'ERROR: boundary type left not implemented'
             sys.exit(0)
@@ -357,9 +359,11 @@ class FiberModel(object):
         """
         if self.bound_right == FLUX:
             # a FVM cannot do pure Neumann condition, instead we set the
-            # FVM flux D \partial_x C with the value we want for \partial_x C.
-            # eg: \partial_x C = F, set D \partial_x C = D F
-            return self.boundary_fib_right * self.diff_coef[-1]
+            # FVM flux - D \partial_x C with the value we want for \partial_x C.
+            # eg: \partial_x C = F, set - D \partial_x C = - D F
+            return -(self.porosity_domain[-1] * self.diffusion_coeff[-1] * 
+                            sp.exp(-self.diffusion_exp_fact[-1] * conc_r) \
+                        ) * self.boundary_fib_right
         elif self.bound_right == TRANSFER:
             # a transfer coeff to the right, which is a given flux of
             # h_tf * C
@@ -382,7 +386,7 @@ class FiberModel(object):
         Data is written to flux_edge, conc_r contains solution in the cell centers
         """
         if self.bound_left == FLUX:
-            flux_edge[0] = -self.boundary_fib_left * self.diff_coef[0]
+            flux_edge[0] = -self.boundary_fib_left * self.diffusion_coeff[0]
         else:
             print 'ERROR: boundary type left not implemented'
             sys.exit(0)
@@ -925,5 +929,6 @@ class FiberModel(object):
         if self.method == 'FVM' and self.submethod in ['cvode', 'cvode_step']:
             #remove the memory
             if self.solver:
+                print 'del self.solver'
                 del self.solver
             self.solver = None

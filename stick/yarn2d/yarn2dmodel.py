@@ -117,7 +117,7 @@ class Yarn2DModel(object):
         self.radius_fiber =  [self.scaleL * rad for rad in self.Rf]
         
         self.plotevery = self.cfg.get("plot.plotevery")
-        self.writeevery = self.cfg.get("writeout.writeevery")
+        self.writeevery = self.cfg.get("plot.writeevery")
         self.writeoutcount = 0
     
     def create_mesh(self):
