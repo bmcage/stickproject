@@ -117,8 +117,8 @@ radius_cotton = np.array(radius_cotton)
 fiber_kind = np.zeros(len(radius_real_fiber), int)
 fiber_kind[len(data_polyester):] = 1
 
-from yarn2d.fiber_layout import plot_yarn
-from yarn2d.arearatioprobability import (calculate_proportion, 
+from stick.yarn2d.fiber_layout import plot_yarn
+from stick.yarn2d.arearatioprobability import (calculate_proportion, 
             plot_ratio_function)
 
 plot_yarn(x_position_real_fiber, y_position_real_fiber, radius_real_fiber, 
@@ -164,9 +164,9 @@ pylab.axis()
 pylab.show()
 
 #set up a yarn computation
-from fiber.config import FiberConfigManager
-from yarn.config import YarnConfigManager
-from lib.utils.utils import set_outputdir
+from stick.fiber.config import FiberConfigManager
+from stick.yarn.config import YarnConfigManager
+from stick.lib.utils.utils import set_outputdir
 cfgf1 = FiberConfigManager.get_instance('tmpfiber1.ini', realdatastr=ini_fiber1)
 cfgf2 = FiberConfigManager.get_instance('tmpfiber2.ini', realdatastr=ini_fiber2)
 cfg = YarnConfigManager.get_instance('tmpyarn.ini', realdatastr=ini_yarn)
@@ -175,7 +175,7 @@ if not os.path.isdir('temp'):
     os.mkdir('temp')
 set_outputdir('temp')
 #create 10 2D grids for statistics
-from yarn2d.yarn2dgrid import Yarn2dGrid
+from stick.yarn2d.yarn2dgrid import Yarn2dGrid
 grid = Yarn2dGrid(cfg)
 ouroptions = {
                 'x_central' : grid.x_central,
@@ -191,7 +191,7 @@ ouroptions = {
                 'radius_first_center': cfg.get(
                                     'domain.radius_first_center_virtloc'),
                 }
-from yarn2d.fiber_layout import virtlocoverlaplayout
+from stick.yarn2d.fiber_layout import virtlocoverlaplayout
 #After generating n times of iteration, plot prob func result from the average ratio value
 
 iteration = 10

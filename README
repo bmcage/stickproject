@@ -4,9 +4,39 @@ The following packages *MUST* be installed in order for STICK to work:
 
 * python 2.6+
 * numpy-scipy-matplotlib
+* scikits.odes
+
+Installation
+------------
+To only build stick:
+$ python setup.py build
+
+To install globally
+$ python setup.py install
 
 Documentation
 -------------
 
 See the doc folder. Idea is to use sphinx with rst doc format,
 see  (http://docutils.sourceforge.net/docs/user/rst/quickref.html), so doc builds automatic
+
+There are some examples in docs/src/examples (see also the tests for example usage)
+
+from an example directory, run the example, eg for problayout.py :
+
+$ python problayout.py
+
+If scikits.odes is not installed, but only buil, and stick only in a git repo, point PYTHONPATH to the directory as needed, eg
+
+$PYTHONPATH=/home/benny/git/odes/build/lib.linux-x86_64-2.7/:/home/benny/git/stickproject/ python problayout.py
+
+
+Tests
+-----
+If stick is installed (or from the top directory of stickproject)
+
+$ python -c 'import stick; stick.test()'
+
+if scikits.odes is not installed, but only build, point PYTHONPATH to the build directory
+
+$ PYTHONPATH=/home/benny/git/odes/build/lib.linux-x86_64-2.7/ python -c 'import stick; stick.test()'
