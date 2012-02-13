@@ -104,7 +104,6 @@ class FiberModel(object):
         self.cfg = config
         self.verbose = self.cfg.get('general.verbose')
         self.temp = 273.15 + 21 #temperature in Kelvin
-        self.datatime = []
         self.name = '0'
 
         self.solver = None

@@ -28,6 +28,7 @@ This package implements config defaults for DiffusionIT
 # local imports
 #
 #---------------------------------------------------------------
+from __future__ import division
 import os
 import const
 from lib.config import ConfigManager
@@ -37,14 +38,10 @@ from lib.config import ConfigManager
 # Constants
 #
 #---------------------------------------------------------------
-INIFILE_DEFAULT = const.INI_DIR + os.sep + 'fiber' + os.sep + 'default.ini'
+INIFILE_DEFAULT = const.INI_DIR + os.sep + 'fabric' + os.sep + 'defaultfabric.ini'
 
 LONGOPTS = ["inifile", 'outputdir']
 SHORTOPTS = "i:o" 
-
-METHOD = {
-    'FVM': ('Finite Volume Method discretization', ['cvode']),
-    }
 
 #---------------------------------------------------------------
 #
@@ -54,33 +51,46 @@ METHOD = {
 
 class BednetConfigManager(ConfigManager):
 
-    __instance = None
+    __instance = {}
     
-    def get_instance(inifile):
+    def get_instance(inifile, realdatastr=None):
         """ Use this function to get the instance of the ConfigManager 
         that will work on inifile
         """
-        if BednetConfigManager.__instance is None:
-            BednetConfigManager.__instance = 1 # Set to 1 for __init__()
-            BednetConfigManager.__instance = BednetConfigManager(inifile)
-        return BednetConfigManager.__instance
+        inifilebase = os.path.basename(inifile)
+        if inifile in BednetConfigManager.__instance:
+            return BednetConfigManager.__instance[inifile]
+        elif inifilebase in BednetConfigManager.__instance:
+            return BednetConfigManager.__instance[inifilebase]
+        else:
+            BednetConfigManager.__instance[inifile] = None # Set for __init__()
+            BednetConfigManager.__instance[inifile] = BednetConfigManager(inifile,
+                                                                realdatastr)
+            BednetConfigManager.__instance[inifilebase] = BednetConfigManager.__instance[inifile]
+        return BednetConfigManager.__instance[inifile]
     get_instance = staticmethod(get_instance)
-    
-    def __init__(self, filename = INIFILE_DEFAULT):
+
+    def delete(inifile):
+        """remove the instance inifile from the loaded configurations"""
+        del BednetConfigManager.__instance[inifile]
+        if inifile != os.path.basename(inifile):
+            del BednetConfigManager.__instance[os.path.basename(inifile)]
+    delete = staticmethod(delete)
+
+    def __init__(self, filename = INIFILE_DEFAULT, realdatastr=None):
         """ 
         A singleton implementation of config.ConfigManager
         """
-        if BednetConfigManager.__instance is not 1:
-            raise Exception("This class is a singleton. "
+        if (filename not in BednetConfigManager.__instance) or (
+                BednetConfigManager.__instance[filename] is not None):
+            raise Exception("This class is a singleton per filename. "
                             "Use the get_instance() method")
-        ConfigManager.__init__(self, filename)
+        ConfigManager.__init__(self, filename, realdatastr)
 
     def register_defaults(self):
         """default ini settings for a DiffusionIT problem"""
         self.register("general.read", False)
         self.register("general.verbose", False)
-        self.register("general.method", 'FVM')
-        self.register("general.submethod", 'fipy')
         
         self.register("observer.x0",6)
         
@@ -91,7 +101,7 @@ class BednetConfigManager(ConfigManager):
         self.register("domain.dy", 2.5e-3)
         
         self.register("sample.size_sample", [2e-2, 4.92e-3])
-        self.register("sample.yarn_config", ['../yarn2d/defaultyarn.ini'])
+        self.register("sample.yarn_config", ['../yarn/defaultyarn.ini'])
 
         #size_hole section describing the square holes in the net
         self.register("size_hole.net_width", 1.0e-3,
@@ -104,14 +114,14 @@ class BednetConfigManager(ConfigManager):
             "the domain of repelling the mosquito")
         self.register("size_hole.dis_effect", 4)
 
-        self.register("diffusion_DEET.diffusion_coef_DEET", 5.0e-8)
-        self.register("diffusion_DEET.tortuosity_fab", 2.)
-        self.register("diffusion_DEET.diff_DEET_void", 7.0e-8)
+        self.register("diffusion.diff_coef", 5.0e-8)
+        self.register("diffusion.tortuosity_fab", 2.)
+        self.register("diffusion.diff_DEET_void", 7.0e-8)
         
         self.register("saturation.saturation_conc", 5.0)
         
-        self.register("initial.initial_conc_DEET", 0.0)
-        self.register("initial.initial_DEET_void", 0.0)
+        self.register("initial.init_conc", 0.0)
+        self.register("initial.init_void", 0.0)
         
         self.register("boundary.boundary_up", 0.0)
         self.register("boundary.boundary_bottom", 0.0)
@@ -123,6 +133,3 @@ class BednetConfigManager(ConfigManager):
         
         self.register("time.time_period", 5000.)
         self.register("time.dt", 100.0)
-        
-        
-        

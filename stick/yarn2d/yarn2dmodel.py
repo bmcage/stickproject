@@ -74,7 +74,6 @@ class Yarn2DModel(object):
         """ 
         a config class must be passed in that contains the required settings
         """
-        self.datatime = []
         self.cfg = config
 
         self.verbose = self.cfg.get('general.verbose')

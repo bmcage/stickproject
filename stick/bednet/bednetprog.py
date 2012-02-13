@@ -25,6 +25,7 @@
 # Python modules
 #
 #-------------------------------------------------------------------------
+from __future__ import division
 import sys, os, shutil
 import getopt
 import time

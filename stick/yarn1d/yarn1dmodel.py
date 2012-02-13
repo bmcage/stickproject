@@ -81,7 +81,6 @@ class Yarn1DModel(object):
         """ 
         a config class must be passed in that contains the required settings
         """
-        self.datatime = []
         self.cfg = config
         self.verbose = self.cfg.get('general.verbose')
         self.time_period = self.cfg.get('time.time_period')
@@ -410,9 +409,42 @@ class Yarn1DModel(object):
                 raise Exception, 'could not find solution, flag %d' % flag
         assert np.allclose(realtime, stoptime), "%f %f" % (realtime, stoptime)
         self.tstep += 1
-        self.conc1[self.tstep][:] = self.ret_y[:]/self.grid[:]
         self.step_old_time = stoptime
-        return stoptime, self.ret_y
+        return stoptime, self.ret_y/self.grid
+
+    def do_yarn_init():
+        """
+        generic initialization needed before yarn can be solved
+        """
+        self.create_mesh()
+        self.initial_yarn1d()
+        self.solve_fiber_init()
+        if not self.initialized:
+            self.solve_ode_init()
+
+    def do_yarn_step(self, stoptime):
+        """
+        Solve yarn up to time t. This does:
+           1. solve the fiber up to t
+           2. set correct source term for the yarn
+           3. solve the yarn up to t
+        """
+        dt =  t-self.step_old_time
+        
+        compute = True
+        #even is step is large, we don't compute for a longer time than delta_t
+        t = self.step_old_time
+        while compute:
+            t +=  self.delta_t
+            if  t >= stoptime - self.delta_t/100.:
+                t = stoptime
+                compute = False
+            self.do_fiber_step(t)
+            self.set_source(t-self.step_old_time)
+            self.do_ode_step(t)
+            realtime, rety = self.do_ode_step(t)
+
+        return realtime, rety
 
     def view_sol(self, times, conc):
         """
@@ -438,11 +470,7 @@ class Yarn1DModel(object):
                     self.viewerwritecount = self.viewerwritecount % self.writeevery
 
     def run(self, wait=False): 
-        self.create_mesh()
-        self.initial_yarn1d()
-        self.solve_fiber_init()
-        if not self.initialized:
-            self.solve_ode_init()
+        self.do_yarn_init()
         
         print 'Start mass of DEET per grid cell per fiber type'
         for ind, masses in enumerate(self.fiber_mass):
@@ -453,9 +481,8 @@ class Yarn1DModel(object):
 
         for t in self.times[1:]:
             #print 'solving t', t
-            self.do_fiber_step(t)
-            self.set_source(t-self.step_old_time)
-            self.do_ode_step(t)
+            rt, rety = self.do_yarn_step(t)
+            self.conc1[self.tstep][:] = self.ret_y[:]
 
         print 'Final mass of DEET per grid cell per fiber type'
         for ind, masses in enumerate(self.fiber_mass):
