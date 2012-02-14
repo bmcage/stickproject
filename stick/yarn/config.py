@@ -160,16 +160,16 @@ class YarnConfigManager(ConfigManager):
             "boundary type at surface yarn: transfer or diff_flux")
         self.register("boundary.conc_out", 0.,
             "outside concentration, so if type diff_flux, "
-            "flux = D_out * (conc_out - yarn_edge_conc)/dist_conc_out")
-        self.register("boundary.D_out", 5.0e-8,
+            "flux = - D_out * (conc_out - yarn_edge_conc)/dist_conc_out")
+        self.register("boundary.D_out", 25.,
             "outside diffusion coef [unit ??], so if type diff_flux, "
-            "flux = D_out * (conc_out - yarn_edge_conc)/dist_conc_out")
+            "flux = - D_out * (conc_out - yarn_edge_conc)/dist_conc_out")
         self.register("boundary.dist_conc_out", 0.1,
             "distance of conc_out to yarn edge in mm, so if type diff_flux, "
-            "flux = D_out * (conc_out - yarn_edge_conc)/dist_conc_out")
+            "flux = - D_out * (conc_out - yarn_edge_conc)/dist_conc_out")
         self.register("boundary.transfer_coef", 5.3e-9,
             "tracked compound exterior transfer coef, so if type transfer, "
-            "flux D dC/dx = + transfer_coef C")
+            "flux - D dC/dx = + transfer_coef C")
 
         #time section
         self.register("time.time_period", 4000.,

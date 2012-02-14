@@ -131,7 +131,7 @@ class Yarn1DModel(object):
         self.bound_type = conf.BOUND_TYPE[self.cfg.get('boundary.type_right')]
         self.boundary_conc_out = self.cfg.get('boundary.conc_out')
         self.boundary_D_out = self.cfg.get('boundary.D_out')
-        self.boundary_dist = self.cfg.get('boundary.boundary.dist_conc_out')
+        self.boundary_dist = self.cfg.get('boundary.dist_conc_out')
         self.boundary_transf_right = self.cfg.get('boundary.transfer_coef')
         self.nr_fibers = self.cfg.get('fiber.number_fiber')
         
@@ -191,6 +191,8 @@ class Yarn1DModel(object):
         timenowyarn = self.times[self.tstep]
         if t >= timenowyarn:
             return self.conc1[self.tstep, cellnr]
+        print 'out conc', t, timenowyarn, self.tstep
+        sys.exit()
         raise ValueError, 'out concentration should only be requested at a later time'
 
     def solve_fiber_init(self):
@@ -234,9 +236,17 @@ class Yarn1DModel(object):
         Data is written to flux_edge, conc_r contains solution in the cell centers
         """
         flux_edge[0] = 0.
-        # tranfer flux, in x: flux_x  = tf * C, so radially per radial a flux
-        #  flux_radial = 2 Pi * radius * flux_x / 2 * Pi
-        flux_edge[-1] = self.boundary_transf_right * conc_r[-1] * self.grid_edge[-1]
+        
+        if self.bound_type == conf.TRANSFER:
+            # tranfer flux, in x: flux_x  = tf * C, so radially per radial a flux
+            #  flux_radial = 2 Pi * radius * flux_x / 2 * Pi
+            flux_edge[-1] = self.boundary_transf_right * conc_r[-1] * self.grid_edge[-1]
+        elif self.bound_type == conf.DIFF_FLUX:
+            # diffusive flux with the outside
+            # flux radial = - D_out * (conc_out - yarn_edge_conc)/dist_conc_out * radius
+            flux_edge[-1] = (self.boundary_D_out * 
+                    (self.boundary_conc_out - conc_r[-1]) / self.boundary_dist 
+                    * self.grid_edge[-1])
 
     def set_source(self, timestep):
         """
@@ -359,6 +369,20 @@ class Yarn1DModel(object):
 ##        self.source[self.index_t_yarn,:]=n*fibersurf/(2*np.pi)
 
     def f_conc1_ode(self, t, conc_r, diff_u_t):
+        """
+        Solving the radial yarn 1D diffusion equation: 
+        
+          \partial_t (rC) =  \partial_r (D/tau r \partial_r C + Source * r
+        
+        with Source the amount per time unit added at r. 
+        Solution is obtained by integration over a cell, so
+        
+           \delta r d_t (r C) = flux_right - flux_left + Source (\delta r^2 /2)
+        
+        so 
+        
+          d_t C = 1 / (r \delta r) * (flux_right - flux_left + Source (\delta r^2 /2) )
+        """
         ##print 't, concr', t, conc_r
         grid = self.grid
         n_cellcenters = len(grid)
@@ -373,8 +397,8 @@ class Yarn1DModel(object):
         diff_u_t[:] = ( ((flux_edge[1:]-flux_edge[:-1]) + self.source[:])
                         / self.delta_r[:] 
                       )
-
-        return diff_u_t
+        
+        diff_u_t[:] = diff_u_t[:] / self.grid[:]
 
     def solve_ode_init(self):
         """
@@ -402,22 +426,13 @@ class Yarn1DModel(object):
         if not self.initialized:
             raise Exception, 'Solver ode not initialized'
 
-        compute = True
-        #even is step is large, we don't compute for a longer time than delta_t
-        while compute:
-            t = self.step_old_time + self.delta_t
-            if  t >= stoptime - self.delta_t/100.:
-                t = stoptime
-                compute = False
-            flag, realtime = self.solver.step(t, self.ret_y)
-            if flag < 0:
-                raise Exception, 'could not find solution, flag %d' % flag
+        flag, realtime = self.solver.step(stoptime, self.ret_y)
+        if flag < 0:
+            raise Exception, 'could not find solution, flag %d' % flag
         assert np.allclose(realtime, stoptime), "%f %f" % (realtime, stoptime)
-        self.tstep += 1
-        self.step_old_time = stoptime
-        return stoptime, self.ret_y/self.grid
+        return stoptime, self.ret_y
 
-    def do_yarn_init():
+    def do_yarn_init(self):
         """
         generic initialization needed before yarn can be solved
         """
@@ -434,8 +449,6 @@ class Yarn1DModel(object):
            2. set correct source term for the yarn
            3. solve the yarn up to t
         """
-        dt =  t-self.step_old_time
-        
         compute = True
         #even is step is large, we don't compute for a longer time than delta_t
         t = self.step_old_time
@@ -446,8 +459,9 @@ class Yarn1DModel(object):
                 compute = False
             self.do_fiber_step(t)
             self.set_source(t-self.step_old_time)
-            self.do_ode_step(t)
             realtime, rety = self.do_ode_step(t)
+            self.tstep += 1
+            self.step_old_time = stoptime
 
         return realtime, rety
 
