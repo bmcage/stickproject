@@ -126,8 +126,13 @@ class Yarn1DModel(object):
         
         #Initialize the tortuosity
         self.tortuosity= self.cfg.get('yarn.tortuosity')
-        self.boundary_transf_right = self.cfg.get('boundary.transfer_conc1')
-        self.evap_equilibrium = self.cfg.get('boundary.evap_equilibrium')
+        
+        # boundary data
+        self.bound_type = conf.BOUND_TYPE[self.cfg.get('boundary.type_right')]
+        self.boundary_conc_out = self.cfg.get('boundary.conc_out')
+        self.boundary_D_out = self.cfg.get('boundary.D_out')
+        self.boundary_dist = self.cfg.get('boundary.boundary.dist_conc_out')
+        self.boundary_transf_right = self.cfg.get('boundary.transfer_coef')
         self.nr_fibers = self.cfg.get('fiber.number_fiber')
         
         self.plotevery = self.cfg.get("plot.plotevery")
