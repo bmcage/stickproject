@@ -92,7 +92,7 @@ class BednetConfigManager(ConfigManager):
         self.register("general.read", False)
         self.register("general.verbose", False)
         
-        self.register("observer.x0",6)
+        self.register("observer.x0", [2, 6])
         
         #self.register("domain.nr_vert_yarns",50)
         #self.register("domain.nr_hor_yarns",100)

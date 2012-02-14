@@ -442,4 +442,4 @@ class Yarn1DModel(object):
         self.view_sol(self.times, self.conc1)
 
         if wait:
-            raw_input("Finished fiber1d run")
+            raw_input("Finished yarn1d run")
