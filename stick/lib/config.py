@@ -267,6 +267,7 @@ class ConfigManager(object):
         Get the setting's value. raise an error if an invalid section.setting.
         Key is a sting in the "section.setting" format.
         """
+        key = key.lower()
         if "." in key:
             section, setting = key.split(".", 1)
         else:
@@ -284,6 +285,7 @@ class ConfigManager(object):
         Does the setting exist? Returns True if does, False otherwise.
         Key is a sting in the "section.setting" format.
         """
+        key = key.lower()
         if "." in key:
             section, setting = key.split(".", 1)
         else:
@@ -298,6 +300,7 @@ class ConfigManager(object):
         """
         get a key, if not present, return fallback instead
         """
+        key = key.lower()
         if "." in key:
             section, setting = key.split(".", 1)
         else:
@@ -313,6 +316,7 @@ class ConfigManager(object):
         Does the setting have a default value? Returns True if it does, 
         False otherwise. Key is a sting in the "section.setting" format.
         """
+        key = key.lower()
         if "." in key:
             section, setting = key.split(".", 1)
         else:
@@ -328,6 +332,7 @@ class ConfigManager(object):
         Get the setting's default value. Raises an error if invalid key is
         give. Key is a sting in the "section.setting" format.
         """
+        key = key.lower()
         if "." in key:
             section, setting = key.split(".", 1)
         else:
@@ -347,6 +352,7 @@ class ConfigManager(object):
         Will overwrite any previously set default, and set setting if not one.
         The default value deterimines the type of the setting.
         """
+        key = key.lower()
         if "." in key:
             section, setting = key.split(".", 1)
         else:
@@ -374,6 +380,7 @@ class ConfigManager(object):
         """
         Connect a callback func that gets called when key is changed.
         """
+        key = key.lower()
         if "." in key:
             section, setting = key.split(".", 1)
         else:
@@ -404,6 +411,7 @@ class ConfigManager(object):
         Emits the signal "key" which will call the callbacks associated
         with that setting.
         """
+        key = key.lower()
         if "." in key:
             section, setting = key.split(".", 1)
         else:
@@ -423,6 +431,7 @@ class ConfigManager(object):
         the data dictionary: via the load() method that reads a file,
         or from this method.
         """
+        key = key.lower()
         if "." in key:
             section, setting = key.split(".", 1)
         else:
