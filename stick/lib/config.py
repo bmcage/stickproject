@@ -204,6 +204,9 @@ class ConfigManager(object):
                         and isinstance(self.default[name][opt.lower()], basestring))
                         or (type(value) == type(self.default[name][opt.lower()]))):
                             self.data[name][opt.lower()] = value
+                        elif (isinstance(self.default[name][opt.lower()], float)
+                        and isinstance(value, int)):
+                            self.data[name][opt.lower()] = float(value)
                         else:
                             print ("WARNING: ignoring key with wrong type "
                                    "'%s.%s'" % (name, opt.lower()))

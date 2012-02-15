@@ -138,6 +138,7 @@ class Bednet(object):
 
     def solve_timestep(self, t):
         print "solve timestep", t
+        self.tstep += 1
         # 1. step one, solve the yarn model
         for ttype, model in enumerate(self.yarn_models):
             rt, rety = model.do_yarn_step(t)
@@ -150,11 +151,9 @@ class Bednet(object):
         #    we know that self.source_mass[ttype] has been released since
         #    last step
         x0 = self.x0
-        Heaviside = lambda x: (sp.sign(x)+1)/2
-        print "TODO, CHECK FOLLOWING, WHAT is delta_t??"
         # concentration is a consequence of all previous releases, so sum 
         # over all times, and compute contribution of that moment.
-        self.sol[self.tstep-1, :] = 0.
+        self.sol[self.tstep, :] = 0.
         for tt in np.arange(self.tstep):
             release = tt * self.delta_t
             timesincerelease = t-release
@@ -163,36 +162,43 @@ class Bednet(object):
                 # TODO: this should be dx/dy per yarn ttype!!
                 AH = math.pow(self.dx, 2) * factor
                 AW = math.pow(self.dy, 2) * factor
-                tt = (
+                res = (
                          self.source_mass[ttype, tt+1] *factor / (2 * sp.pi)
                          * sp.exp(-sp.power(x0[:], 2) * factor) * 
                          (jtheta(3, 0, sp.exp(-AH)) 
                           + jtheta(3, 0, sp.exp(-AW)) + 2)
                         )
-                for ind, val in enumerate(tt):
-                    self.sol[self.tstep-1, ind] = float(val)
-##                self.sol[self.tstep-1, :] += (
-##                         self.source_mass[ttype, tt+1] *factor / (2 * sp.pi)
-##                         * sp.exp(-sp.power(x0[:], 2) * factor) * 
-##                         (jtheta(3, 0, sp.exp(-AH)) 
-##                          + jtheta(3, 0, sp.exp(-AW)) + 2)
-##                        )
-
+                for ind, val in enumerate(res):
+                    self.sol[self.tstep, ind] += float(val)
         # 3. for next timestep, we need to set correct boundary condition
         #    on the yarn level
         for ind, model in enumerate(self.yarn_models):
-            model.boundary_conc_out = self.sol[self.tstep-1, 0]
+            model.boundary_conc_out = self.sol[self.tstep, 0]
+
+    def view_sol(self):
+        #maxv = np.max(self.sol)
+        #minv = np.min(self.sol)
+        #print 'max', maxv, minv
+        plt.ion()
+        for ind, pos in enumerate(self.x0[1:]):
+            plt.figure(ind)
+            plt.plot(self.times, self.sol[:, ind+1])
+            #plt.ylim(0, maxv*1.1)
+            plt.title('Concentration at position %g' % pos)
+            plt.show()
 
     def init_bednet(self):
         self.sol = sp.empty((self.timesteps+1, len(self.x0)), float)
+        self.sol[0, :] = 0
         self.initial_boundary_conc()
         self.init_yarn()
 
     def run(self, wait=False):
         self.init_bednet()
         for t in self.times[1:]:
-            self.tstep += 1
             self.solve_timestep(t)
 
+        self.view_sol()
+
         if wait:
-            raw_input("Finished yarn1d run")
+            raw_input("Finished bednet run")

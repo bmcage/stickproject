@@ -100,7 +100,7 @@ def main(argv=None):
     model = Bednet(cfg)
     
     #pass further execution to the model
-    model.run()
+    model.run(wait=True)
 
 if __name__ == "__main__":
     main()
