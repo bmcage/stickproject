@@ -29,7 +29,7 @@ number_fiber = 144
 blend = [51.4, 48.6]
 eps_value = 0.001
 fiber_config = ['tmpfiber1.ini', 'tmpfiber2.ini']
-prob_area = '[ lambda r: 0.0230 * (2.67999478 * r ** 4. -5.66339751 * r ** 3. + 3.07086875 * r ** 2. - 0.26131345 * r + 0.17273968), lambda r: 0.0275 * (1.13227791 * r **4 - 4.14156084 * r ** 3 + 4.39219104 * r ** 2 - 1.91494891 * r + 0.53275704)]'
+prob_area = '[ lambda r: 0.0230 * (2.67999478 * r ** 4. -5.66339751 * r ** 3. + 3.07086875 * r ** 2. - 0.26131345 * r + 0.17273968), lambda r: 0.0245 * (1.13227791 * r **4 - 4.14156084 * r ** 3 + 4.39219104 * r ** 2 - 1.91494891 * r + 0.53275704)]'
 [plot]
 maxval = 0.0005
 plotevery = 10
@@ -66,7 +66,7 @@ radius_pure_fiber = 0.055
 form = 'ellipse'
 eccentricity = 0.7
 nrlayers = 2
-mean_deviation = 0.012
+mean_deviation = 0.0072
 [fiberlayer_0]
 thickness = 0.001
 [fiberlayer_1]
@@ -112,10 +112,18 @@ y_position_polyester = np.array(y_position_polyester)
 x_position_cotton = np.array(x_position_cotton)
 y_position_cotton = np.array(y_position_cotton)
 radius_real_fiber = np.array(radius_real_fiber)
+
 radius_polyester = np.array(radius_polyester)
+sum_area_poly = sp.sum(sp.pi * sp.power(radius_polyester, 2.))
+print 'the total area of polyester cross-section in the real yarn', sum_area_poly
 radius_cotton = np.array(radius_cotton)
+sum_area_cotton = sp.sum(sp.pi * sp.power(radius_cotton, 2.))
+print 'the total area of cotton cross-section in the real yarn', sum_area_cotton
+raw_input("record the value of the area sum")
+
 fiber_kind = np.zeros(len(radius_real_fiber), int)
 fiber_kind[len(data_polyester):] = 1
+
 
 from stick.yarn2d.fiber_layout import plot_yarn
 from stick.yarn2d.arearatioprobability import (calculate_proportion, 
@@ -150,12 +158,12 @@ print np.polyfit(zone_position_real, ratio_cotton, 4)
 raw_input("record the coefficients of polynomial equations")
 
 pylab.figure()
-pylab.subplot(211)
+pylab.subplot(121)
 pylab.plot(zone_position_real, ratio_poly, 'o')
 pylab.plot(draw_real, poly_polyester(draw_real), '--')
 pylab.xlim(0., 1.05)
 pylab.ylim(0., 0.8)
-pylab.subplot(212)
+pylab.subplot(122)
 pylab.plot(zone_position_real, ratio_cotton, '*')
 pylab.plot(draw_real, poly_cotton(draw_real), '-')
 pylab.xlim(0., 1.05)
@@ -198,7 +206,7 @@ iteration = 10
 each_time_ratio = [] 
 for i in range(iteration):
     x_position, y_position, all_radius_fibers, \
-                    fiber_kind, type_fiber = virtlocoverlaplayout(ouroptions)
+                    fiber_kind,type_fiber = virtlocoverlaplayout(ouroptions)
     plot_yarn(x_position, y_position, all_radius_fibers, 
               fiber_kind, title='Realization %d' % i)
     ratio_each = [0] * type_fiber
