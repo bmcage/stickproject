@@ -31,8 +31,8 @@ This package implements config defaults for Diffusion in yarn
 #---------------------------------------------------------------
 from __future__ import division
 import os
-import const
-from lib.config import ConfigManager
+import stick.const as const
+from stick.lib.config import ConfigManager
 
 
 #---------------------------------------------------------------
