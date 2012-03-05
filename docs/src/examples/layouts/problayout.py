@@ -44,10 +44,10 @@ submethod = 'odew'
 read = False
 verbose = True
 [fiber]
-radius_pure_fiber = 0.052
+radius_pure_fiber = 0.0537
 form = 'circle'
 nrlayers = 2
-mean_deviation = 0.0074
+mean_deviation = 0.0
 [fiberlayer_0]
 thickness = 0.00085
 [fiberlayer_1]
@@ -62,11 +62,11 @@ submethod = 'odew'
 read = False
 verbose = False
 [fiber]
-radius_pure_fiber = 0.055
+radius_pure_fiber = 0.05641
 form = 'ellipse'
 eccentricity = 0.7
 nrlayers = 2
-mean_deviation = 0.0072
+mean_deviation = 0.0
 [fiberlayer_0]
 thickness = 0.001
 [fiberlayer_1]

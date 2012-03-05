@@ -339,7 +339,8 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
     print 'the area of the sum of ring zones', total_zone_area
     print 'the value of zone area is', zone_area
     print 'the ratio value in each zone', ratio_each
-    print 'the total fiber area in each ring zone', area_fib_zone
+    print 'the total fiber area in each ring zone', area_fib_zone, sp.sum(area_fib_zone)
+    raw_input("Record this value for the polyester")
     zone_point = sp.zeros(len(zone_radius))
     for i_circle in sp.arange(len(zone_radius)):
         zone_point[i_circle] = width_zone / 2. + i_circle * width_zone
