@@ -97,7 +97,7 @@ class PCMConfigManager(ConfigManager):
         self.register("general.read", False)
         self.register("general.verbose", False)
 
-        self.register("pcm.radius_pcm", 0.01,
+        self.register("pcm.radius", 0.01,
             "radius of the pcm in mm")
         self.register("pcm.melting_point", 28.24,
             "Melting point of the pcm in degree Celcius")

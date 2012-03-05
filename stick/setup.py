@@ -9,6 +9,7 @@ def configuration(parent_package='',top_path=None):
     config.add_subpackage('fiber1d')
     config.add_subpackage('lib')
     config.add_subpackage('model')
+    config.add_subpackage('pcm')
     config.add_subpackage('utils')
     config.add_subpackage('yarn')
     config.add_subpackage('yarn1d')
