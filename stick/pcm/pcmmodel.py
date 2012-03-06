@@ -49,6 +49,149 @@ import lib.utils.utils as utils
 
 #-------------------------------------------------------------------------
 #
+# PCMState class 
+#
+#-------------------------------------------------------------------------
+class PCMState(object):
+    """
+    A PCM can be in different states: solid, liquid, in-between. Depending
+    on the state characteristics change, and the solution method to model 
+    the PCM is different
+    """
+    #different states we consider, first state at r=0, then at r=L
+    INVALID = -2
+    UNSET = -1
+    SOLID = 0
+    LIQUID = 1
+    SOLID_LIQUID = 2
+    LIQUID_SOLID = 3
+    
+    def __init__(self, config):
+        self.state = PCMState.UNSET
+        self.meltpoint = config.get("pcm.melting_point")
+        self.L = config.get("pcm.radius")
+        self.epsilon = 1e-4
+        self.latent_heat_fusion = config.get("pcm.latent_heat_fusion")
+        self.solid = {
+            'rho' : config.get("pcm.density"),
+            'C'   : config.get("pcm.specific_heat_solid"),
+            'K'   : config.get("pcm.thermal_cond_solid")
+            }
+        self.liquid = {
+            'rho' : config.get("pcm.density"),
+            'C'   : config.get("pcm.specific_heat_liquid"),
+            'K'   : config.get("pcm.thermal_cond_liquid")
+            }
+
+        #we store computational grid in the state, as we need to swap grids
+        #when state changes
+        self.n_edge = self.cfg.get('discretization.n_edge') #discretize the PCM radius
+        self.grid = None
+        self.grid_edge = None
+    
+    def set_state(self, init_cond):
+        """
+        init_cond should be a function over (0, R) giving initial temperature
+        """
+        grid = np.linspace(0., self.R, 100)
+        state = PCMState.INVALID
+        if init_cond(grid[0]) < self.meltpoint:
+            state = PCMState.SOLID
+        elif init_cond(grid[0]) > self.meltpoint:
+            state = PCMState.LIQUID
+        else:
+            self.state = state
+            return
+        
+        self.R = 0.
+        for rpos in grid[1:]:
+            if state == PCMState.SOLID and init_cond(rpos) <= self.meltpoint:
+                continue
+            elif state == PCMState.LIQUID and init_cond(rpos) >= self.meltpoint:
+                continue
+            elif state == PCMState.LIQUID and init_cond(rpos) < self.meltpoint:
+                self.R = rpos
+                state = PCMState.LIQUID_SOLID
+            elif state == PCMState.SOLID and init_cond(rpos) > self.meltpoint:
+                self.R = rpos
+                state = PCMState.SOLID_LIQUID
+            elif state == PCMState.SOLID_LIQUID and init_cond(rpos) > self.meltpoint:
+                continue
+            elif state == PCMState.LIQUID_SOLID and init_cond(rpos) < self.meltpoint:
+                continue
+            elif state == PCMState.LIQUID_SOLID and init_cond(rpos) > self.meltpoint:
+                # this is not supported in the model, two interfaces
+                self.state = PCMState.INVALID
+                break
+            elif state == PCMState.SOLID_LIQUID and init_cond(rpos) < self.meltpoint:
+                # this is not supported in the model, two interfaces
+                self.state = PCMState.INVALID
+                break
+            else:
+                print 'unexpected data, cannot determine state PCM, stopping'
+                sys.exit(0)
+        self.state = state
+        #we set inner data, and outer data
+        if self.state == PCMState.SOLID:
+            self.outer_data = self.solid
+            self.inner_data = None
+        elif self.state == PCMState.LIQUID:
+            self.outer_data = self.liquid
+            self.inner_data = None
+        elif self.state == PCMState.LIQUID_SOLID:
+            self.outer_data = self.solid
+            self.inner_data = self.liquid
+        elif self.state == PCMState.SOLID_LIQUID:
+            self.outer_data = self.liquid
+            self.inner_data = self.solid
+
+    def single_phase(self):
+        if self.state in [PCMState.SOLID, PCMState.LIQUID]:
+            return True
+        return False
+
+    def calc_grid(self):
+        """
+        Determines the fixed grid on the unit inteval for the current state
+        """
+        self.inner_gridx_edge = sp.linspace(0., 1., self.n_edge)
+        self.outer_gridx_edge = sp.linspace(0., 1., self.n_edge)
+        #construct cell centers from this
+        self.inner_gridx = (self.inner_gridx_edge[:-1] + self.inner_gridx_edge[1:])/2.
+        #obtain cell sizes
+        self.inner_delta_x = self.inner_gridx_edge[1:] - self.inner_gridx_edge[:-1]
+        #construct cell centers from this
+        self.outer_gridx = (self.outer_gridx_edge[:-1] + self.outer_gridx_edge[1:])/2.
+        #obtain cell sizes
+        self.outer_delta_x = self.outer_gridx_edge[1:] - self.outer_gridx_edge[:-1]
+        
+        #conversion functions
+        self.outer_x_to_r = lambda x: self.L - (self.L-self.R) * x 
+        self.inner_x_to_r = lambda x: self.R * x 
+
+    def reset_state(self, temp_outer):
+        """
+        reset state will update the state. There are the following possibilities
+        1. single phase, en temp_outer is at edges at melting point 
+            ==> becomes two phases
+        2. two phases, but R becomes close to edge 
+            ==> becomes one phase
+            
+        return value: tuple (changed, switch)
+            changed = True if state changed
+            switch = True if inner and outer must be switched
+        """
+        changed = False
+        switch = False
+        if self.state == PCMState.SOLID:
+            if temp_outer[0] >= self.meltpoint:
+                self.state = PCMState.SOLID_LIQUID
+                changed = True
+                switch = True
+        elif 
+
+#-------------------------------------------------------------------------
+#
 # PCMModel class 
 #
 #-------------------------------------------------------------------------
@@ -78,7 +221,7 @@ class PCMModel(object):
         if self.verbose:
             print "Timestep used in pcm model:", self.delta_t
 
-        self.n_edge = self.cfg.get('discretization.n_edge') #discretize the PCM radius
+        self.state = PCMState(self.cfg)
 
         self.initialized = False
 
@@ -90,13 +233,9 @@ class PCMModel(object):
         We use an equidistant mesh (in mm) on which we project results
         grid: the space position of each central point for every cell element;
         """
-        self.grid_edge = sp.linspace(0.,
-            self.cfg.get('pcm.radius'), self.cfg.get('discretization.n_edge'))
         self.init_temp = eval(self.cfg.get('init.init_temp'))
-        #construct cell centers from this
-        self.grid = (self.grid_edge[:-1] + self.grid_edge[1:])/2.
-        #obtain cell sizes
-        self.delta_r = self.grid_edge[1:] - self.grid_edge[:-1]
+        self.state.set_state(self.init_temp)
+        self.state.calc_grid()
 
     def initial_PCM(self):
         """
