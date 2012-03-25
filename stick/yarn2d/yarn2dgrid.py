@@ -67,7 +67,7 @@ class Yarn2dGrid(object):
         self.cfg = cfg
         self.verbose = self.cfg.get('general.verbose')
         self.fiberlayout = self.cfg.get('domain.fiberlayout_method')
-        
+        self.distribute_fiber = self.cfg.get('domain.distribute_fiber')
         self.x_central = 0.
         self.y_central = 0.
         self.z = 0.
@@ -154,7 +154,8 @@ class Yarn2dGrid(object):
                 'theta_value' : self.theta_value,
                 'beta_value' : self.beta_value,
                 'mean_deviation': self.mean_deviation,
-                'prob_area': self.prob_area
+                'prob_area': self.prob_area,
+                'layout_distribution': self.distribute_fiber
                 })
             ouroptions['radius_first_center'] = self.cfg.get(
                                     'domain.radius_first_center_virtloc')

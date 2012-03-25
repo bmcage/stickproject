@@ -47,6 +47,7 @@ from stick.yarn.config import FIBERLAYOUTS
 from virtlocgeom import *
 from arearatioprobability import *
 from probability_area import *
+from distribution_method import *
 
 #-------------------------------------------------------------------------
 #
@@ -163,6 +164,7 @@ def virtloclayout(options):
     ##The method of the integration
     original_function_pro = options.get('prob_area',  lambda r: r**1 )
     #original_function_pro = original_function_pro[0]
+    distribute_fiber = options.get('layout_distribution', 'integral')
     
     filename_1 = utils.OUTPUTDIR + os.sep + "proportion_vl_value.gz"
     if len(oradius_fiber) > 1 or len(onumber_fiber_blend) > 1:
@@ -202,6 +204,7 @@ def virtloclayout(options):
                                             * radius_circle_central[i_circle]
                                             / (oradius_fiber)), 1])
             plus_angle[i_circle] = 2. * sp.pi / number_circle_central[i_circle]
+            print 'the number of virtual locations in each zone', number_circle_central[i_circle]
     else:
         for i_circle in sp.arange(total_circles):
             radius_circle_central[i_circle] = ((2 * i_circle + 1) * oradius_fiber 
@@ -227,11 +230,13 @@ def virtloclayout(options):
             area_ring_zone[i_ring_zone] = sp.pi * sp.power(radius_each_circle[i_ring_zone],
                                         2.) - pre_area
             pre_area = sp. pi * sp.power(radius_each_circle[i_ring_zone], 2.)
+            
             #just for the VL-fiber distribution
-##            pro_fiber_VL[i_ring_zone] = prob_func_VL(radius_circle_central[i_ring_zone],
-##                                    oradius_yarn, otheta_value, obeta_value)
-##            num_fiber_VL[i_ring_zone] = max(sp.around(number_circle_central[i_ring_zone] * \
-##                                        pro_fiber_VL[i_ring_zone]), 1)
+            if distribute_fiber == 'virtual_location':
+                pro_fiber_VL[i_ring_zone] = prob_func_VL(radius_circle_central[i_ring_zone],
+                                        oradius_yarn, otheta_value, obeta_value)
+                num_fiber_VL[i_ring_zone] = max(sp.around(number_circle_central[i_ring_zone] * \
+                                            pro_fiber_VL[i_ring_zone]), 1)
     else:
         area_shift = sp.pi * sp.power(ofirst_center, 2.)
         pre_area = area_shift
@@ -240,17 +245,20 @@ def virtloclayout(options):
                                         2.) - pre_area
             pre_area = sp.pi * sp.power(radius_each_circle[i_ring_zone],  2.)
             #just for the VL-fiber distribution
-##            pro_fiber_VL[i_ring_zone] = prob_func_VL(radius_circle_central[i_ring_zone],
-##                                    oradius_yarn, otheta_value, obeta_value)
-##            num_fiber_VL[i_ring_zone] = sp.around(number_circle_central[i_ring_zone] * 
-##                                    pro_fiber_VL[i_ring_zone])
+            if distribute_fiber == 'virtual_location':
+                pro_fiber_VL[i_ring_zone] = prob_func_VL(radius_circle_central[i_ring_zone],
+                                        oradius_yarn, otheta_value, obeta_value)
+                num_fiber_VL[i_ring_zone] = sp.around(number_circle_central[i_ring_zone] * 
+                                        pro_fiber_VL[i_ring_zone])
+    #print 'sum of the locations from VL', sp.sum(num_fiber_VL)
+    #raw_input("enter")
 ##    print 'the total number postions for the fiber', sp.sum(num_fiber_VL), onumber_fiber_blend[0], \
 ##            num_fiber_VL
 ##    print 'the number fiber in each ring zone', num_fiber_VL
     if onumber_fiber > total_number_vl:
         print 'ERROR: the number of fiber is more than the virtual locations'
         print 'the total number of virtual locations', total_number_vl
-        sys.exit(0)
+        sys.exit(0)    
         
     #each vitrual location position
     x_position_vl = []
@@ -285,180 +293,28 @@ def virtloclayout(options):
     i_determine = 0
     number_fiber_in_loop = onumber_fiber_blend[0]
     i_type = len(onumber_fiber_blend)
+    #use the integral of area probability function to distribute the fibers
+    if distribute_fiber == 'integral':
+        each_circle_zone_num, x_position, y_position = integration_layout(oradius_fiber, 
+                                                                                    oradius_yarn, radius_each_circle, onumber_fiber_blend[0], 
+                                                                                    ofirst_center, original_function_pro, number_circle_central,
+                                                                                    x_position_vl, y_position_vl)
+    elif distribute_fiber == 'virtual_location':
+   #distribute the fiber into the VL from VL-fiber function
+        each_circle_zone_num, x_position, y_position = vl_distribution(number_fiber_VL, number_fiber_distribution, 
+                                                                                x_position_VL, y_position_VL)
+        fit_polynomial()
 
-##divide the yarn zone for integration
-    delta_zone_r = 2. * oradius_fiber / 1000.
-    coefficient_integration = sp.around(oradius_yarn / delta_zone_r) 
-    delta_zone_r = oradius_yarn / coefficient_integration
-
-    rad_zones = sp.empty(len(radius_each_circle)+1,  float)
-    rad_zones[1:]= radius_each_circle[:]
-    rad_zones[0] = 0.
-    rad_zones[-1] = 1.
-    rad_intervals = rad_zones[1:] - rad_zones[:-1]
-    each_num_pro = []
-    each_num_integration = sp.zeros(len(rad_intervals), float)
-    
-    delta_r_i = 2. * oradius_fiber / 1000.
-    prev_int = 0.
-    for i_circle in sp.arange(len(rad_intervals)):
-        grid = sp.linspace(rad_zones[i_circle], rad_zones[i_circle+1], 
-                    sp.around((rad_zones[i_circle+1]-rad_zones[i_circle]) 
-                                            / delta_r_i))
-        step = grid[1] - grid[0]
-        disc_vals = original_function_pro(grid)
-
-        each_num_pro.append(2 * step * sp.sum(disc_vals * grid))
-        each_num_integration[i_circle] = prev_int + (each_num_pro[-1] / 
-                                                   (oradius_fiber ** 2.))
-        prev_int = each_num_integration[i_circle]
-    print 'the value from the integration', each_num_integration
-    #raw_input("check whether the value is equal to the input")
-    #each_num_integration = each_num_integration
-    if abs(each_num_integration[-1] - 1) > 0.03:
-        print 'the precision of the integration cannot reach'
-        print each_num_integration[-1]
-        assert False
-    each_num_integration = sp.around(each_num_integration * 
-                                        onumber_fiber_blend[0])
-    print 'The number of fiber up to zone', each_num_integration
-    print 'The number per zone', each_num_integration[0], each_num_integration[1:] \
-                                - each_num_integration[:-1]
-
-    each_num_integration[-1] = onumber_fiber_blend[0]
-    each_circle_zone_num = sp.ones(len(each_num_integration))
-    each_circle_zone_num[0] = each_num_integration[0]
-    each_circle_zone_num[1:] = each_num_integration[1:] - each_num_integration[:-1]
-    print each_circle_zone_num
-    circle_loop = len(each_circle_zone_num)
-    diff_num = 0
-    less_num = 0
-    position_circle = []
-    for i_circle in sp.arange(len(each_circle_zone_num)):
-        if each_circle_zone_num[i_circle] > number_circle_central[i_circle]:
-            diff_num += (each_circle_zone_num[i_circle] - number_circle_central[i_circle])
-            each_circle_zone_num[i_circle] = number_circle_central[i_circle]
-        elif each_circle_zone_num[i_circle] < number_circle_central[i_circle]:
-            less_num += (number_circle_central[i_circle] - each_circle_zone_num[i_circle])
-            position_circle.append(i_circle)
-    for i_add in sp.arange(len(position_circle)):
-        add_position = position_circle[i_add]
-        difference = number_circle_central[add_position] - each_circle_zone_num[add_position]
-        if difference <= diff_num:
-            each_circle_zone_num[add_position] = number_circle_central[add_position]
-            diff_num -= difference
-        else:
-            each_circle_zone_num[add_position] += diff_num 
-            diff_num -= diff_num
-    print 'afer rearranging the number of fibers', each_circle_zone_num
-    filename = utils.OUTPUTDIR + os.sep + "virlayout.gz"    
-    x_position = sp.empty(onumber_fiber_blend[0])
-    y_position = sp.empty(onumber_fiber_blend[0])
-    determine_generate = 0 #the number of generated fiber
-    index_position = 0
-    i_circle_number = 0
-    number_fiber_in_loop = onumber_fiber_blend[0]
-    #print 'begin to distribute the position', circle_loop
-    while i_circle_number < circle_loop: 
-        #print i_circle_number
-        location_number = sp.zeros(each_circle_zone_num[i_circle_number]) - 1
-        for i_index in sp.arange(each_circle_zone_num[i_circle_number]):
-            a_position = np.random.uniform(index_position, 
-                        index_position + number_circle_central[i_circle_number])
-            #print a_position
-            random_position = int(a_position)
-            determine_value = (random_position == location_number)
-            while determine_value.any() == True:
-                a_position = np.random.uniform(index_position, 
-                            index_position + number_circle_central[i_circle_number])
-                random_position = int(a_position)
-                determine_value = (random_position == location_number)
-            else:
-                x_position[determine_generate] = x_position_vl[random_position]
-                y_position[determine_generate] = y_position_vl[random_position]
-                location_number[i_index] = random_position
-                determine_generate += 1
-        index_position += number_circle_central[i_circle_number]
-        number_fiber_in_loop = number_fiber_in_loop \
-                                    - each_circle_zone_num[i_circle_number]
-        i_circle_number += 1
-        
-##   #distribute the fiber into the VL from VL-fiber function
-##    each_circle_zone_num = sp.zeros(len(num_fiber_VL))
-##    total_sum_fiber_VL = sp.sum(num_fiber_VL)
-##    if total_sum_fiber_VL < onumber_fiber_blend[0]:
-##        print "the number of virtual location for fibers should be larger than that \
-##            of .ini file"
-##        assert False
-##    x_position = sp.empty(onumber_fiber_blend[0])
-##    y_position = sp.empty(onumber_fiber_blend[0])
-##    determine_generate = 0 #the number of generated fiber
-##    index_position = 0
-##    i_circle_number = 0
-##    index_circle_num = 0
-##    circle_loop = 0
-##    number_fiber_in_loop = onumber_fiber_blend[0]
-##    while number_fiber_in_loop > 0:
-##        number_fiber_in_loop -= num_fiber_VL[index_circle_num]
-##        each_circle_zone_num[index_circle_num] = num_fiber_VL[index_circle_num]
-##        index_circle_num += 1
-##        circle_loop += 1
-##    each_circle_zone_num[index_circle_num - 1] += number_fiber_in_loop 
-##    
-##        
-##    number_fiber_in_loop = onumber_fiber_blend[0]
-##    while i_circle_number < circle_loop:
-##        if i_circle_number < circle_loop - 1:
-##            location_number = sp.zeros(num_fiber_VL[i_circle_number]) - 1
-##            for i_index in sp.arange(num_fiber_VL[i_circle_number]):
-##                a_position = np.random.uniform(index_position, index_position + 
-##                            num_fiber_VL[i_circle_number])
-##                random_position = int(a_position)
-##                determine_value = (random_position == location_number)
-##                while determine_value.any() == True:
-##                    a_position = np.random.uniform(index_position, 
-##                                index_position + num_fiber_VL[i_circle_number])
-##                    random_position = int(a_position)
-##                    determine_value = (random_position == location_number)
-##                else:
-##                    x_position[determine_generate] = x_position_vl[random_position]
-##                    y_position[determine_generate] = y_position_vl[random_position]
-##                    location_number[i_index] = random_position
-##                    determine_generate += 1
-##            index_position += num_fiber_VL[i_circle_number]
-##            number_fiber_in_loop = number_fiber_in_loop \
-##                                        - num_fiber_VL[i_circle_number]
-##        else:
-##            location_number = sp.zeros(number_fiber_in_loop)
-##            new_index = number_fiber_in_loop
-##            for i_index in sp.arange(new_index):
-##                a_position = np.random.uniform(index_position, index_position + 
-##                            num_fiber_VL[i_circle_number])
-##                random_position = int(a_position)
-##                determine_value = (random_position == location_number)
-##                while determine_value.any() == True:
-##                    a_position = np.random.uniform(index_position, 
-##                                index_position + num_fiber_VL[i_circle_number])
-##                    random_position = int(a_position)
-##                    determine_value = (random_position == location_number)
-##                else:
-##                    x_position[determine_generate] = x_position_vl[random_position]
-##                    y_position[determine_generate] = y_position_vl[random_position]
-##                    location_number[i_index] = random_position
-##                    determine_generate += 1
-##            index_position += num_fiber_VL[i_circle_number]
-##        i_circle_number += 1
-###Calculate the ratio value in each ring zone
-##    print 'the length of position', len(x_position)
-##    zone_position, ratio_value = calculate_proportion(oradius_yarn, radius_fiber, 
-##                                x_position, y_position)
-##    print 'the ratio value for the single kind of fiber', ratio_value
-###polynomial fitting
-##    zone_position[:] = zone_position[:] - zone_position[0]
-##    zone_position = np.append(zone_position, [1.0])
-##    ratio_value = np.append(ratio_value, [0.0])
-##    poly_single_kind = np.poly1d(np.polyfit(zone_position, ratio_value, 5))
-##    print 'the coefficient for the polynomial equations', np.polyfit(zone_position, ratio_value, 5)
+    #Calculate the ratio value in each ring zone
+        zone_position, ratio_value = calculate_proportion(oradius_yarn, radius_fiber, 
+                                    x_position, y_position)
+        print 'the ratio value for the single kind of fiber', ratio_value
+    #polynomial fitting
+        zone_position[:] = zone_position[:] - zone_position[0]
+        zone_position = np.append(zone_position, [1.0])
+        ratio_value = np.append(ratio_value, [0.0])
+        poly_single_kind = np.poly1d(np.polyfit(zone_position, ratio_value, 5))
+        print 'the coefficient for the polynomial equations', np.polyfit(zone_position, ratio_value, 5)
 ##    zone_p = sp.linspace(0., 1., 50)
 ##    plt.figure()
 ##    plt.plot(zone_p, poly_single_kind(zone_p), '--')
@@ -506,6 +362,8 @@ def virtlocoverlaplayout(options):
     
     omean_deviation = options.get('mean_deviation', [0.0])
     oprob_area = options.get('prob_area',  [ lambda r: r ** 1 ] )
+    
+    distribute_fiber = options.get('layout_distribution', 'integral')
 
     onumber_fiber_each = sp.zeros(len(onumber_fiber_blend), float)
     onumber_fiber_each[:] = onumber_fiber_blend[:]
@@ -549,7 +407,8 @@ def virtlocoverlaplayout(options):
                 'theta_value' : otheta_value,
                 'beta_value' : obeta_value,
                 'mean_deviation': omean_deviation[i_type],
-                'prob_area': oprob_area[i_type]
+                'prob_area': oprob_area[i_type],
+                'layout_distribution': distribute_fiber
                 }
         ouroptions['radius_first_center'] = 0.             
         ax_position, ay_position, aradius_fiber, afiber_kind, x_vl, y_vl, \
@@ -560,24 +419,21 @@ def virtlocoverlaplayout(options):
         y_position[i_type][:] = ay_position[:]
         radius_fiber[i_type] = aradius_fiber[:]
         zone_position_one_kind, ratio_one_kind = calculate_proportion(oradius_yarn,
-                                            aradius_fiber, ax_position, ay_position)
-##        print 
+                                            aradius_fiber, ax_position, ay_position)                                            
 ##        for i_rad in sp.arange(len(aradius_fiber)):
 ##            radius_fiber[i_type][i_rad] = np.random.normal(aradius_fiber[0], 
-##                                omean_deviation[i_type])
-        #ara                        
+##                                omean_deviation[i_type])  
+##        if i_type == 0:
+##            radius_fiber[i_type][:] = 0.005
+##        else:
+##            radius_fiber[i_type][:] = aradius_fiber[:]
         fiber_kind[i_type][:] = afiber_kind[:]
         each_num_circle[i_type] = sp.empty(len(area_ring_zone), int)
         each_num_circle[i_type][:] = each_circle_zone_num[:]
-        ##print 'each_num_circle', each_num_circle[i_type]
-        ##raw_input("next step for position")
+
         for i_point in sp.arange(len(x_position[i_type])):
             position_half[i_type][i_point] = int(i_point)
             
-##        zone_position_origin, ratio_origin = calculate_proportion(oradius_yarn, 
-##                                   radius_fiber[i_type], ax_position, ay_position)
-##        print 'the original distribution', ratio_origin
-##        raw_input("check the value for single kind with no shift before combining.")
         dump.write({'x_position':ax_position, 'y_position':ay_position, 'radius_fiber':aradius_fiber,
                     },
                     filename = filename, extension = '.gz')
@@ -606,7 +462,8 @@ def virtlocoverlaplayout(options):
                 'theta_value' : otheta_value,
                 'beta_value' : obeta_value,
                 'mean_deviation': omean_deviation[i_type],
-                'prob_area': oprob_area[i_type]
+                'prob_area': oprob_area[i_type],
+                'layout_distribution': distribute_fiber
         }
         ouroptions['radius_first_center'] = 0.5 * oradius_fiber[i_type]
         ax_position_shift, ay_position_shift, aradius_fiber_shift, afiber_kind_shift,\
@@ -619,16 +476,17 @@ def virtlocoverlaplayout(options):
 ##        for i_rad in sp.arange(len(aradius_fiber_shift)):
 ##            radius_fiber_shift[i_type][i_rad] = np.random.normal(aradius_fiber_shift[0],
 ##                                            omean_deviation[i_type])
-                                            
+##        if i_type == 0:
+##            radius_fiber[i_type][:] = 0.005
+##        else:
+##            radius_fiber[i_type][:] = aradius_fiber[:]
+        
         fiber_kind_shift[i_type][:] = afiber_kind_shift[:]
         each_num_circle_shift[i_type] = sp.empty(len(area_ring_zone_shift),int)
         each_num_circle_shift[i_type][:] = each_circle_zone_num_shift[:]
-##        zone_position_shifted, ratio_shifted = calculate_proportion(oradius_yarn,
-##                                            radius_fiber_shift[i_type], ax_position_shift,
-##                                            ay_position_shift)
-        
-##        print 'the shifted distribution', ratio_shifted
-##        raw_input("check the value for each kind of fiber with being shifted before combining")
+        zone_position_shifted, ratio_shifted = calculate_proportion(oradius_yarn,
+                                            radius_fiber_shift[i_type], ax_position_shift,
+                                            ay_position_shift)
         
         dump.write({'x_position':ax_position_shift, 'y_position':ay_position_shift, 
                     'radius_fiber':aradius_fiber_shift},
@@ -670,6 +528,44 @@ def virtlocoverlaplayout(options):
         end_point_shift = 0
         position_each_shift = []
         #left_num = left_num_shift
+##        if ind == 0:
+##            for i_circle in sp.arange(1, len(each_num_circle_shift[ind]), 1):
+##                number_chosen = sp.around(each_num_circle_shift[ind][i_circle] / 2. + 0.001)
+##                i_half_each = 0
+##                end_point_shift += each_num_circle_shift[ind][i_circle]
+##                left_num = left_num_shift
+##                left_num -= number_chosen
+##                if left_num >= 0:
+##                    while i_half_each < number_chosen:
+##                        a_position = np.random.uniform(begin_point_shift, 
+##                                    end_point_shift)
+##                        position_random = int(a_position)
+##                        determine_value = (position_random == sp.array(position_each_shift))
+##                        while determine_value.any() == True:
+##                            a_position = np.random.uniform(begin_point_shift, 
+##                                    end_point_shift)
+##                            position_random = int(a_position)
+##                            determine_value = (position_random == sp.array(position_each_shift))
+##                        else:
+##                            position_each_shift.append(position_random)
+##                        i_half_each += 1
+##                    begin_point_shift += each_num_circle_shift[ind][i_circle]
+##                
+##                else:
+##                    while i_half_each < (left_num + number_chosen):
+##                        a_position = np.random.uniform(begin_point_shift, 
+##                                    end_point_shift)
+##                        position_random = int(a_position)
+##                        determine_value = (position_random == sp.array(position_each_shift))
+##                        while determine_value.any() == True:
+##                            a_position = np.random.uniform(begin_point_shift, 
+##                                    end_point_shift)
+##                            position_random = int(a_position)
+##                            determine_value = (position_random == position_each_shift)
+##                        else:
+##                            position_each_shift.append(position_random)
+##                        i_half_each += 1
+##        else:
         for i_circle in sp.arange(len(each_num_circle_shift[ind])):
             number_chosen = sp.around(each_num_circle_shift[ind][i_circle] / 2. + 0.001)
             i_half_each = 0
@@ -715,7 +611,7 @@ def virtlocoverlaplayout(options):
     y_position_random = [0] * len(onumber_fiber_blend)
     x_position_random_shift = [0] * len(onumber_fiber_blend)
     y_position_random_shift = [0] * len(onumber_fiber_blend)
-    print 'the blend number', onumber_fiber_blend
+   #print 'the blend number', onumber_fiber_blend
     
     for ind in sp.arange(len(onumber_fiber_blend)):
         x_position_random[ind] = x_position[ind][position_half[ind]]
@@ -731,11 +627,6 @@ def virtlocoverlaplayout(options):
     x_p_s[:] = x_position_random_shift[0][:]
     y_p_s[:] = y_position_random_shift[0][:]
 
-    
-##    zone_position_1, ratio_no_shift = calculate_proportion(oradius_yarn, 
-##                                    radius_fiber[0], x_p, y_p)
-##    zone_position_2, ratio_shift_half = calculate_proportion(oradius_yarn, 
-##                                    radius_fiber_shift[0], x_p_s, y_p_s)
     x_position = sp.empty(onumber_fiber, float)
     y_position = sp.empty(onumber_fiber, float)
     all_radius_fiber = sp.empty(onumber_fiber, float)
@@ -746,7 +637,6 @@ def virtlocoverlaplayout(options):
         for (t1array, t2array, t3array)  in \
                 [(x_position, x_position_random, x_position_random_shift), 
                  (y_position, y_position_random, y_position_random_shift)]:
-            print len(t1array), len(t3array[ind])
             t1array[start:start+len(x_position_random[ind])]\
                     = t2array[ind][:]
             t1array[start+len(x_position_random[ind]):start+onumber_fiber_blend[ind]]\
@@ -767,22 +657,22 @@ def virtlocoverlaplayout(options):
     y_position_alpha[:] = y_position[:]
     
 #before removing overlap, the ratio value in each ring zone for each kind of fiber
-    for i_type in sp.arange(len(onumber_fiber_blend)):
-        x_no_shift = []
-        y_no_shift = []
-        radius_no_shift = []
-        for i_position in sp.arange(len(x_position)):
-            if fiber_kind[i_position] == i_type:
-                x_no_shift.append(x_position[i_position])
-                y_no_shift.append(y_position[i_position])
-                radius_no_shift.append(all_radius_fiber[i_position])
-        x_no_shift = np.array(x_no_shift)
-        y_no_shift = np.array(y_no_shift)
-        radius_no_shift = np.array(all_radius_fiber)
-        zone_position_no_shift, ratio_no_shift = calculate_proportion(oradius_yarn,
-                                            radius_no_shift, x_no_shift, y_no_shift)
-        print 'before removing the ratio value for each kind', ratio_no_shift
-        raw_input('check the ratio value before removing overlap')
+##    for i_type in sp.arange(len(onumber_fiber_blend)):
+##        x_no_shift = []
+##        y_no_shift = []
+##        radius_no_shift = []
+##        for i_position in sp.arange(len(x_position)):
+##            if fiber_kind[i_position] == i_type:
+##                x_no_shift.append(x_position[i_position])
+##                y_no_shift.append(y_position[i_position])
+##                radius_no_shift.append(all_radius_fiber[i_position])
+##        x_no_shift = np.array(x_no_shift)
+##        y_no_shift = np.array(y_no_shift)
+##        radius_no_shift = np.array(all_radius_fiber)
+##        zone_position_no_shift, ratio_no_shift = calculate_proportion(oradius_yarn,
+##                                            radius_no_shift, x_no_shift, y_no_shift)
+##        print 'before removing the ratio value for each kind', ratio_no_shift
+        #raw_input('check the ratio value before removing overlap')
 ##    zone_position_1, ratio_no_shift = calculate_proportion(oradius_yarn, 
 ##                                   all_radius_fiber, x_position, y_position)
 ##    plot_yarn(x_position, y_position, all_radius_fiber)
@@ -793,27 +683,27 @@ def virtlocoverlaplayout(options):
     move_fibers_nonoverlap(x_position, y_position, all_radius_fiber, oradius_yarn, 
                     fiber_kind, omean_deviation)
    
-    x_polyester = []
-    y_polyester = []
-    x_cotton = []
-    y_cotton = []
-    radius_poly = []
-    radius_cotton = []
-    for i_fib in sp.arange(len(x_position)):
-        if fiber_kind[i_fib] == 0:
-            x_polyester.append(x_position[i_fib])
-            y_polyester.append(y_position[i_fib])
-            radius_poly.append(all_radius_fiber[i_fib])
-        else:
-            x_cotton.append(x_position[i_fib])
-            y_cotton.append(y_position[i_fib])
-            radius_cotton.append(all_radius_fiber[i_fib])
-    x_polyester = np.array(x_polyester)
-    y_polyester = np.array(y_polyester)
-    radius_poly = np.array(radius_poly)
-    x_cotton = np.array(x_cotton)
-    y_cotton = np.array(y_cotton)
-    radius_cotton = np.array(radius_cotton)
+##    x_polyester = []
+##    y_polyester = []
+##    x_cotton = []
+##    y_cotton = []
+##    radius_poly = []
+##    radius_cotton = []
+##    for i_fib in sp.arange(len(x_position)):
+##        if fiber_kind[i_fib] == 0:
+##            x_polyester.append(x_position[i_fib])
+##            y_polyester.append(y_position[i_fib])
+##            radius_poly.append(all_radius_fiber[i_fib])
+##        else:
+##            x_cotton.append(x_position[i_fib])
+##            y_cotton.append(y_position[i_fib])
+##            radius_cotton.append(all_radius_fiber[i_fib])
+##    x_polyester = np.array(x_polyester)
+##    y_polyester = np.array(y_polyester)
+##    radius_poly = np.array(radius_poly)
+##    x_cotton = np.array(x_cotton)
+##    y_cotton = np.array(y_cotton)
+##    radius_cotton = np.array(radius_cotton)
 ##    fig = pylab.figure()
 ##    ax = fig.add_subplot(111, xlim = (-1.1, 1.1), ylim = (-1.1, 1.1))
     
@@ -845,7 +735,11 @@ def virtlocoverlaplayout(options):
 ##                filename = filename_2, extension = '.gz')
 ##    dump.write({'zone_position_alpha': zone_position_ov_1, 'ratio_value_alpha':
 ##                ratio_vl_ov_1}, filename = filename_3, extension = '.gz')
-
+    
+#record the ratio value from the new layout with removing the overlap
+    ratio_each_kind = [0] * len(onumber_fiber_blend)
+    ratio_each_alpha= [0] * len(onumber_fiber_blend)
+    zone_position_each = [0] 
     for i_kind in range(len(onumber_fiber_blend)):
         x_each_kind = []
         y_each_kind = []
@@ -868,14 +762,42 @@ def virtlocoverlaplayout(options):
         y_each_kind_alpha = sp.array(y_each_kind_alpha)
         radius_each_kind = np.array(radius_each_kind)
         sum_each_kind = sp.sum(sp.pi * sp.power(radius_each_kind, 2.))
-        print 'the radius value in the calculation', radius_each_kind[0]
-        print 'the sum of each kind fiber is', sum_each_kind
+##        print 'the radius value in the calculation', radius_each_kind[0]
+##        print 'the sum of each kind fiber is', sum_each_kind
         raw_input("check the value from the simulation, especially the first one")
         zone_position_ov, ratio_vl_ov = calculate_proportion(oradius_yarn, 
                                         radius_each_kind, x_each_kind, y_each_kind)
         zone_position_ov_alpha, ratio_ov_alpha = calculate_proportion(oradius_yarn, 
                                         radius_each_kind_alpha, x_each_kind_alpha,
                                         y_each_kind_alpha)
+        ratio_each_kind[i_kind] = sp.zeros(len(ratio_vl_ov), float)
+        ratio_each_alpha[i_kind] = sp.zeros(len(ratio_ov_alpha), float)
+        ratio_each_kind[i_kind][:] = ratio_vl_ov[:]
+        ratio_each_alpha[i_kind][:] = ratio_ov_alpha[:]
+        zone_position_each = sp.zeros(len(zone_position_ov), float)
+        zone_position_each[:] = zone_position_ov[:]
+##        print 'the ratio value for each kind', ratio_each_kind
+##        raw_input('stop or continue')
+##        print 'length of the position', len(zone_position_ov)
+##        zone_position_fit = sp.ones(len(zone_position_ov) + 1, float)
+##        zone_position_fit[0] = 0.
+##        zone_position_fit[1:] = zone_position_ov[:]
+##        zone_position_fit[-1] = 1.0
+##        
+##        ratio_to_fit = sp.zeros(len(ratio_vl_ov) + 1, float)
+##        ratio_to_fit[:-1] = ratio_vl_ov[:]
+##        ratio_to_fit[-1] = 0. 
+##        poly_fit_random = np.poly1d(np.polyfit(zone_position_fit, ratio_to_fit, 4))
+##        print 'the polynomial fitting for the layout generated randomly', np.polyfit(zone_position_fit, ratio_to_fit, 4)
+##        draw_fit = sp.linspace(0., 1.0, 50)
+##        pylab.figure()
+##        pylab.plot(draw_fit, poly_fit_random(draw_fit), '--')
+##        pylab.plot(zone_position_fit, ratio_to_fit, 'o')
+##        pylab.xlim(0., 1.01)
+##        pylab.ylim(0., 0.8)
+##        pylab.axis()
+##        pylab.show()
+##        raw_input( "check the fitting")
 
         dump.write({'zone_position':zone_position_ov, 'ratio_value': ratio_vl_ov},
                     filename = utils.OUTPUTDIR + os.sep + "each_kind_ratio_%g"%(i_kind), 
@@ -885,7 +807,8 @@ def virtlocoverlaplayout(options):
                     extension = '.gz')
     ##raw_input("wait")
     
-    return (x_position, y_position, all_radius_fiber, fiber_kind, type_fiber)
+    return (x_position, y_position, all_radius_fiber, fiber_kind, type_fiber, ratio_each_kind, 
+                zone_position_each, ratio_each_alpha)
 
 def determine_overlap(xpos, ypos, radin, average_mean_deviation):
     """
@@ -1031,18 +954,18 @@ def move_fibers_alpha(xpos, ypos, radin, rad_yarn, mean_deviation):
                                                     sp.power(ypos[ov_ind], 2.))
                         delta_dir_y = -ypos[ov_ind] / sp.sqrt(sp.power(xpos[ov_ind], 2.) + 
                                                     sp.power(ypos[ov_ind], 2.))
-                    dirx = (ov_distreal - ov_distreq) * \
-                            (1. / 2.)* \
-                            delta_dir_x
-                    diry = (ov_distreal - ov_distreq) * \
-                            (1. / 2.)* \
-                            delta_dir_y
+                    dirx = (ov_distreal - ov_distreq) * 1. * delta_dir_x#\
+                            #(1. / 2.)* \
+                            #delta_dir_x
+                    diry = (ov_distreal - ov_distreq) * 1. * delta_dir_y#\
+                           # (1. / 2.)* \
+                            #delta_dir_y
                 else:
                     dirx = (ov_distreal - ov_distreq) * \
-                            (1. / 2.)* \
+                            (1. )* \
                             (xpos[ov_ind] - xpos[ind])/ (ov_distreal)
                     diry = (ov_distreal - ov_distreq) * \
-                            (1. / 2.)* \
+                            (1. )* \
                             (ypos[ov_ind] - ypos[ind])/ (ov_distreal)
                 
                 vx[ind] += dirx
@@ -1106,9 +1029,9 @@ def plot_yarn(x_position, y_position, radius_fiber, fiber_kind=None, title=None)
             patch.append(circle)
     #add the yarn
     ax.xaxis.set_ticks(np.arange(-1., 1.1, 0.5))
-    #ax.xaxis.set_ticklabels(["-$R$","-0.5$R$","0","0.5$R$", "R"])
+    ax.xaxis.set_ticklabels(["-$R$","-0.5$R$","0","0.5$R$", "R"])
     ax.yaxis.set_ticks(np.arange(-1., 1.1, 0.5))
-    #ax.yaxis.set_ticklabels(["-$R$","-0.5$R$","0","0.5$R$", "R"])
+    ax.yaxis.set_ticklabels(["-$R$","-0.5$R$","0","0.5$R$", "R"])
 ##    fixup_subplot(ax.color)
 ##    fig.get_gca()
 ##    fig.clean()

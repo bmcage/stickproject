@@ -20,16 +20,17 @@ read = False
 verbose = False
 [domain]
 fiberlayout_method = 'virtlocoverlap'
+distribute_fiber = ' integral'
 cellsize_centre = 1.0e-1
 cellsize_fiber = 2.50e-2
 yarnradius = 1.0
 [fiber]
 number_type = 2
-number_fiber = 144
-blend = [51.4, 48.6]
+number_fiber = 400 
+blend = [75., 25.]
 eps_value = 0.001
 fiber_config = ['tmpfiber1.ini', 'tmpfiber2.ini']
-prob_area = '[ lambda r: 0.0230 * (2.67999478 * r ** 4. -5.66339751 * r ** 3. + 3.07086875 * r ** 2. - 0.26131345 * r + 0.17273968), lambda r: 0.0245 * (1.13227791 * r **4 - 4.14156084 * r ** 3 + 4.39219104 * r ** 2 - 1.91494891 * r + 0.53275704)]'
+prob_area = '[lambda r: 0.00665 * ( 3.94231736 * r ** 4. - 8.00599612 * r ** 3. + 4.32590842 * r ** 2. - 0.67755321 * r + 0.41283374), lambda r: 0.02 * (4.44996934 * r ** 4. -9.05211446 * r ** 3. + 5.07757628 * r ** 2. -0.91234278 * r + 0.43632983)]'
 [plot]
 maxval = 0.0005
 plotevery = 10
@@ -44,14 +45,14 @@ submethod = 'odew'
 read = False
 verbose = True
 [fiber]
-radius_pure_fiber = 0.0537
+radius_pure_fiber = 0.030
 form = 'circle'
 nrlayers = 2
-mean_deviation = 0.0
+mean_deviation = 0.00739
 [fiberlayer_0]
-thickness = 0.00085
+thickness = 0.001
 [fiberlayer_1]
-thickness = 0.00085
+thickness = 0.001
 [plot]
 plotevery = 1
 """
@@ -62,11 +63,11 @@ submethod = 'odew'
 read = False
 verbose = False
 [fiber]
-radius_pure_fiber = 0.05641
+radius_pure_fiber = 0.05313
 form = 'ellipse'
 eccentricity = 0.7
 nrlayers = 2
-mean_deviation = 0.0
+mean_deviation = 0.01201728333018
 [fiberlayer_0]
 thickness = 0.001
 [fiberlayer_1]
@@ -114,16 +115,19 @@ y_position_cotton = np.array(y_position_cotton)
 radius_real_fiber = np.array(radius_real_fiber)
 
 radius_polyester = np.array(radius_polyester)
+sum_surface_poly = sp.sum(sp.pi * 2. * radius_polyester)
 sum_area_poly = sp.sum(sp.pi * sp.power(radius_polyester, 2.))
 print 'the total area of polyester cross-section in the real yarn', sum_area_poly
+print 'the surface value in 2D dimension for polyester', sum_surface_poly
 radius_cotton = np.array(radius_cotton)
+sum_surface_cotton = sp.sum(sp.pi * 2. * radius_cotton)
 sum_area_cotton = sp.sum(sp.pi * sp.power(radius_cotton, 2.))
 print 'the total area of cotton cross-section in the real yarn', sum_area_cotton
-raw_input("record the value of the area sum")
+print 'the surface value in 2D dimension for cotton', sum_surface_cotton
+raw_input("finish calculating the sum of cross-section area value  for each kind of fiber")
 
 fiber_kind = np.zeros(len(radius_real_fiber), int)
 fiber_kind[len(data_polyester):] = 1
-
 
 from stick.yarn2d.fiber_layout import plot_yarn
 from stick.yarn2d.arearatioprobability import (calculate_proportion, 
@@ -145,21 +149,28 @@ zone_position_real = sp.ones(len(prob_real[0]) + 1, float)
 zone_position_real[0] = 0.
 zone_position_real[1:] = prob_real[0][:]
 zone_position_real[-1] = 1.
-ratio_poly = sp.zeros(len(prob_poly[-1]) + 1, float)
+
+zone_position_polyester = sp.zeros(len(prob_real[0]) + 2, float)
+zone_position_polyester[1:-1] = prob_real[0][:]
+print 'the coordinate value is', prob_real[0][:]
+zone_position_polyester[-1] = 1.
+zone_position_polyester[-2] = 1. - zone_position_polyester[1] / 2.
+
+ratio_poly = sp.zeros(len(zone_position_polyester), float)
 ratio_cotton = sp.zeros(len(prob_cotton[-1])+1 , float)
-ratio_poly[:-1] = prob_poly[-1][:]
+ratio_poly[1:-1] = prob_poly[-1][:]
 ratio_cotton[:-1] = prob_cotton[-1][:]
-print len(zone_position_real), len(ratio_poly), len(x_position_polyester), len(x_position_cotton)
-poly_polyester = np.poly1d(np.polyfit(zone_position_real, ratio_poly, 4))
+#print len(zone_position_real), len(ratio_poly), len(x_position_polyester), len(x_position_cotton)
+poly_polyester = np.poly1d(np.polyfit(zone_position_polyester, ratio_poly, 4))
 poly_cotton = np.poly1d(np.polyfit(zone_position_real, ratio_cotton, 4))
 draw_real = sp.linspace(0., 1.0, 50)
-print np.polyfit(zone_position_real, ratio_poly, 4)
+print np.polyfit(zone_position_polyester, ratio_poly, 4)
 print np.polyfit(zone_position_real, ratio_cotton, 4)
 raw_input("record the coefficients of polynomial equations")
 
 pylab.figure()
 pylab.subplot(121)
-pylab.plot(zone_position_real, ratio_poly, 'o')
+pylab.plot(zone_position_polyester, ratio_poly, 'o')
 pylab.plot(draw_real, poly_polyester(draw_real), '--')
 pylab.xlim(0., 1.05)
 pylab.ylim(0., 0.8)
@@ -170,7 +181,7 @@ pylab.xlim(0., 1.05)
 pylab.ylim(0., 0.8)
 pylab.axis()
 pylab.show()
-
+raw_input("check the figure")
 #set up a yarn computation
 from stick.fiber.config import FiberConfigManager
 from stick.yarn.config import YarnConfigManager
@@ -201,37 +212,88 @@ ouroptions = {
                 }
 from stick.yarn2d.fiber_layout import virtlocoverlaplayout
 #After generating n times of iteration, plot prob func result from the average ratio value
-
-iteration = 10
-each_time_ratio = [] 
+coefficient_function = [0.00665, 0.02]
+iteration = 5
+each_time_ratio = []
+relative_error_each = []
+relative_error_alpha = []
 for i in range(iteration):
     x_position, y_position, all_radius_fibers, \
-                    fiber_kind,type_fiber = virtlocoverlaplayout(ouroptions)
+                    fiber_kind,type_fiber, ratio_each_kind, \
+                    zone_position_each, ratio_each_alpha = virtlocoverlaplayout(ouroptions)
     plot_yarn(x_position, y_position, all_radius_fibers, 
               fiber_kind, title='Realization %d' % i)
     ratio_each = [0] * type_fiber
+    zone_position = [0] * type_fiber
     #zone_position = [0]
     for i_type in sp.arange(type_fiber):
         x_position_cal = []
         y_position_cal = []
+        radius_each = []
         for i_fiber in sp.arange(len(fiber_kind)):
             if fiber_kind[i_fiber] == i_type:
                 x_position_cal.append(x_position[i_fiber])
                 y_position_cal.append(y_position[i_fiber])
+                radius_each.append(all_radius_fibers[i_fiber])
         x_position_cal = np.array(x_position_cal)
         y_position_cal = np.array(y_position_cal)
-        probs = calculate_proportion(grid.radius_yarn, all_radius_fibers, 
-                x_position_cal, y_position_cal, nrzones=5)
-        zone_position =sp.zeros(len(probs[0]) + 1, float)
-        zone_position[0] = 0.
-        zone_position[1:] = probs[0][:]
-        zone_position[-1] = 1.
+        radius_each = np.array(radius_each)
+##        probs = calculate_proportion(grid.radius_yarn, all_radius_fibers, 
+##                x_position_cal, y_position_cal, nrzones=5)
+        nrzones = 5
+        zone_position[i_type] = sp.zeros(len(zone_position_each) + 1, float)
+        zone_position[i_type][0] = 0.
+        zone_position[i_type][1:] = zone_position_each[:]
+        zone_position[i_type][-1] = 1.
+#calculate the relative error in the calculation
+        value_from_function = grid.prob_area[i_type]
+        ratio_compare = value_from_function(zone_position[i_type]) / coefficient_function[i_type]
+        print 'the ratio value from the calculation', ratio_compare
+        raw_input('to generate the relative error')
+##        if i_type == 0:
+##            zone_position[i_type] = sp.zeros(len(probs[0]) +  2, float)
+##            print 'check the length', len(zone_position[i_type][1:-1]), len(probs[0][:])
+##            zone_position[i_type][1:-1] = probs[0][:]
+##            zone_position[i_type][-2] = 1. - grid.radius_yarn / ((nrzones-1)*2 + 1)
+##            zone_position[i_type][-1] = 1.
+##            ratio_each[i_type] = sp.zeros(len(probs[0]) + 1, float)
+##            ratio_each[i_type][1:] = probs[-1][:]
+##        else:
+##        zone_position[i_type] =sp.zeros(len(probs[0]) + 1, float)
+##        zone_position[i_type][0] = 0.
+##        zone_position[i_type][1:] = probs[0][:]
+##        #zone_position[i_type][-2] = 1. - grid.radius_yarn / ((nrzones-1)*2 + 1)
+##        zone_position[i_type][-1] = 1.
 
-        ratio_each[i_type] = sp.ones(len(probs[-1]), float)
-        ratio_each[i_type][:] = probs[-1][:]
+        #ratio_each[i_type] = sp.ones(len(probs[-1]), float)
+        #ratio_each[i_type][:] = probs[-1][:]
         #the ratio value on the yarn's edge
-        each_time_ratio.append(ratio_each[i_type])
-
+        
+        print 'the ratio value for eacn kind of fiber', ratio_each_kind[i_type][:]
+        relative_error_each_kind = sp.power(abs(ratio_compare[:-1] - ratio_each_kind[i_type][:])\
+                                            / ratio_compare[:-1], 2.)
+        relative_error_kind_alpha = sp.power(abs(ratio_compare[:-1] - ratio_each_alpha[i_type][:])\
+                                            /ratio_compare[:-1], 2.)
+        raw_input('check the ratio value from the calculation')
+        each_time_ratio.append(ratio_each_kind[i_type])
+        relative_error_each.append(relative_error_each_kind)
+        relative_error_alpha.append(relative_error_kind_alpha)
+relative_error_each = sp.array(relative_error_each)
+relative_error_alpha = sp.array(relative_error_alpha)
+sum_error_each_pos = sp.zeros(len(relative_error_each[0]))
+sum_error_alpha_pos = sp.zeros(len(relative_error_alpha[0]))
+for i_error in sp.arange(len(relative_error_each)):
+    for i_suberror in sp.arange(len(relative_error_each[i_error])):
+        sum_error_each_pos[i_suberror] += relative_error_each[i_error][i_suberror]
+        sum_error_alpha_pos[i_suberror] += relative_error_alpha[i_error][i_suberror]
+average_relative_error_each = sum_error_each_pos / iteration
+average_relative_error_alpha = np.mean(sum_error_alpha_pos) / iteration
+mean_value_each = np.mean(relative_error_each, axis = 0)
+mean_value_alpha = np.mean(relative_error_alpha, axis = 0)
+print 'relative error for proportionally moving', average_relative_error_each, \
+        mean_value_each
+print 'relative error for fixed value of moving', average_relative_error_alpha, \
+        mean_value_alpha
 plot_ratio_function(zone_position, each_time_ratio, type_fiber, grid.prob_area)
 #meanraw_input("finish one loop for one kind of fiber")
     #for prob in probs:

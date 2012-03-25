@@ -339,7 +339,7 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
     print 'the area of the sum of ring zones', total_zone_area
     print 'the value of zone area is', zone_area
     print 'the ratio value in each zone', ratio_each
-    print 'the total fiber area in each ring zone', area_fib_zone, sp.sum(area_fib_zone)
+    print 'the total fiber area in each ring zone', area_fib_zone, sp.sum(area_fib_zone), rad_fib[0], len(rad_fib)
     raw_input("Record this value for the polyester")
     zone_point = sp.zeros(len(zone_radius))
     for i_circle in sp.arange(len(zone_radius)):
@@ -355,37 +355,46 @@ def plot_ratio_function(zone_position, each_time_ratio, type_fiber,
     """ A function to nicely plot area proportions found after the iteration """
     iteration_times = int(len(each_time_ratio) / 2)
     each_kind_ratio = [0] * type_fiber
-    each_coefficients = [0.0233, 0.0273]
+    each_coefficients = [0.0067, 0.021]
     mean_ratio_subplot = [0] * type_fiber
     
     for i_type in sp.arange(type_fiber):
         each_kind_ratio[i_type] = []
-        
+        if i_type == 0:
+            i_kind = '1st'
+        else:
+            i_kind = '2nd'
         for i_iteration in sp.arange(iteration_times):
             index_same_kind = type_fiber * i_iteration + i_type
             each_kind_ratio[i_type].append(each_time_ratio[index_same_kind])
         each_kind_ratio[i_type] = sp.array(each_kind_ratio[i_type])
-        mean_ratio = sp.zeros(len(zone_position), float)
-        mean_ratio_subplot[i_type] = sp.zeros(len(zone_position), float)
+        mean_ratio = sp.zeros(len(zone_position[i_type]), float)
+        mean_ratio_subplot[i_type] = sp.zeros(len(zone_position[i_type]), float)
         value_in_iteration = sp.zeros(iteration_times, float)
-        for i_position in sp.arange(len(zone_position) - 1):
+        
+        for i_position in sp.arange(len(zone_position[i_type]) - 1):
             for i_iteration in sp.arange(iteration_times):
                 value_in_iteration[i_iteration] = each_kind_ratio[i_type][i_iteration][i_position]
+##            if i_type == 0:
+##                mean_ratio[i_position] = np.mean(value_in_iteration)
+##                mean_ratio_subplot[i_type][i_position] = mean_ratio[i_position]
+##            else:
             mean_ratio[i_position] = np.mean(value_in_iteration)
             mean_ratio_subplot[i_type][i_position] = mean_ratio[i_position]
-        position_for_function = sp.linspace(0, zone_position[-1], 50)
+        print "the  mean ratio for ploting", mean_ratio
+        position_for_function = sp.linspace(0, zone_position[0][-1], 50)
         each_probability_function = probability_function[i_type]
         coefficient = each_coefficients[i_type]
         import pylab
         pylab.figure()
         pylab.plot(position_for_function, each_probability_function(position_for_function) / coefficient, '--')
-        pylab.plot(zone_position, mean_ratio, 'o')
+        pylab.plot(zone_position[i_type], mean_ratio, 'o')
         pylab.plot()
         pylab.xlabel('Relative position in the yarn domain')
         pylab.ylabel('Probability value')
         pylab.xlim(0., 1.05)
         pylab.ylim(0., 0.90)
-        pylab.title('Area probability for %d th kind of fiber'% (i_type+1))
+        pylab.title('Area probability for %s kind of fiber'% (i_kind))
     #part for drawing in subplot way
     pylab.ion()
     pylab.figure()
@@ -395,7 +404,7 @@ def plot_ratio_function(zone_position, each_time_ratio, type_fiber,
         each_probability_function = probability_function[i_type]
         pylab.subplot(type_fiber, 1, i_type + 1)
         pylab.title('Area probability for %d th kind of fiber'% (i_type+1))
-        pylab.plot(zone_position, mean_for_plot, 'o')
+        pylab.plot(zone_position[i_type], mean_for_plot, 'o')
         pylab.xlim(0., 1.05)
         pylab.ylim(0., 0.8)
         pylab.xlabel('Relative position in the yarn domain')
@@ -403,7 +412,7 @@ def plot_ratio_function(zone_position, each_time_ratio, type_fiber,
         pylab.plot(position_for_function, each_probability_function(position_for_function) / coefficient, '--')
         pylab.axis()
     pylab.show()
-        
+    
         
         
     
