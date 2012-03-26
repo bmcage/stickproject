@@ -923,7 +923,7 @@ def move_fibers_alpha(xpos, ypos, radin, rad_yarn, mean_deviation):
     ##change the alpha value
     ok = False
     alpha = -1.
-    aplphafactor = 1/(1-alpha)
+    alphafactor = 1/(1-alpha)
     nrmoves = 0
     nrmovesmax = 5000
     nrmovesmaxyarn = 10000
