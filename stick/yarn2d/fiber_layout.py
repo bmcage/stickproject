@@ -954,18 +954,18 @@ def move_fibers_alpha(xpos, ypos, radin, rad_yarn, mean_deviation):
                                                     sp.power(ypos[ov_ind], 2.))
                         delta_dir_y = -ypos[ov_ind] / sp.sqrt(sp.power(xpos[ov_ind], 2.) + 
                                                     sp.power(ypos[ov_ind], 2.))
-                    dirx = (ov_distreal - ov_distreq) * 1. * delta_dir_x#\
-                            #(1. / 2.)* \
-                            #delta_dir_x
-                    diry = (ov_distreal - ov_distreq) * 1. * delta_dir_y#\
-                           # (1. / 2.)* \
-                            #delta_dir_y
+                    dirx = (ov_distreal - ov_distreq) * delta_dir_x\
+                            * (2. / 3.)* \
+                            delta_dir_x
+                    diry = (ov_distreal - ov_distreq) * 1. * delta_dir_y\
+                           * (2. / 3.)* \
+                            delta_dir_y
                 else:
                     dirx = (ov_distreal - ov_distreq) * \
-                            (1. )* \
+                            (2. / 3. )* \
                             (xpos[ov_ind] - xpos[ind])/ (ov_distreal)
                     diry = (ov_distreal - ov_distreq) * \
-                            (1. )* \
+                            (2. / 3.)* \
                             (ypos[ov_ind] - ypos[ind])/ (ov_distreal)
                 
                 vx[ind] += dirx

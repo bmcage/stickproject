@@ -7,6 +7,7 @@ import os, sys
 import numpy as np
 import scipy as sp
 import pylab
+import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Wedge, Polygon, Ellipse
 from matplotlib.collections import PatchCollection
 
@@ -294,6 +295,8 @@ print 'relative error for proportionally moving', average_relative_error_each, \
         mean_value_each
 print 'relative error for fixed value of moving', average_relative_error_alpha, \
         mean_value_alpha
+        
+compare_relative_error(mean_value_each, mean_value_alpha, nrzones)
 plot_ratio_function(zone_position, each_time_ratio, type_fiber, grid.prob_area)
 #meanraw_input("finish one loop for one kind of fiber")
     #for prob in probs:
@@ -301,3 +304,18 @@ plot_ratio_function(zone_position, each_time_ratio, type_fiber, grid.prob_area)
         #TODO PEI
 print 'layout created in directory temp'
 raw_input('Press key to quit example')
+
+def compare_relative_error(mean_value_each, mean_value_alpha, nrzones):
+    ind = sp.arange(nrzones)
+    width = 0.2
+    
+    plt.figure()
+    propor_draw = plt.bar(ind, mean_value_each, width, color = 'b')
+    alpha_draw = plt.bar(ind + width, mean_value_alpha, color = 'y')
+    
+    plt.ylabel(ur'$\Delta D = \frac{\sum\limits_{i=1}^{n}(p_{f}^{i} - p_{a}^{i})^2}{p_{f}^{i}}$')
+    plt.xlabel(ind + width, ('Zone1', 'Zone2', 'Zone3', 'Zone4', 'Zone4'))
+    plt.legend((propor_draw[0], alpha_draw[0]), ('$\alpha = \frac{R_{f}^{m}}{R_{f}^{n}}$', '$\alpha = \frac{1}{2}$'))
+    
+    plt.show()
+    
