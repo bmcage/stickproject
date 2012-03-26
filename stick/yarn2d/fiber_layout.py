@@ -820,8 +820,7 @@ def determine_overlap(xpos, ypos, radin, average_mean_deviation):
     coord[:, 1] = ypos[:]
     ind, res = fullcompare_array(coord, func=circledist, funcdata_a=radin*(1+ average_mean_deviation / 2.)) ##(NONTOUCH_FAC-1)/2))
     return ind, res[0], res[1]
-    
-    
+
 def move_fibers_nonoverlap(xpos, ypos, radin, rad_yarn, fiber_kind, mean_deviation):
     ok = False
     nrmoves = 0
@@ -923,6 +922,8 @@ def move_fibers_nonoverlap(xpos, ypos, radin, rad_yarn, fiber_kind, mean_deviati
 def move_fibers_alpha(xpos, ypos, radin, rad_yarn, mean_deviation):
     ##change the alpha value
     ok = False
+    alpha = -1.
+    aplphafactor = 1/(1-alpha)
     nrmoves = 0
     nrmovesmax = 5000
     nrmovesmaxyarn = 10000

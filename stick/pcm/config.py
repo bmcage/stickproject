@@ -103,8 +103,8 @@ class PCMConfigManager(ConfigManager):
             "Melting point of the pcm in degree Celcius")
         self.register("pcm.latent_heat_fusion", 238.76,
             "Amount of heat that can be absorbed during melting, in kJ/kg.")
-        self.register("pcm.density_solid", 779,
-            "Density of the solid for normal conditions (20 degree Celcius), in kg/m^3")
+        self.register("pcm.density", 779,
+            "Density of the material for normal conditions (20 degree Celcius), in kg/m^3")
         self.register("pcm.specific_heat_solid", 1.9,
             "Specific heat of the solid for normal conditions (25 degree Celcius), in kJ/(kg K)")
         self.register("pcm.specific_heat_liquid", 2.1,
