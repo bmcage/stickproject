@@ -42,7 +42,7 @@ import matplotlib.pyplot as plt
 # DiffusionIT modules
 #
 #-------------------------------------------------------------------------
-import const
+import stick.const as const
 
 #-------------------------------------------------------------------------
 #

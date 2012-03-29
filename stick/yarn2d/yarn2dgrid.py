@@ -27,7 +27,7 @@ Module for functions of a yarn 2D grid.
 from __future__ import division
 import os.path
 import sys
-import const
+import stick.const as const
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
@@ -44,11 +44,11 @@ from sympy.abc import x,y
 # Local Imports
 #
 #-------------------------------------------------------------------------
-import lib.utils.utils as utils
+import stick.lib.utils.utils as utils
 from fipy import Gmsh2D
 from fipy import *
-from yarn.config import FIBERLAYOUTS
-from fiber.config import FiberConfigManager, FIBER_FORM, CIRCLE, ELLIPSE
+from stick.yarn.config import FIBERLAYOUTS
+from stick.fiber.config import FiberConfigManager, FIBER_FORM, CIRCLE, ELLIPSE
 
 from virtlocgeom import *
 from fiber_layout import *
@@ -67,7 +67,7 @@ class Yarn2dGrid(object):
         self.cfg = cfg
         self.verbose = self.cfg.get('general.verbose')
         self.fiberlayout = self.cfg.get('domain.fiberlayout_method')
-        
+        self.distribute_fiber = self.cfg.get('domain.distribute_fiber')
         self.x_central = 0.
         self.y_central = 0.
         self.z = 0.
@@ -154,7 +154,8 @@ class Yarn2dGrid(object):
                 'theta_value' : self.theta_value,
                 'beta_value' : self.beta_value,
                 'mean_deviation': self.mean_deviation,
-                'prob_area': self.prob_area
+                'prob_area': self.prob_area,
+                'layout_distribution': self.distribute_fiber
                 })
             ouroptions['radius_first_center'] = self.cfg.get(
                                     'domain.radius_first_center_virtloc')

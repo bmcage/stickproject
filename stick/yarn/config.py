@@ -31,8 +31,8 @@ This package implements config defaults for Diffusion in yarn
 #---------------------------------------------------------------
 from __future__ import division
 import os
-import const
-from lib.config import ConfigManager
+import stick.const as const
+from stick.lib.config import ConfigManager
 
 
 #---------------------------------------------------------------
@@ -122,6 +122,8 @@ class YarnConfigManager(ConfigManager):
         self.register("general.submethod", 'fipy', 
             "Solution submethod to use")
         #domain section
+        self.register("domain.distribute_fiber", 'integral',
+            "distribute fiber to the yarn layout")
         self.register("domain.cellsize_centre", 5.0e-2, 
             "preferred edge length of each mesh for yarn")
         self.register("domain.cellsize_fiber", 5.0e-2,
