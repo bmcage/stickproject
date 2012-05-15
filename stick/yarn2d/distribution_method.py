@@ -39,12 +39,13 @@ import matplotlib
 # Local Imports
 #
 #-------------------------------------------------------------------------
-from stick.lib.utils.arraycompare import fullcompare_array, circledist
+from lib.utils.arraycompare import fullcompare_array, circledist
+import lib.utils.utils as utils
 from fipy import Gmsh2D
 from fipy import *
-from stick.yarn.config import FIBERLAYOUTS
+from yarn.config import FIBERLAYOUTS
 from virtlocgeom import *
-from probability_area import *
+#from probability_area import *
 
 def integration_layout(radius_fiber, radius_yarn, radius_each_circle, number_fiber_distribution, first_center,
                                         original_function_pro, number_circle_central, x_position_vl, y_position_vl):
@@ -85,7 +86,7 @@ def integration_layout(radius_fiber, radius_yarn, radius_each_circle, number_fib
     print 'the value from the integration', each_num_integration
     #raw_input("check whether the value is equal to the input")
     #each_num_integration = each_num_integration
-    if abs(each_num_integration[-1] - 1) > 0.03:
+    if abs(each_num_integration[-1] - 1) > 0.033:
         print 'the precision of the integration cannot reach'
         print each_num_integration[-1]
         assert False
@@ -155,7 +156,7 @@ def integration_layout(radius_fiber, radius_yarn, radius_each_circle, number_fib
         i_circle_number += 1
     return (each_circle_zone_num, x_position, y_position)
 
-def vl_distribution(number_fiber_VL, number_fiber_distribution, x_position_VL, y_position_VL):
+def vl_distribution(num_fiber_VL, number_fiber_distribution, x_position_vl, y_position_vl):
 #
 #number_fiber_VL: array, the virtual locations number in each ring zone;
 #number_fiber_distribution: integer, the number of the fiber distributed;
