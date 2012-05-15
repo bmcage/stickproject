@@ -27,7 +27,7 @@ Module for functions of a yarn 2D grid.
 from __future__ import division
 import os.path
 import sys
-import stick.const as const
+import const as const
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
@@ -44,11 +44,11 @@ from sympy.abc import x,y
 # Local Imports
 #
 #-------------------------------------------------------------------------
-import stick.lib.utils.utils as utils
+import lib.utils.utils as utils
 from fipy import Gmsh2D
 from fipy import *
-from stick.yarn.config import FIBERLAYOUTS
-from stick.fiber.config import FiberConfigManager, FIBER_FORM, CIRCLE, ELLIPSE
+from yarn.config import FIBERLAYOUTS
+from fiber.config import FiberConfigManager, FIBER_FORM, CIRCLE, ELLIPSE
 
 from virtlocgeom import *
 from fiber_layout import *
@@ -150,6 +150,8 @@ class Yarn2dGrid(object):
         if self.fiberlayout == 'random':
             layoutfun = randomfiberlayout
         elif self.fiberlayout in ['virtloc', 'virtlocoverlap']:
+            print 'the distribution method in', self.distribute_fiber
+            raw_input("check before going to the combination")
             ouroptions.update({
                 'theta_value' : self.theta_value,
                 'beta_value' : self.beta_value,

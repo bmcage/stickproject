@@ -21,17 +21,17 @@ read = False
 verbose = False
 [domain]
 fiberlayout_method = 'virtlocoverlap'
-distribute_fiber = ' integral'
+distribute_fiber = 'integral'
 cellsize_centre = 1.0e-1
 cellsize_fiber = 2.50e-2
 yarnradius = 1.0
 [fiber]
 number_type = 2
-number_fiber = 400 
-blend = [75., 25.]
+number_fiber = 144
+blend = [51.4, 48.6]
 eps_value = 0.001
 fiber_config = ['tmpfiber1.ini', 'tmpfiber2.ini']
-prob_area = '[lambda r: 0.00665 * ( 3.94231736 * r ** 4. - 8.00599612 * r ** 3. + 4.32590842 * r ** 2. - 0.67755321 * r + 0.41283374), lambda r: 0.02 * (4.44996934 * r ** 4. -9.05211446 * r ** 3. + 5.07757628 * r ** 2. -0.91234278 * r + 0.43632983)]'
+prob_area = '[ lambda r: 0.0130* (-7.0349674 * r ** 4 + 13.2165906 * r ** 3. - 8.34242634 * r ** 2. + 2.1560694 * r + 0.00433641299), lambda r: 0.0185 * (1.13227791 * r **4 - 4.14156084 * r ** 3 + 4.39219104 * r ** 2 - 1.91494891 * r + 0.53275704)]'
 [plot]
 maxval = 0.0005
 plotevery = 10
@@ -46,14 +46,14 @@ submethod = 'odew'
 read = False
 verbose = True
 [fiber]
-radius_pure_fiber = 0.030
+radius_pure_fiber = 0.0503
 form = 'circle'
 nrlayers = 2
-mean_deviation = 0.00739
+mean_deviation = 0.0
 [fiberlayer_0]
-thickness = 0.001
+thickness = 0.00085
 [fiberlayer_1]
-thickness = 0.001
+thickness = 0.00085
 [plot]
 plotevery = 1
 """
@@ -64,11 +64,11 @@ submethod = 'odew'
 read = False
 verbose = False
 [fiber]
-radius_pure_fiber = 0.05313
+radius_pure_fiber = 0.05441
 form = 'ellipse'
 eccentricity = 0.7
 nrlayers = 2
-mean_deviation = 0.01201728333018
+mean_deviation = 0.0
 [fiberlayer_0]
 thickness = 0.001
 [fiberlayer_1]
@@ -130,9 +130,9 @@ raw_input("finish calculating the sum of cross-section area value  for each kind
 fiber_kind = np.zeros(len(radius_real_fiber), int)
 fiber_kind[len(data_polyester):] = 1
 
-from stick.yarn2d.fiber_layout import plot_yarn
-from stick.yarn2d.arearatioprobability import (calculate_proportion, 
-            plot_ratio_function)
+from yarn2d.fiber_layout import plot_yarn
+from yarn2d.arearatioprobability import (calculate_proportion, 
+            plot_ratio_function, compare_relative_error)
 
 plot_yarn(x_position_real_fiber, y_position_real_fiber, radius_real_fiber, 
           fiber_kind, title='Real fiber-yarn layout')
@@ -184,18 +184,19 @@ pylab.axis()
 pylab.show()
 raw_input("check the figure")
 #set up a yarn computation
-from stick.fiber.config import FiberConfigManager
-from stick.yarn.config import YarnConfigManager
-from stick.lib.utils.utils import set_outputdir
+from fiber.config import FiberConfigManager
+from yarn.config import YarnConfigManager
+from lib.utils.utils import set_outputdir
 cfgf1 = FiberConfigManager.get_instance('tmpfiber1.ini', realdatastr=ini_fiber1)
 cfgf2 = FiberConfigManager.get_instance('tmpfiber2.ini', realdatastr=ini_fiber2)
+#cfgf3 = FiberConfigManager.get_instance('tmpfiber3.ini', realdatastr=ini_fiber3)
 cfg = YarnConfigManager.get_instance('tmpyarn.ini', realdatastr=ini_yarn)
 #create outputdir if not existing
 if not os.path.isdir('temp'):
     os.mkdir('temp')
 set_outputdir('temp')
 #create 10 2D grids for statistics
-from stick.yarn2d.yarn2dgrid import Yarn2dGrid
+from yarn2d.yarn2dgrid import Yarn2dGrid
 grid = Yarn2dGrid(cfg)
 ouroptions = {
                 'x_central' : grid.x_central,
@@ -210,20 +211,23 @@ ouroptions = {
                 'prob_area': grid.prob_area,
                 'radius_first_center': cfg.get(
                                     'domain.radius_first_center_virtloc'),
+                'distribute_fiber': cfg.get('domain.distribute_fiber')
                 }
-from stick.yarn2d.fiber_layout import virtlocoverlaplayout
+from yarn2d.fiber_layout import virtlocoverlaplayout
 #After generating n times of iteration, plot prob func result from the average ratio value
-coefficient_function = [0.00665, 0.02]
-iteration = 5
+coefficient_function = [0.0130, 0.0185]
+iteration = 10
 each_time_ratio = []
 relative_error_each = []
 relative_error_alpha = []
+    
 for i in range(iteration):
     x_position, y_position, all_radius_fibers, \
                     fiber_kind,type_fiber, ratio_each_kind, \
                     zone_position_each, ratio_each_alpha = virtlocoverlaplayout(ouroptions)
     plot_yarn(x_position, y_position, all_radius_fibers, 
               fiber_kind, title='Realization %d' % i)
+    raw_input("capture")
     ratio_each = [0] * type_fiber
     zone_position = [0] * type_fiber
     #zone_position = [0]
@@ -250,7 +254,8 @@ for i in range(iteration):
         value_from_function = grid.prob_area[i_type]
         ratio_compare = value_from_function(zone_position[i_type]) / coefficient_function[i_type]
         print 'the ratio value from the calculation', ratio_compare
-        raw_input('to generate the relative error')
+        #raw_input('to generate the relative error')
+        
 ##        if i_type == 0:
 ##            zone_position[i_type] = sp.zeros(len(probs[0]) +  2, float)
 ##            print 'check the length', len(zone_position[i_type][1:-1]), len(probs[0][:])
@@ -260,11 +265,11 @@ for i in range(iteration):
 ##            ratio_each[i_type] = sp.zeros(len(probs[0]) + 1, float)
 ##            ratio_each[i_type][1:] = probs[-1][:]
 ##        else:
-##        zone_position[i_type] =sp.zeros(len(probs[0]) + 1, float)
-##        zone_position[i_type][0] = 0.
-##        zone_position[i_type][1:] = probs[0][:]
-##        #zone_position[i_type][-2] = 1. - grid.radius_yarn / ((nrzones-1)*2 + 1)
-##        zone_position[i_type][-1] = 1.
+##            zone_position[i_type] =sp.zeros(len(probs[0]) + 1, float)
+##            zone_position[i_type][0] = 0.
+##            #zone_position[i_type][1:] = probs[0][:]
+##            zone_position[i_type][-2] = 1. - grid.radius_yarn / ((nrzones-1)*2 + 1)
+##            zone_position[i_type][-1] = 1.
 
         #ratio_each[i_type] = sp.ones(len(probs[-1]), float)
         #ratio_each[i_type][:] = probs[-1][:]
@@ -275,28 +280,43 @@ for i in range(iteration):
                                             / ratio_compare[:-1], 2.)
         relative_error_kind_alpha = sp.power(abs(ratio_compare[:-1] - ratio_each_alpha[i_type][:])\
                                             /ratio_compare[:-1], 2.)
-        raw_input('check the ratio value from the calculation')
+        #raw_input('check the ratio value from the calculation')
         each_time_ratio.append(ratio_each_kind[i_type])
         relative_error_each.append(relative_error_each_kind)
         relative_error_alpha.append(relative_error_kind_alpha)
 relative_error_each = sp.array(relative_error_each)
 relative_error_alpha = sp.array(relative_error_alpha)
-sum_error_each_pos = sp.zeros(len(relative_error_each[0]))
-sum_error_alpha_pos = sp.zeros(len(relative_error_alpha[0]))
-for i_error in sp.arange(len(relative_error_each)):
-    for i_suberror in sp.arange(len(relative_error_each[i_error])):
-        sum_error_each_pos[i_suberror] += relative_error_each[i_error][i_suberror]
-        sum_error_alpha_pos[i_suberror] += relative_error_alpha[i_error][i_suberror]
-average_relative_error_each = sum_error_each_pos / iteration
-average_relative_error_alpha = np.mean(sum_error_alpha_pos) / iteration
-mean_value_each = np.mean(relative_error_each, axis = 0)
-mean_value_alpha = np.mean(relative_error_alpha, axis = 0)
-print 'relative error for proportionally moving', average_relative_error_each, \
-        mean_value_each
-print 'relative error for fixed value of moving', average_relative_error_alpha, \
-        mean_value_alpha
+mean_value_each = [0] * type_fiber
+mean_value_alpha = [0] * type_fiber
+for i_type in sp.arange(type_fiber):
+    each_kind_fiber = []
+    each_kind_fiber_alpha = []
+    for i_iteration in sp.arange(iteration):
+        index = i_type + 2 * i_iteration
+        each_kind_fiber.append(relative_error_each[index])
+        each_kind_fiber_alpha.append(relative_error_alpha[index])
+    each_kind_fiber = sp.array(each_kind_fiber)
+    each_kind_fiber_alpha = sp.array(each_kind_fiber_alpha)
+    mean_value_each[i_type] = np.mean(each_kind_fiber, axis = 0)
+    mean_value_alpha[i_type] = np.mean(each_kind_fiber_alpha, axis = 0)
+##print 'relative error for each kind of fibers', mean_value_each, mean_value_alpha
+##raw_input("enter")        
+###sum_error_each_pos = sp.zeros(len(relative_error_each[0]))
+###sum_error_alpha_pos = sp.zeros(len(relative_error_alpha[0]))
+##for i_error in sp.arange(len(relative_error_each)):
+##    for i_suberror in sp.arange(len(relative_error_each[i_error])):
+##        sum_error_each_pos[i_suberror] += relative_error_each[i_error][i_suberror]
+##        sum_error_alpha_pos[i_suberror] += relative_error_alpha[i_error][i_suberror]
+##average_relative_error_each = sum_error_each_pos / iteration
+##average_relative_error_alpha = np.mean(sum_error_alpha_pos) / iteration
+##mean_value_each = np.mean(relative_error_each, axis = 0)
+##mean_value_alpha = np.mean(relative_error_alpha, axis = 0)
+##print 'relative error for proportionally moving', average_relative_error_each, \
+##        mean_value_each
+##print 'relative error for fixed value of moving', average_relative_error_alpha, \
+##        mean_value_alpha
         
-compare_relative_error(mean_value_each, mean_value_alpha, nrzones)
+compare_relative_error(mean_value_each, mean_value_alpha, nrzones, type_fiber)
 plot_ratio_function(zone_position, each_time_ratio, type_fiber, grid.prob_area)
 #meanraw_input("finish one loop for one kind of fiber")
     #for prob in probs:
@@ -305,17 +325,4 @@ plot_ratio_function(zone_position, each_time_ratio, type_fiber, grid.prob_area)
 print 'layout created in directory temp'
 raw_input('Press key to quit example')
 
-def compare_relative_error(mean_value_each, mean_value_alpha, nrzones):
-    ind = sp.arange(nrzones)
-    width = 0.2
-    
-    plt.figure()
-    propor_draw = plt.bar(ind, mean_value_each, width, color = 'b')
-    alpha_draw = plt.bar(ind + width, mean_value_alpha, color = 'y')
-    
-    plt.ylabel(ur'$\Delta D = \frac{\sum\limits_{i=1}^{n}(p_{f}^{i} - p_{a}^{i})^2}{p_{f}^{i}}$')
-    plt.xlabel(ind + width, ('Zone1', 'Zone2', 'Zone3', 'Zone4', 'Zone4'))
-    plt.legend((propor_draw[0], alpha_draw[0]), ('$\alpha = \frac{R_{f}^{m}}{R_{f}^{n}}$', '$\alpha = \frac{1}{2}$'))
-    
-    plt.show()
     

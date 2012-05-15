@@ -39,14 +39,14 @@ import matplotlib
 # Local Imports
 #
 #-------------------------------------------------------------------------
-import stick.lib.utils.utils as utils
-from stick.lib.utils.arraycompare import fullcompare_array, circledist
+import lib.utils.utils as utils
+from lib.utils.arraycompare import fullcompare_array, circledist
 from fipy import Gmsh2D
 from fipy import *
-from stick.yarn.config import FIBERLAYOUTS
+from yarn.config import FIBERLAYOUTS
 from virtlocgeom import *
 from arearatioprobability import *
-from probability_area import *
+
 from distribution_method import *
 
 #-------------------------------------------------------------------------
@@ -101,7 +101,6 @@ def randomfiberlayout(options):
         radius_fiber[sum(onumber_fiber_blend[:j]):sum(onumber_fiber_blend[:j+1])]\
             = oradius_fiber[j]
         fiber_kind[onumber_fiber_blend[j-1]:onumber_fiber_blend[j] + onumber_fiber_blend[j-1]] = j
-
     print 'Putting', onumber_fiber, 'fibers'
     for i in sp.arange(0, onumber_fiber, 1):
         
@@ -160,7 +159,6 @@ def virtloclayout(options):
     obeta_value = options.get('beta_value', 0.05)
     
     omean_deviation = options.get('mean_deviation', 0.0)
-    #omean_deviation = omean_deviation[0]
     ##The method of the integration
     original_function_pro = options.get('prob_area',  lambda r: r**1 )
     #original_function_pro = original_function_pro[0]
@@ -296,14 +294,14 @@ def virtloclayout(options):
     #use the integral of area probability function to distribute the fibers
     if distribute_fiber == 'integral':
         each_circle_zone_num, x_position, y_position = integration_layout(oradius_fiber, 
-                                                                                    oradius_yarn, radius_each_circle, onumber_fiber_blend[0], 
-                                                                                    ofirst_center, original_function_pro, number_circle_central,
-                                                                                    x_position_vl, y_position_vl)
+                                        oradius_yarn, radius_each_circle, onumber_fiber_blend[0], 
+                                        ofirst_center, original_function_pro, number_circle_central,
+                                        x_position_vl, y_position_vl)
     elif distribute_fiber == 'virtual_location':
    #distribute the fiber into the VL from VL-fiber function
-        each_circle_zone_num, x_position, y_position = vl_distribution(number_fiber_VL, number_fiber_distribution, 
-                                                                                x_position_VL, y_position_VL)
-        fit_polynomial()
+        print 'begin with distributing by VLM'
+        each_circle_zone_num, x_position, y_position = vl_distribution(num_fiber_VL, onumber_fiber_blend[0], 
+                                                                                x_position_vl, y_position_vl)
 
     #Calculate the ratio value in each ring zone
         zone_position, ratio_value = calculate_proportion(oradius_yarn, radius_fiber, 
@@ -347,7 +345,8 @@ def virtlocoverlaplayout(options):
         (list of x coord center points,
          list of y coord center points,l
          list of radius of fiber,
-         list integers indicating kind of fiber)
+         list integers indicating kind of fiber
+        )
     """
     x_central = options.get('x_central', 0.)
     y_central = options.get('y_central', 0.)
@@ -368,7 +367,8 @@ def virtlocoverlaplayout(options):
     onumber_fiber_each = sp.zeros(len(onumber_fiber_blend), float)
     onumber_fiber_each[:] = onumber_fiber_blend[:]
     type_fiber = len(onumber_fiber_blend)
-    
+    print 'generate fiber_kind value',type_fiber
+    raw_input("check the fiber kind number")
     x_position = [0] * type_fiber
     y_position = [0] * type_fiber
     each_num_circle = [0] * type_fiber
@@ -419,14 +419,10 @@ def virtlocoverlaplayout(options):
         y_position[i_type][:] = ay_position[:]
         radius_fiber[i_type] = aradius_fiber[:]
         zone_position_one_kind, ratio_one_kind = calculate_proportion(oradius_yarn,
-                                            aradius_fiber, ax_position, ay_position)                                            
+                                            aradius_fiber, ax_position, ay_position)
 ##        for i_rad in sp.arange(len(aradius_fiber)):
 ##            radius_fiber[i_type][i_rad] = np.random.normal(aradius_fiber[0], 
 ##                                omean_deviation[i_type])  
-##        if i_type == 0:
-##            radius_fiber[i_type][:] = 0.005
-##        else:
-##            radius_fiber[i_type][:] = aradius_fiber[:]
         fiber_kind[i_type][:] = afiber_kind[:]
         each_num_circle[i_type] = sp.empty(len(area_ring_zone), int)
         each_num_circle[i_type][:] = each_circle_zone_num[:]
@@ -472,14 +468,10 @@ def virtlocoverlaplayout(options):
         x_position_shift[i_type][:] = ax_position_shift[:]
         y_position_shift[i_type][:] = ay_position_shift[:]
         radius_fiber_shift[i_type][:] = aradius_fiber_shift[:]
-        
+
 ##        for i_rad in sp.arange(len(aradius_fiber_shift)):
 ##            radius_fiber_shift[i_type][i_rad] = np.random.normal(aradius_fiber_shift[0],
 ##                                            omean_deviation[i_type])
-##        if i_type == 0:
-##            radius_fiber[i_type][:] = 0.005
-##        else:
-##            radius_fiber[i_type][:] = aradius_fiber[:]
         
         fiber_kind_shift[i_type][:] = afiber_kind_shift[:]
         each_num_circle_shift[i_type] = sp.empty(len(area_ring_zone_shift),int)
@@ -528,82 +520,82 @@ def virtlocoverlaplayout(options):
         end_point_shift = 0
         position_each_shift = []
         #left_num = left_num_shift
-##        if ind == 0:
-##            for i_circle in sp.arange(1, len(each_num_circle_shift[ind]), 1):
-##                number_chosen = sp.around(each_num_circle_shift[ind][i_circle] / 2. + 0.001)
-##                i_half_each = 0
-##                end_point_shift += each_num_circle_shift[ind][i_circle]
-##                left_num = left_num_shift
-##                left_num -= number_chosen
-##                if left_num >= 0:
-##                    while i_half_each < number_chosen:
-##                        a_position = np.random.uniform(begin_point_shift, 
-##                                    end_point_shift)
-##                        position_random = int(a_position)
-##                        determine_value = (position_random == sp.array(position_each_shift))
-##                        while determine_value.any() == True:
-##                            a_position = np.random.uniform(begin_point_shift, 
-##                                    end_point_shift)
-##                            position_random = int(a_position)
-##                            determine_value = (position_random == sp.array(position_each_shift))
-##                        else:
-##                            position_each_shift.append(position_random)
-##                        i_half_each += 1
-##                    begin_point_shift += each_num_circle_shift[ind][i_circle]
-##                
-##                else:
-##                    while i_half_each < (left_num + number_chosen):
-##                        a_position = np.random.uniform(begin_point_shift, 
-##                                    end_point_shift)
-##                        position_random = int(a_position)
-##                        determine_value = (position_random == sp.array(position_each_shift))
-##                        while determine_value.any() == True:
-##                            a_position = np.random.uniform(begin_point_shift, 
-##                                    end_point_shift)
-##                            position_random = int(a_position)
-##                            determine_value = (position_random == position_each_shift)
-##                        else:
-##                            position_each_shift.append(position_random)
-##                        i_half_each += 1
-##        else:
-        for i_circle in sp.arange(len(each_num_circle_shift[ind])):
-            number_chosen = sp.around(each_num_circle_shift[ind][i_circle] / 2. + 0.001)
-            i_half_each = 0
-            end_point_shift += each_num_circle_shift[ind][i_circle]
-            left_num = left_num_shift
-            left_num -= number_chosen
-            if left_num >= 0:
-                while i_half_each < number_chosen:
-                    a_position = np.random.uniform(begin_point_shift, 
-                                end_point_shift)
-                    position_random = int(a_position)
-                    determine_value = (position_random == sp.array(position_each_shift))
-                    while determine_value.any() == True:
+        if ind == 0:
+            for i_circle in sp.arange(1, len(each_num_circle_shift[ind]), 1):
+                number_chosen = sp.around(each_num_circle_shift[ind][i_circle] / 2. + 0.001)
+                i_half_each = 0
+                end_point_shift += each_num_circle_shift[ind][i_circle]
+                left_num = left_num_shift
+                left_num -= number_chosen
+                if left_num >= 0:
+                    while i_half_each < number_chosen:
                         a_position = np.random.uniform(begin_point_shift, 
-                                end_point_shift)
+                                    end_point_shift)
                         position_random = int(a_position)
                         determine_value = (position_random == sp.array(position_each_shift))
-                    else:
-                        position_each_shift.append(position_random)
-                    i_half_each += 1
-                begin_point_shift += each_num_circle_shift[ind][i_circle]
-            else:
-                while i_half_each < (left_num + number_chosen):
-                    a_position = np.random.uniform(begin_point_shift, 
-                                end_point_shift)
-                    position_random = int(a_position)
-                    determine_value = (position_random == sp.array(position_each_shift))
-                    while determine_value.any() == True:
+                        while determine_value.any() == True:
+                            a_position = np.random.uniform(begin_point_shift, 
+                                    end_point_shift)
+                            position_random = int(a_position)
+                            determine_value = (position_random == sp.array(position_each_shift))
+                        else:
+                            position_each_shift.append(position_random)
+                        i_half_each += 1
+                    begin_point_shift += each_num_circle_shift[ind][i_circle]
+                
+                else:
+                    while i_half_each < (left_num + number_chosen):
                         a_position = np.random.uniform(begin_point_shift, 
-                                end_point_shift)
+                                    end_point_shift)
                         position_random = int(a_position)
-                        determine_value = (position_random == position_each_shift)
-                    else:
-                        position_each_shift.append(position_random)
-                    i_half_each += 1
+                        determine_value = (position_random == sp.array(position_each_shift))
+                        while determine_value.any() == True:
+                            a_position = np.random.uniform(begin_point_shift, 
+                                    end_point_shift)
+                            position_random = int(a_position)
+                            determine_value = (position_random == position_each_shift)
+                        else:
+                            position_each_shift.append(position_random)
+                        i_half_each += 1
+        else:
+            for i_circle in sp.arange(len(each_num_circle_shift[ind])):
+                number_chosen = sp.around(each_num_circle_shift[ind][i_circle] / 2. + 0.001)
+                i_half_each = 0
+                end_point_shift += each_num_circle_shift[ind][i_circle]
+                left_num = left_num_shift
+                left_num -= number_chosen
+                if left_num >= 0:
+                    while i_half_each < number_chosen:
+                        a_position = np.random.uniform(begin_point_shift, 
+                                    end_point_shift)
+                        position_random = int(a_position)
+                        determine_value = (position_random == sp.array(position_each_shift))
+                        while determine_value.any() == True:
+                            a_position = np.random.uniform(begin_point_shift, 
+                                    end_point_shift)
+                            position_random = int(a_position)
+                            determine_value = (position_random == sp.array(position_each_shift))
+                        else:
+                            position_each_shift.append(position_random)
+                        i_half_each += 1
+                    begin_point_shift += each_num_circle_shift[ind][i_circle]
+                else:
+                    while i_half_each < (left_num + number_chosen):
+                        a_position = np.random.uniform(begin_point_shift, 
+                                    end_point_shift)
+                        position_random = int(a_position)
+                        determine_value = (position_random == sp.array(position_each_shift))
+                        while determine_value.any() == True:
+                            a_position = np.random.uniform(begin_point_shift, 
+                                    end_point_shift)
+                            position_random = int(a_position)
+                            determine_value = (position_random == position_each_shift)
+                        else:
+                            position_each_shift.append(position_random)
+                        i_half_each += 1
         position_half_shift[ind] = sp.empty(left_num_shift,int)
         #position_half_shift[ind] = sp.empty(len(position_each_shift),int)
-        print len(position_half_shift[ind]), len(position_each_shift)
+        #print len(position_half_shift[ind]), len(position_each_shift)
         for i_position in sp.arange(len(position_half_shift[ind])):
             position_half_shift[ind][i_position] = position_each_shift[i_position]   
 
@@ -655,33 +647,11 @@ def virtlocoverlaplayout(options):
     y_position_alpha = sp.empty(len(y_position), float)
     x_position_alpha[:] = x_position[:]
     y_position_alpha[:] = y_position[:]
-    
-#before removing overlap, the ratio value in each ring zone for each kind of fiber
-##    for i_type in sp.arange(len(onumber_fiber_blend)):
-##        x_no_shift = []
-##        y_no_shift = []
-##        radius_no_shift = []
-##        for i_position in sp.arange(len(x_position)):
-##            if fiber_kind[i_position] == i_type:
-##                x_no_shift.append(x_position[i_position])
-##                y_no_shift.append(y_position[i_position])
-##                radius_no_shift.append(all_radius_fiber[i_position])
-##        x_no_shift = np.array(x_no_shift)
-##        y_no_shift = np.array(y_no_shift)
-##        radius_no_shift = np.array(all_radius_fiber)
-##        zone_position_no_shift, ratio_no_shift = calculate_proportion(oradius_yarn,
-##                                            radius_no_shift, x_no_shift, y_no_shift)
-##        print 'before removing the ratio value for each kind', ratio_no_shift
-        #raw_input('check the ratio value before removing overlap')
-##    zone_position_1, ratio_no_shift = calculate_proportion(oradius_yarn, 
-##                                   all_radius_fiber, x_position, y_position)
-##    plot_yarn(x_position, y_position, all_radius_fiber)
-##    print 'before removing the overlap', ratio_no_shift
-##    raw_input("enter to continue")
+
     move_fibers_alpha(x_position_alpha, y_position_alpha, all_radius_fiber, 
                     oradius_yarn, omean_deviation)
     move_fibers_nonoverlap(x_position, y_position, all_radius_fiber, oradius_yarn, 
-                    fiber_kind, omean_deviation)
+                        fiber_kind, omean_deviation)
    
 ##    x_polyester = []
 ##    y_polyester = []
@@ -764,7 +734,7 @@ def virtlocoverlaplayout(options):
         sum_each_kind = sp.sum(sp.pi * sp.power(radius_each_kind, 2.))
 ##        print 'the radius value in the calculation', radius_each_kind[0]
 ##        print 'the sum of each kind fiber is', sum_each_kind
-        raw_input("check the value from the simulation, especially the first one")
+        #raw_input("check the value from the simulation, especially the first one")
         zone_position_ov, ratio_vl_ov = calculate_proportion(oradius_yarn, 
                                         radius_each_kind, x_each_kind, y_each_kind)
         zone_position_ov_alpha, ratio_ov_alpha = calculate_proportion(oradius_yarn, 
@@ -806,7 +776,8 @@ def virtlocoverlaplayout(options):
                     filename = utils.OUTPUTDIR + os.sep + "each_kind_ratio_alpha_%g"%(i_kind),
                     extension = '.gz')
     ##raw_input("wait")
-    
+##    print 'before return the value', fiber_kind
+##    raw_input("check the fiber kind value")
     return (x_position, y_position, all_radius_fiber, fiber_kind, type_fiber, ratio_each_kind, 
                 zone_position_each, ratio_each_alpha)
 
@@ -922,7 +893,7 @@ def move_fibers_nonoverlap(xpos, ypos, radin, rad_yarn, fiber_kind, mean_deviati
 def move_fibers_alpha(xpos, ypos, radin, rad_yarn, mean_deviation):
     ##change the alpha value
     ok = False
-    alpha = -1.
+    alpha = -0.
     alphafactor = 1/(1-alpha)
     nrmoves = 0
     nrmovesmax = 5000
