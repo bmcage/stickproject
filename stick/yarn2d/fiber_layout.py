@@ -39,11 +39,11 @@ import matplotlib
 # Local Imports
 #
 #-------------------------------------------------------------------------
-import stick.lib.utils.utils as utils
-from stick.lib.utils.arraycompare import fullcompare_array, circledist
-from fipy import Gmsh2D
+import lib.utils.utils as utils
+from lib.utils.arraycompare import fullcompare_array, circledist
 from fipy import *
-from stick.yarn.config import FIBERLAYOUTS
+from fipy import *
+from yarn.config import FIBERLAYOUTS
 from virtlocgeom import *
 from arearatioprobability import *
 from probability_area import *
@@ -164,7 +164,7 @@ def virtloclayout(options):
     ##The method of the integration
     original_function_pro = options.get('prob_area',  lambda r: r**1 )
     #original_function_pro = original_function_pro[0]
-    distribute_fiber = options.get('layout_distribution', 'integral')
+    distribute_fiber = options.get('layout_distribution', 'virtual_location')
     
     filename_1 = utils.OUTPUTDIR + os.sep + "proportion_vl_value.gz"
     if len(oradius_fiber) > 1 or len(onumber_fiber_blend) > 1:
@@ -174,6 +174,7 @@ def virtloclayout(options):
     if onumber_fiber != onumber_fiber_blend[0]:
         print 'ERROR: number fiber and blend do not correspond'
         assert False
+    print "two values:", oradius_fiber[0], omean_deviation
     oradius_fiber = oradius_fiber[0] + omean_deviation
     
     """
@@ -293,6 +294,7 @@ def virtloclayout(options):
     i_determine = 0
     number_fiber_in_loop = onumber_fiber_blend[0]
     i_type = len(onumber_fiber_blend)
+    print "choosing distributing the fibers", distribute_fiber
     #use the integral of area probability function to distribute the fibers
     if distribute_fiber == 'integral':
         each_circle_zone_num, x_position, y_position = integration_layout(oradius_fiber, 
@@ -301,9 +303,9 @@ def virtloclayout(options):
                                                                                     x_position_vl, y_position_vl)
     elif distribute_fiber == 'virtual_location':
    #distribute the fiber into the VL from VL-fiber function
-        each_circle_zone_num, x_position, y_position = vl_distribution(number_fiber_VL, number_fiber_distribution, 
-                                                                                x_position_VL, y_position_VL)
-        fit_polynomial()
+        each_circle_zone_num, x_position, y_position = vl_distribution(num_fiber_VL, 
+                                                        onumber_fiber_blend[0], 
+                                                        x_position_vl, y_position_vl)
 
     #Calculate the ratio value in each ring zone
         zone_position, ratio_value = calculate_proportion(oradius_yarn, radius_fiber, 

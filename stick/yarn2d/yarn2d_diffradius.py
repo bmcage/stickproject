@@ -39,7 +39,7 @@ import time
 #
 #-------------------------------------------------------------------------
 import lib.utils.utils as utils
-from fipy import Gmsh2D
+from fipy import GmshImporter2D
 
 #-------------------------------------------------------------------------
 #

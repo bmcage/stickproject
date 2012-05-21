@@ -10,6 +10,7 @@ import pylab
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Wedge, Polygon, Ellipse
 from matplotlib.collections import PatchCollection
+from yarn2d.distribution_method import *
 
 
 # We start with inifile settings in 
@@ -20,18 +21,18 @@ submethod = 'fipy'
 read = False
 verbose = False
 [domain]
-fiberlayout_method = 'virtlocoverlap'
-distribute_fiber = ' integral'
+fiberlayout_method = 'virtloc'
+distribute_fiber = 'virtual_location'
 cellsize_centre = 1.0e-1
 cellsize_fiber = 2.50e-2
 yarnradius = 1.0
 [fiber]
 number_type = 2
-number_fiber = 400 
-blend = [75., 25.]
+number_fiber = 144 
+blend = [51.4, 48.6]
 eps_value = 0.001
 fiber_config = ['tmpfiber1.ini', 'tmpfiber2.ini']
-prob_area = '[lambda r: 0.00665 * ( 3.94231736 * r ** 4. - 8.00599612 * r ** 3. + 4.32590842 * r ** 2. - 0.67755321 * r + 0.41283374), lambda r: 0.02 * (4.44996934 * r ** 4. -9.05211446 * r ** 3. + 5.07757628 * r ** 2. -0.91234278 * r + 0.43632983)]'
+prob_area = '[lambda r: 0.0172 * ( -7.03496740 * r ** 4. + 13.2165906 * r ** 3. - 8.34242634 * r ** 2. + 2.15606940 * r + 0.00433641299), lambda r: 0.0260 * (1.13227791 * r ** 4. - 4.14156084 * r ** 3. + 4.39219104 * r ** 2. - 1.91494891 * r + 0.53275704)]'
 [plot]
 maxval = 0.0005
 plotevery = 10
@@ -46,14 +47,14 @@ submethod = 'odew'
 read = False
 verbose = True
 [fiber]
-radius_pure_fiber = 0.030
+radius_pure_fiber = 0.053
 form = 'circle'
 nrlayers = 2
 mean_deviation = 0.00739
 [fiberlayer_0]
-thickness = 0.001
+thickness = 0.000
 [fiberlayer_1]
-thickness = 0.001
+thickness = 0.000
 [plot]
 plotevery = 1
 """
@@ -130,8 +131,8 @@ raw_input("finish calculating the sum of cross-section area value  for each kind
 fiber_kind = np.zeros(len(radius_real_fiber), int)
 fiber_kind[len(data_polyester):] = 1
 
-from stick.yarn2d.fiber_layout import plot_yarn
-from stick.yarn2d.arearatioprobability import (calculate_proportion, 
+from yarn2d.fiber_layout import plot_yarn
+from yarn2d.arearatioprobability import (calculate_proportion, 
             plot_ratio_function)
 
 plot_yarn(x_position_real_fiber, y_position_real_fiber, radius_real_fiber, 
@@ -184,9 +185,9 @@ pylab.axis()
 pylab.show()
 raw_input("check the figure")
 #set up a yarn computation
-from stick.fiber.config import FiberConfigManager
-from stick.yarn.config import YarnConfigManager
-from stick.lib.utils.utils import set_outputdir
+from fiber.config import FiberConfigManager
+from yarn.config import YarnConfigManager
+from lib.utils.utils import set_outputdir
 cfgf1 = FiberConfigManager.get_instance('tmpfiber1.ini', realdatastr=ini_fiber1)
 cfgf2 = FiberConfigManager.get_instance('tmpfiber2.ini', realdatastr=ini_fiber2)
 cfg = YarnConfigManager.get_instance('tmpyarn.ini', realdatastr=ini_yarn)
@@ -195,7 +196,7 @@ if not os.path.isdir('temp'):
     os.mkdir('temp')
 set_outputdir('temp')
 #create 10 2D grids for statistics
-from stick.yarn2d.yarn2dgrid import Yarn2dGrid
+from yarn2d.yarn2dgrid import Yarn2dGrid
 grid = Yarn2dGrid(cfg)
 ouroptions = {
                 'x_central' : grid.x_central,
@@ -211,10 +212,10 @@ ouroptions = {
                 'radius_first_center': cfg.get(
                                     'domain.radius_first_center_virtloc'),
                 }
-from stick.yarn2d.fiber_layout import virtlocoverlaplayout
+from yarn2d.fiber_layout import virtlocoverlaplayout, virtloclayout
 #After generating n times of iteration, plot prob func result from the average ratio value
 coefficient_function = [0.00665, 0.02]
-iteration = 5
+iteration = 10
 each_time_ratio = []
 relative_error_each = []
 relative_error_alpha = []
@@ -223,7 +224,7 @@ for i in range(iteration):
                     fiber_kind,type_fiber, ratio_each_kind, \
                     zone_position_each, ratio_each_alpha = virtlocoverlaplayout(ouroptions)
     plot_yarn(x_position, y_position, all_radius_fibers, 
-              fiber_kind, title='Realization %d' % i)
+              fiber_kind) #title='Realization %d' % i)
     ratio_each = [0] * type_fiber
     zone_position = [0] * type_fiber
     #zone_position = [0]
@@ -305,17 +306,5 @@ plot_ratio_function(zone_position, each_time_ratio, type_fiber, grid.prob_area)
 print 'layout created in directory temp'
 raw_input('Press key to quit example')
 
-def compare_relative_error(mean_value_each, mean_value_alpha, nrzones):
-    ind = sp.arange(nrzones)
-    width = 0.2
-    
-    plt.figure()
-    propor_draw = plt.bar(ind, mean_value_each, width, color = 'b')
-    alpha_draw = plt.bar(ind + width, mean_value_alpha, color = 'y')
-    
-    plt.ylabel(ur'$\Delta D = \frac{\sum\limits_{i=1}^{n}(p_{f}^{i} - p_{a}^{i})^2}{p_{f}^{i}}$')
-    plt.xlabel(ind + width, ('Zone1', 'Zone2', 'Zone3', 'Zone4', 'Zone4'))
-    plt.legend((propor_draw[0], alpha_draw[0]), ('$\alpha = \frac{R_{f}^{m}}{R_{f}^{n}}$', '$\alpha = \frac{1}{2}$'))
-    
-    plt.show()
+
     

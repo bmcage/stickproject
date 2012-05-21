@@ -39,10 +39,10 @@ import matplotlib
 # Local Imports
 #
 #-------------------------------------------------------------------------
-from stick.lib.utils.arraycompare import fullcompare_array, circledist
-from fipy import Gmsh2D
+from lib.utils.arraycompare import fullcompare_array, circledist
+#from fipy import Gmsh2D
 from fipy import *
-from stick.yarn.config import FIBERLAYOUTS
+from yarn.config import FIBERLAYOUTS
 from virtlocgeom import *
 from probability_area import *
 
@@ -155,7 +155,7 @@ def integration_layout(radius_fiber, radius_yarn, radius_each_circle, number_fib
         i_circle_number += 1
     return (each_circle_zone_num, x_position, y_position)
 
-def vl_distribution(number_fiber_VL, number_fiber_distribution, x_position_VL, y_position_VL):
+def vl_distribution(num_fiber_VL, number_fiber_distribution, x_position_VL, y_position_VL):
 #
 #number_fiber_VL: array, the virtual locations number in each ring zone;
 #number_fiber_distribution: integer, the number of the fiber distributed;
@@ -196,8 +196,8 @@ def vl_distribution(number_fiber_VL, number_fiber_distribution, x_position_VL, y
                     random_position = int(a_position)
                     determine_value = (random_position == location_number)
                 else:
-                    x_position[determine_generate] = x_position_vl[random_position]
-                    y_position[determine_generate] = y_position_vl[random_position]
+                    x_position[determine_generate] = x_position_VL[random_position]
+                    y_position[determine_generate] = y_position_VL[random_position]
                     location_number[i_index] = random_position
                     determine_generate += 1
             index_position += num_fiber_VL[i_circle_number]
@@ -217,10 +217,24 @@ def vl_distribution(number_fiber_VL, number_fiber_distribution, x_position_VL, y
                     random_position = int(a_position)
                     determine_value = (random_position == location_number)
                 else:
-                    x_position[determine_generate] = x_position_vl[random_position]
-                    y_position[determine_generate] = y_position_vl[random_position]
+                    x_position[determine_generate] = x_position_VL[random_position]
+                    y_position[determine_generate] = y_position_VL[random_position]
                     location_number[i_index] = random_position
                     determine_generate += 1
             index_position += num_fiber_VL[i_circle_number]
         i_circle_number += 1
     return (each_circle_zone_num, x_position, y_position)
+
+def compare_relative_error(mean_value_each, mean_value_alpha, nrzones):
+    ind = sp.arange(nrzones)
+    width = 0.2
+    
+    plt.figure()
+    propor_draw = plt.bar(ind, mean_value_each, width, color = 'b')
+    alpha_draw = plt.bar(ind + width, mean_value_alpha, color = 'y')
+    
+    plt.ylabel(ur'$\Delta D = \frac{\sum\limits_{i=1}^{n}(p_{f}^{i} - p_{a}^{i})^2}{p_{f}^{i}}$')
+    plt.xticks(ind + width, ('Zone1', 'Zone2', 'Zone3', 'Zone4', 'Zone4'))
+    plt.legend((propor_draw[0], alpha_draw[0]), ('$\alpha = \frac{R_{f}^{m}}{R_{f}^{n}}$', '$\alpha = \frac{1}{2}$'))
+    
+    plt.show()

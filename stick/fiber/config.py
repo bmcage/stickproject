@@ -31,8 +31,8 @@ This package implements config defaults for diffusion in textile fibers
 #---------------------------------------------------------------
 from __future__ import division
 import os
-import stick.const as const
-from stick.lib.config import ConfigManager
+import const
+from lib.config import ConfigManager
 
 #---------------------------------------------------------------
 #

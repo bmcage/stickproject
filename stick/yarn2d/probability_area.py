@@ -25,7 +25,7 @@ Module with precomputed functions needed for virt loc computation:
 from __future__ import division
 import os.path
 import sys
-import stick.const
+import const
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
@@ -40,8 +40,8 @@ import matplotlib
 # Local Imports
 #
 #-------------------------------------------------------------------------
-import stick.lib.utils.utils as utils
-from fipy import Gmsh2D
+import lib.utils.utils as utils
+from fipy import GmshImporter2D
 from fipy import *
 from virtlocgeom import *
 
