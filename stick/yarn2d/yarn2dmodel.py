@@ -118,11 +118,22 @@ class Yarn2DModel(object):
         self.plotevery = self.cfg.get("plot.plotevery")
         self.writeevery = self.cfg.get("plot.writeevery")
         self.writeoutcount = 0
-    
+        #take the value for the parameters of the fiber scale
+        self.nr_edge = self.cfg.get("domain.n_edge")
+        #some memory
+        self.step_old_time = None
+        self.step_old_sol = None
+        
     def create_mesh(self):
         """
         Create a mesh for use in the model
         """
+        #initiate the paramters for the fiber scale
+        self.fiber_models = [0] * (self.nr_edge - 1)
+        self.fiber_mass = np.empty((self.nr_edge - 1, self.nrtypefiber), float)
+        self.source_mass = np.empty((self.nr_edge - 1, self.nrtypefiber), float)
+        self.source = np.empty(self.nr_edge - 1, float)
+        print "begin to create mesh"
         self.grid = Yarn2dGrid(self.cfg)
         self.mesh2d = self.grid.mesh_2d_generate(filename='yarn.geo',
                                 regenerate=not self.cfg.get('general.read'))
@@ -130,12 +141,15 @@ class Yarn2DModel(object):
             print "Finished Mesh generation"
     
     def initial_yarn2d(self):
-        self.init_conc = self.cfg.get('initial.init_conc')
+        self.init_conc = eval(self.cfg.get('initial.init_conc'))
+        print "the initial value of DEET in tye yarn space", self.init_conc
+        datamax = self.cfg.get('plot.maxval')
+        print "the initial value of the DEET in the void", datamax
         self.conc = CellVariable(name = "Conc. Active Component", 
                     mesh = self.mesh2d, value = self.init_conc)
         self.viewer = None
-        self.viewer = Viewer(vars = self.conc, datamin = 0., 
-                        datamax =self.cfg.get("plot.maxval"))
+        self.viewer = Viewer(vars = self.conc)#,# datamin = 0., 
+                        #datamax = 0.0005)#self.cfg.get('plot.maxval'))
         self.viewer.plot()
         self.viewerplotcount = 1
 
@@ -143,8 +157,16 @@ class Yarn2DModel(object):
         """
         Initialize the solvers that do the fiber simulation
         """
-        for model in self.fiber_models:
-            model.run_init()
+##        for model in self.fiber_models:
+##            model.run_init()
+        for ind, models in enumerate((self.fiber_models)):
+            for type, model in enumerate(models):
+                model.run_init()
+                model.solve_init()
+                #rebind the out_conc to call yarn2D
+                model.yarndata = ind
+                model.out_conc = lambda t, data: self.out_conc(data, t)
+                self.fiber_mass[ind, type] = model.calc_mass(model.initial_c1)
 
     def solve_fiber_step(self, time):
         """
@@ -155,10 +177,17 @@ class Yarn2DModel(object):
         discretize the right side of equation. The mesh in this 1-D condition is 
         uniform
         """
-        for nyfib, model in enumerate(self.fiber_models):
-            #determine step neede to reach this time
-            step = time - model.step_old_time
-            self.fiber_edge_result[nyfib] = model.run_step(step)[-1]
+##        for nyfib, model in enumerate(self.fiber_models):
+##            #determine step neede to reach this time
+##            step = time - model.step_old_time
+##            self.fiber_edge_result[nyfib] = model.run_step(step)[-1]
+        for nyfib, models in enumerate(self.fiber_models):
+            for type, model in enumerate(models):
+                time_simulate, result = model.do_step(time, needreinit = False)
+                tmp = model.calc_mass(result)
+                self.source_mass[nyfib, type] = self.fiber_mass[nyfib, type] - tmp
+                self.fiber_mass[ny_fib, type] = tmp
+            self.fiber_edge_result[nyfib] = result[-1]
 
     def solve_single_component(self):
         """
@@ -172,6 +201,7 @@ class Yarn2DModel(object):
         (2) When the DEET reaches surface, the evaporation happens. So the boundaries 
         of fiber and yarn are changed to constant flux (Neumann boundary condition)
         """
+        compute = True
         self.solve_fiber_init()
         self.diffusion_DEET = self.cfg.get('diffusion.diffusion_conc')
         #input the trsient equation of diffusion        
@@ -228,24 +258,48 @@ class Yarn2DModel(object):
         self.record_conc = open(filepath4, "w")
         ## TODO: IMPROVE THIS BC
         extBC = FixedFlux(self.ext_bound, value = 0.0)
-        for i in sp.arange(0, self.steps, 1, dtype=int):
-            #advance fiber solution one step
-            self.solve_fiber_step(self.times[i+1])
-            #update BC with new fiber solution
+        t = self.step_old_time
+        while compute:
+            t += self.delta_t
+            if t >= stop_time -self.delta_t / 100:
+                t = stop_time
+                compute = False
+            self.solve_fiber_step(t)
+            extBC = FixedFlux(self.ext_bound, value = out_conc)
             BCs = [extBC]
             for nyfib in sp.arange(self.nrtypefiber):
                 conc_on_fib[nyfib] = self.fiber_edge_result[nyfib]
                 flux_in_fib[nyfib] = (
-                    self.fiber_models[nyfib].boundary_transf_right 
-                     * conc_on_fib[nyfib])
-                BCs.append(FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib]))#[nyfib + 1] = FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib])
-            conc_fib_out[i] = copy(conc_on_fib)
-            
+                                    self.fiber_models[nyfib].boundary_transf_right * 
+                                    conc_on_fib[nyfib]
+                                    )
+                BCs.append(FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib]))
+            conc_fib_out[t] = copy(conc_on_fib)
             self.initial_t = self.times[i+1]
             self.eq.solve(var = self.conc, boundaryConditions = tuple(BCs), 
-                          dt = self.times[i+1] - self.times[i])
-            print 'Solution obtained at time = ', self.times[i+1]
-
+                        dt = self.delta_t)
+                        
+##        for i in sp.arange(0, self.steps, 1, dtype=int):
+##            #advance fiber solution one step
+##            self.solve_fiber_step(self.times[i+1])
+##            #update BC with new fiber solution
+##            
+##            extBC = FixedFlux(self.ext_bound, value = )
+##            BCs = [extBC]
+##            for nyfib in sp.arange(self.nrtypefiber):
+##                conc_on_fib[nyfib] = self.fiber_edge_result[nyfib]
+##                flux_in_fib[nyfib] = (
+##                    self.fiber_models[nyfib].boundary_transf_right 
+##                     * conc_on_fib[nyfib])
+##                BCs.append(FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib]))#[nyfib + 1] = FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib])
+##            conc_fib_out[i] = copy(conc_on_fib)
+##            
+##            self.initial_t = self.times[i+1]
+##            self.eq.solve(var = self.conc, boundaryConditions = tuple(BCs), 
+##                          dt = self.times[i+1] - self.times[i])
+##            print 'Solution obtained at time = ', self.times[i+1]
+            self.tstep += 1
+            self.step_old_time = t
             if self.writeoutcount == 0:
                 conc_tot_each = self.conc.getValue()
                 conc_face_ex = self.conc.getArithmeticFaceValue()
@@ -267,7 +321,7 @@ class Yarn2DModel(object):
                     self.viewer.plot()
                 self.viewerplotcount += 1
                 self.viewerplotcount = self.viewerplotcount % self.plotevery
-
+            
         self.record_conc.close()
         dump.write({'time_step': self.times, 'conc_fib': conc_fib_out}, 
                     filename = filepath5, extension = '.gz')
@@ -281,6 +335,32 @@ class Yarn2DModel(object):
         """
         return sp.sum(conc_void * cell_volume)
     
+    def _set_bound_flux(self, flux_edge, conc_r):
+        """
+        the method that takes BC into account to set the flux on edge
+         
+        """
+        
+        flux_edge[0] = 0.
+        if self.boundary_type == conf.TRANSFER:
+            #transfer on the boundary: flow = transfer_coefficient * C
+            flux_edge[-1] = self.boundary_yarn_coeff * conc_r[-1]
+        elif self.boundary_type == conf.DIFFUSION:
+            #diffusion on the boundary: flow = -D_out * (conc_out - conc_yarn_edge) / 
+            #(distance_out)
+            flux_edge[-1] = self.boundary_Diff * (self.boundary_diff_out - 
+                            conc_r[-1]) / self.distance_out
+    
+    def set_source(self):
+        """
+        Method to calculate the source term in 2-D condition:
+        \partial_t(C) = \partial_xy(C) + Source_xy
+        where source is per time per volumn released/absorbed
+        The equation is integrated in 2-D condition:
+        
+        """
+        
+        
     def run(self):
         """
         Method that is called to do a full model run
