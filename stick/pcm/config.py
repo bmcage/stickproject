@@ -93,35 +93,36 @@ class PCMConfigManager(ConfigManager):
         ConfigManager.__init__(self, filename, realdatastr)
 
     def register_defaults(self):
-        """default ini settings for a fiber1d problem"""
+        """default ini settings for a PCM problem"""
         self.register("general.read", False)
-        self.register("general.verbose", False)
+        self.register("general.verbose", True)
 
         self.register("pcm.radius", 0.01,
             "radius of the pcm in mm")
         self.register("pcm.melting_point", 28.24,
             "Melting point of the pcm in degree Celcius")
         self.register("pcm.latent_heat_fusion", 238.76,
-            "Amount of heat that can be absorbed during melting, in kJ/kg.")
+            "lambda_m, Amount of heat that can be absorbed during melting, in kJ/kg.")
         self.register("pcm.density", 779,
             "Density of the material for normal conditions (20 degree Celcius), in kg/m^3")
         self.register("pcm.specific_heat_solid", 1.9,
-            "Specific heat of the solid for normal conditions (25 degree Celcius), in kJ/(kg K)")
+            "c_s, Specific heat of the solid for normal conditions (25 degree Celcius), in kJ/(kg K)")
         self.register("pcm.specific_heat_liquid", 2.1,
-            "Specific heat of the liquid for normal conditions (35 degree Celcius), in kJ/(kg K)")
+            "c_l, Specific heat of the liquid for normal conditions (35 degree Celcius), in kJ/(kg K)")
         self.register("pcm.thermal_cond_solid", 0.4,
-            "Thermal conductivity of the solid, in W/(m K)")
+            "K_s, Thermal conductivity of the solid, in W/(m K)")
         self.register("pcm.thermal_cond_liquid", 0.3,
-            "Thermal conductivity of the liquid, in W/(m K)")
+            "K_l, Thermal conductivity of the liquid, in W/(m K)")
 
         self.register("discretization.n_edge", 41,
             "Numerical method needs a grid discritization, here number of edges")
     
         self.register("init.init_temp", 'lambda x: 26.',
-            "Initial temperature of the pcm, in degree Celcius")
+            "Initial temperature of the pcm in terms of mm distance from "
+            "center, in degree Celcius")
 
         self.register("boundary.heat_transfer_coeff", 8.5,
-            "heat transfer coefficient through pcm boundary, in W/(m^2 K)")
+            "h_t, heat transfer coefficient through pcm boundary, in W/(m^2 K)")
         self.register("boundary.T_out", 31.5,
             "Outside temperature, in degree Celcius")
         

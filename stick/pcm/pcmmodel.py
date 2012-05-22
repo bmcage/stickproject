@@ -69,7 +69,7 @@ class PCMState(object):
     def __init__(self, config):
         self.state = PCMState.UNSET
         self.meltpoint = config.get("pcm.melting_point")
-        self.L = config.get("pcm.radius")
+        self.L = config.get("pcm.radius")  # in mm !
         self.epsilon = 1e-4
         self.latent_heat_fusion = config.get("pcm.latent_heat_fusion")
         self.solid = {
@@ -85,15 +85,17 @@ class PCMState(object):
 
         #we store computational grid in the state, as we need to swap grids
         #when state changes
-        self.n_edge = self.cfg.get('discretization.n_edge') #discretize the PCM radius
+        self.n_edge = config.get('discretization.n_edge') #discretize the PCM radius
         self.grid = None
         self.grid_edge = None
+        self.outer_data = None
+        self.inner_data = None
     
     def set_state(self, init_cond):
         """
-        init_cond should be a function over (0, R) giving initial temperature
+        init_cond should be a function over (0, L) giving initial temperature
         """
-        grid = np.linspace(0., self.R, 100)
+        grid = np.linspace(0., self.L, 100)
         state = PCMState.INVALID
         if init_cond(grid[0]) < self.meltpoint:
             state = PCMState.SOLID
@@ -134,16 +136,19 @@ class PCMState(object):
         #we set inner data, and outer data
         if self.state == PCMState.SOLID:
             self.outer_data = self.solid
-            self.inner_data = None
+            self.inner_data = self.solid
         elif self.state == PCMState.LIQUID:
             self.outer_data = self.liquid
-            self.inner_data = None
+            self.inner_data = self.liquid
         elif self.state == PCMState.LIQUID_SOLID:
             self.outer_data = self.solid
             self.inner_data = self.liquid
         elif self.state == PCMState.SOLID_LIQUID:
             self.outer_data = self.liquid
             self.inner_data = self.solid
+        else:
+            self.outer_data = None
+            self.inner_data = None
 
     def single_phase(self):
         if self.state in [PCMState.SOLID, PCMState.LIQUID]:
@@ -169,9 +174,12 @@ class PCMState(object):
         self.outer_x_to_r = lambda x: self.L - (self.L-self.R) * x 
         self.inner_x_to_r = lambda x: self.R * x 
 
-    def reset_state(self, temp_outer):
+    def reset_state(self, temp_outer, Rintf):
         """
-        reset state will update the state. There are the following possibilities
+        Reset the state based on new outer temperature and new interface
+        position Rintf. New interface position will be stored in self.R (which
+        will be Rintf or 0)!
+        There are the following possibilities
         1. single phase, en temp_outer is at edges at melting point 
             ==> becomes two phases
         2. two phases, but R becomes close to edge 
@@ -181,14 +189,62 @@ class PCMState(object):
             changed = True if state changed
             switch = True if inner and outer must be switched
         """
+        self.R = Rintf
         changed = False
         switch = False
         if self.state == PCMState.SOLID:
             if temp_outer[0] >= self.meltpoint:
                 self.state = PCMState.SOLID_LIQUID
+                self.R = (1. - self.epsilon) * self.L
                 changed = True
                 switch = True
-        elif 
+        elif self.state == PCMState.LIQUID:
+            if temp_outer[0] <= self.meltpoint:
+                self.state = PCMState.LIQUID_SOLID
+                self.R = (1. - self.epsilon) * self.L
+                changed = True
+                switch = True
+        elif self.state == PCMState.SOLID_LIQUID:
+            if abs(self.R-self.L) < self.epsilon *self.L:
+                self.state = PCMState.SOLID
+                self.R = 0.
+                changed = True
+                switch = True
+            elif self.R < self.epsilon * self.L:
+                self.R = 0.
+                self.state = PCMState.LIQUID
+                changed = True
+                switch = False
+        elif self.state == PCMState.LIQUID_SOLID:
+            if abs(self.R-self.L) < self.epsilon *self.L:
+                self.R = 0.
+                self.state = PCMState.LIQUID
+                changed = True
+                switch = True
+            elif self.R < self.epsilon * self.L:
+                self.R = 0.
+                self.state = PCMState.SOLID
+                changed = True
+                switch = False
+        
+        #we set inner data, and outer data
+        if self.state == PCMState.SOLID:
+            self.outer_data = self.solid
+            self.inner_data = self.solid
+        elif self.state == PCMState.LIQUID:
+            self.outer_data = self.liquid
+            self.inner_data = self.liquid
+        elif self.state == PCMState.LIQUID_SOLID:
+            self.outer_data = self.solid
+            self.inner_data = self.liquid
+        elif self.state == PCMState.SOLID_LIQUID:
+            self.outer_data = self.liquid
+            self.inner_data = self.solid
+        else:
+            self.outer_data = None
+            self.inner_data = None
+
+        return (changed, switch)
 
 #-------------------------------------------------------------------------
 #
@@ -241,13 +297,100 @@ class PCMModel(object):
         """
         Initialize PCM data
         """
+        self.initial_T_in = sp.empty(self.state.n_edge-1, float)
+        self.initial_T_out = sp.empty(self.state.n_edge-1, float)
+        # we have a state, now we construct an initial condition over the grid
+        for i, pos in enumerate(self.state.outer_gridx):
+            self.initial_T_out[i] = self.init_temp(self.state.outer_x_to_r(pos))
+        for i, pos in enumerate(self.state.inner_gridx):
+            self.initial_T_in[i] = self.init_temp(self.state.inner_x_to_r(pos))
+
+        self.volume = self.calc_volume()
+        if self.verbose:
+            print 'initial energy = ', self.calc_energy(self.initial_T_in, 
+                                            self.initial_T_out), 'J'
+        
+        self.unknowns_single = sp.empty(self.state.n_edge-1, float)
+        self.unknowns_double = sp.empty(2*(self.state.n_edge-1)+1, float)
+        if self.state.single_phase():
+            #only outer
+            self.unknowns_single[:] = self.initial_T_out[:]
+            self.unknowns = self.unknowns_single
+        else:
+            self.unknowns_double[0:self.state.n_edge-1] = self.initial_T_out[:]
+            self.unknowns_double[self.state.n_edge-1] = self.state.R
+            self.unknowns_double[self.state.n_edge:] = self.initial_T_in[::-1]
+            self.unknowns = self.unknowns_double
+
+    def calc_volume(self):
+        """ volume in m^3 """
+        return 4/3 * np.pi * self.state.L**3 * 10**(-9)
+
+    def calc_energy(self, inner_T, outer_T):
+        """ calculate the energy in the PCM based on temperature over the 
+            inner x grid, and outer x grid 
+            In J """
+        Ci = self.state.inner_data['C'] * 1000 # inner specific heat J/kg K
+        rhoi = self.state.inner_data['rho']
+        Co = self.state.outer_data['C'] * 1000 # inner specific heat J/kg K
+        rhoo = self.state.outer_data['rho']
+        innerE = 0.
+        prevedgex = 0.
+        for xpos, temp in zip(self.state.inner_gridx_edge[1:], self.initial_T_in):
+            volshell = 4/3*np.pi *10**(-9) * \
+                (self.state.inner_x_to_r(xpos)**3 
+                 - self.state.inner_x_to_r(prevedgex)**3)
+            prevedgex = xpos
+            innerE += Ci * temp * rhoi * volshell
+        outerE = 0.
+        prevedgex = 0.
+        for xpos, temp in zip(self.state.outer_gridx_edge[1:], self.initial_T_out):
+            volshell = 4/3*np.pi *10**(-9) * \
+                (self.state.outer_x_to_r(prevedgex)**3
+                 - self.state.outer_x_to_r(xpos)**3 )
+            prevedgex = xpos
+            outerE += Ci * temp * rhoi * volshell
+        #print 'test in - out energy', innerE, outerE
+        return innerE + outerE
+
+    def f_odes(self, t, u_rep, diff_u_t):
+        """ RHS function for the cvode solver """
         pass
+
+    def solve_odes_reinit(self):
+        """
+        Reinitialize the cvode solver to start again
+        """
+        self.initial_t = self.times[0]
+        self.solver = sc_ode('cvode', self.f_odes,
+                             max_steps=50000, lband=1, uband=1)
+        self.solver.init_step(self.step_old_time, self.step_old_sol)
 
     def solve_init(self):
         """
         Initialize the solver so they can be solved stepwize
         """
-        pass
+        nrunknowns = 2*(self.state.n_edge-1)+1
+        if not HAVE_ODES:
+            raise Exception, 'Not possible to solve with given method, scikits.odes not available'
+        self.initial_t = self.times[0]
+        self.step_old_time = self.initial_t
+        self.step_old_sol = self.unknowns
+        #data storage
+        self.all_sol = np.empty((len(self.times), nrunknowns), float)
+        self.ret_sol = sp.empty(nrunknowns, float)
+
+        if self.state.single_phase():
+            self.all_sol[0][self.state.n_edge-1] = 0.
+            self.all_sol[0][:self.state.n_edge-1] = self.unknowns[:]
+        else:
+            self.all_sol[0][:] = self.unknowns[:]
+        self.__tmp_diff_sol_t = sp.empty(nrunknowns, float)
+        self.__tmp_flux_edge = sp.empty(nrunknowns+1, float)
+        
+        self.tstep = 0
+        self.solve_odes_reinit()
+        self.initialized = True
 
     def solve(self):
         """
