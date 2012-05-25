@@ -140,7 +140,7 @@ class PCMConfigManager(ConfigManager):
         self.register("fabric.therm_cond", 0.0404,
             "Thermal conductivity fabric (K_{mix}), in W/(m K)")
         
-        self.register("time.time_period", 1.)
+        self.register("time.time_period", 0.01)
         self.register("time.dt", 0.01)
 
         #plot section

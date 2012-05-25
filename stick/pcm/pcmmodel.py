@@ -410,14 +410,22 @@ class PCMModel(object):
         Cv = self.state.outer_data['C']
         K = self.state.outer_data['K']
         rho = self.state.outer_data['rho']
-        dxdr2 =  np.power(-1./L,2)
+        dxdr =  -1./L
 
-        flux_edge[-1] = 0.
-        flux_edge[0] = -(self.hT * L / rho / Cv * (u_rep[0]/L - self.Tout(t)))
-        flux_edge[1:-1] = -K/rho/Cv * (u_rep[1:]-u_rep[:-1])/ Dxavg[:]*dxdr2
+        #print difference in temperature! 
+        temp = u_rep[:]/self.state.outer_x_to_r(self.state.outer_gridx)
+        print 'temp', temp
 
+        # TODO TODO why L*L ??
+        flux_edge[-1] = -L*L*K/rho/Cv * dxdr * u_rep[-1] \
+                        /self.state.outer_x_to_r(self.state.outer_gridx[-1])**2 #self.state.outer_x_to_r(self.state.outer_gridx[-1])
+        flux_edge[0] = (self.hT / rho / Cv * dxdr*L*(u_rep[0]/L - self.Tout(t))
+                        -K/rho/Cv * dxdr*u_rep[0] /L)
+        flux_edge[1:-1] = -K/rho/Cv * (u_rep[1:]-u_rep[:-1])/ Dxavg[:]*dxdr*dxdr
+        print 'flux', flux_edge
         #print 'test flux', u_rep[-2], u_rep[-1], flux_edge[-2], flux_edge[-1]
         diff_u_t[:] = -(flux_edge[:-1]-flux_edge[1:])/Dx[:]
+        raw_input()
 
     def f_odes_dph(self, t, u_rep, diff_u_t):
         """ RHS function for the cvode solver for double phase energy diffusion
@@ -514,7 +522,7 @@ class PCMModel(object):
                 raise NotImplementedError
         self.last_sol_tstep = tstep
         
-        self.view_sol(self.times, self.all_sol_u)
+        #self.view_sol(self.times, self.all_sol_u)
 
     def view_sol(self, times, rTemp):
         """
