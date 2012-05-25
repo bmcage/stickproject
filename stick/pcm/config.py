@@ -123,8 +123,8 @@ class PCMConfigManager(ConfigManager):
 
         self.register("boundary.heat_transfer_coeff", 8.5,
             "h_t, heat transfer coefficient through pcm boundary, in W/(m^2 K)")
-        self.register("boundary.T_out", 31.5,
-            "Outside temperature, in degree Celcius")
+        self.register("boundary.T_out", 'lambda T: 31.5',
+            "Outside temperature, in degree Celcius, as function of Temp")
         
         self.register("fabric.simulate", False,
             "simulate effect of PCM on a 1D depth profile of a fabric, True or False")
@@ -140,8 +140,8 @@ class PCMConfigManager(ConfigManager):
         self.register("fabric.therm_cond", 0.0404,
             "Thermal conductivity fabric (K_{mix}), in W/(m K)")
         
-        self.register("time.time_period", 600.)
-        self.register("time.dt", 5.0)
+        self.register("time.time_period", 1.)
+        self.register("time.dt", 0.01)
 
         #plot section
         self.register("plot.plotavgtemp", True, 
