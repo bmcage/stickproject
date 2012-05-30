@@ -79,11 +79,13 @@ class PCMState(object):
         self.latent_heat_fusion = 1000 * config.get("pcm.latent_heat_fusion")
         #units in mm instead of m
         self.solid = {
+            'state' : PCMState.SOLID,
             'rho' : config.get("pcm.density") * 10**(-9),
             'C'   : 1000 * config.get("pcm.specific_heat_solid"),
             'K'   : config.get("pcm.thermal_cond_solid") * 10**(-3)
             }
         self.liquid = {
+            'state' : PCMState.LIQUID,
             'rho' : config.get("pcm.density") * 10**(-9),
             'C'   : 1000 * config.get("pcm.specific_heat_liquid"),
             'K'   : config.get("pcm.thermal_cond_liquid") * 10**(-3)
@@ -474,7 +476,9 @@ class PCMModel(object):
         Reinitialize the cvode solver to start again
         """
         self.initial_t = self.times[0]
+
         if self.state.single_phase():
+            self.solverunknowns = self.pos_s
             rootfn=RootFnsp()
             rootfn.set_data(self.state.outer_x_to_r(self.state.outer_gridx[0]), 
                             self.state.meltpoint)
@@ -482,8 +486,9 @@ class PCMModel(object):
                                  max_steps=50000, lband=1, uband=1,
                                  nr_rootfns=1, rootfn=rootfn)
         else:
+            self.solverunknowns = self.nrunknowns
             rootfn=RootFndp()
-            rootfn.set_data(self.state.L, self.pos_s, self.epsilon)
+            rootfn.set_data(self.state.L, self.pos_s, self.state.epsilon)
             self.solver = sc_ode('cvode', self.f_odes_dph,
                                  max_steps=50000, lband=1, uband=1,
                                  nr_rootfns=2, rootfn=rootfn)
@@ -493,7 +498,7 @@ class PCMModel(object):
         """
         Initialize the solver so they can be solved stepwize
         """
-        nrunknowns = 2*(self.state.n_edge-1)+1
+        self.nrunknowns = 2*(self.state.n_edge-1)+1
         if not HAVE_ODES:
             raise Exception, 'Not possible to solve with given method, scikits.odes not available'
         self.initial_t = self.times[0]
@@ -502,18 +507,16 @@ class PCMModel(object):
         
         self.pos_s = self.state.n_edge-1
         #data storage
-        self.all_sol_u = np.empty((len(self.times), nrunknowns), float)
-        self.ret_sol = sp.empty(nrunknowns, float)
+        self.all_sol_u = np.empty((len(self.times), self.nrunknowns), float)
+        self.ret_sol = sp.empty(self.nrunknowns, float)
 
         if self.state.single_phase():
-            self.solverunknowns = self.pos_s
             self.all_sol_u[0][self.pos_s] = 0.
             self.all_sol_u[0][:self.pos_s] = self.unknowns[:]
         else:
-            self.solverunknowns = nrunknowns
             self.all_sol_u[0][:] = self.unknowns[:]
-        self.__tmp_diff_sol_t = sp.empty(nrunknowns, float)
-        self.__tmp_flux_edge = sp.empty(nrunknowns+1, float)
+        self.__tmp_diff_sol_t = sp.empty(self.nrunknowns, float)
+        self.__tmp_flux_edge = sp.empty(self.nrunknowns+1, float)
 
         self.tstep = 0
         self.solve_odes_reinit()
@@ -529,19 +532,33 @@ class PCMModel(object):
 
         tstep = 0
         single_phase = self.state.single_phase()
-        for time in self.times[1:]:
+        changed = False
+        cont = True
+        while cont:
             if single_phase:
+                time = self.times[tstep+1]
+                if changed:
+                    prev_time = self.step_old_time
+                    #retrieve stored start point
+                    initval = self.step_old_sol
+                    changed = False
+                else:
+                    prev_time = self.times[tstep]
+                    initval = self.all_sol_u[tstep][:self.solverunknowns]
                 self.solver.set_tcrit(time)
                 flag, t_retn, u_retn, t_out, u_last = self.solver.solve(
-                                    [self.times[tstep],time], 
-                                    self.all_sol_u[tstep][:self.solverunknowns],
-                                    )
+                                [prev_time,time], 
+                                initval,
+                                )
                 #print flag, t_retn, time, t_out
                 if flag == CV_ROOT_RETURN:
                     print 'At time', t_out, 'no longer single phase'
+                    #store the last solution
+                    self.all_sol_u[tstep+1][:self.solverunknowns] = u_last
+                    self.all_sol_u[tstep+1][self.pos_s] = 0.
                     tret = t_out
                     single_phase = False
-                    break
+                    changed = True
                 elif flag == CV_TSTOP_RETURN:
                     #here crit time is just the last good time we want
                     self.all_sol_u[tstep+1][:self.solverunknowns] = u_last
@@ -557,12 +574,196 @@ class PCMModel(object):
                     
                 if self.verbose:
                     print 'INFO: pcmmodel at t = ', tret
-                tstep += 1
+                if single_phase:
+                    tstep += 1
             else:
-                raise NotImplementedError
+                #double phase model to run
+                time = self.times[tstep+1]
+                if changed:
+                    prev_time = self.step_old_time
+                    #retrieve stored start point
+                    initval = self.step_old_sol
+                    changed = False
+                else:
+                    prev_time = self.times[tstep]
+                    initval = self.all_sol_u[tstep][:self.solverunknowns]
+                self.solver.set_tcrit(time)
+                flag, t_retn, u_retn, t_out, u_last = self.solver.solve(
+                                [prev_time,time], 
+                                initval,
+                                )
+                
+                if flag == CV_ROOT_RETURN:
+                    print 'At time', t_out, 'no longer double phase'
+                    #store the last solution
+                    self.all_sol_u[tstep+1][:self.solverunknowns] = u_last
+                    self.all_sol_u[tstep+1][self.pos_s] = 0.
+                    tret = t_out
+                    single_phase = True
+                    changed = True
+                elif flag == CV_TSTOP_RETURN:
+                    #here crit time is just the last good time we want
+                    self.all_sol_u[tstep+1][:self.solverunknowns] = u_last
+                    self.all_sol_u[tstep+1][self.pos_s] = 0.
+                    tret = t_out
+                elif flag == CV_SUCCESS:
+                    self.all_sol_u[tstep+1][:self.solverunknowns] = u_retn[-1]
+                    self.all_sol_u[tstep+1][self.pos_s] = 0.
+                    tret = t_retn[-1]
+                else:
+                    print 'ERROR: unable to compute solution, flag', flag
+                    break
+                    
+                if self.verbose:
+                    print 'INFO: pcmmodel at t = ', tret
+                if not single_phase:
+                    tstep += 1
+
+            if tstep == len(self.times)-1:
+                break
+            if changed:
+                # we need to swap the solver we use!
+                self.step_old_time = tret
+                if single_phase:
+                    #we went from double phase to single phase
+                    #1. determine what phase
+                    #2. change solver
+                    #3. update data
+                    if abs(self.all_sol_u[tstep+1][self.pos_s]) < self.state.epsilon:
+                        # now only outer state
+                        self.state.state = self.state.outer_data['state']
+                        self.state.inner_data = self.state.outer_data
+                        self.step_old_sol = self.project_outdp_sp(self.all_sol_u[tstep+1])
+                    elif abs(self.state.L - 
+                             self.all_sol_u[tstep+1][self.pos_s]) \
+                            < self.state.epsilon:
+                        # now only inner state
+                        self.state.state = self.state.inner_data['state']
+                        self.state.outer_data = self.state.inner_data
+                        self.step_old_sol = self.project_indp_sp(self.all_sol_u[tstep+1])
+                    else:
+                        raise NotImplementedError, 'We should not reach this'
+                    # no more interface:
+                    self.state.R = 0.
+                else:
+                    #we went from single phase to double phase, interface
+                    #arises at R=L-eps/2
+                    #1. determine what phase
+                    #2. change solver
+                    #3. update data
+                    self.state.R = self.state.L - self.state.epsilon
+                    if self.state.outer_data['state'] == PCMState.LIQUID:
+                        self.state.state = PCMState.LIQUID_SOLID
+                        self.state.inner_data = self.state.outer_data
+                        self.state.outer_data = self.state.solid
+                    elif self.state.outer_data['state'] == PCMState.SOLID:
+                        self.state.state = PCMState.SOLID_LIQUID
+                        self.state.inner_data = self.state.outer_data
+                        self.state.outer_data = self.state.liquid
+                    else:
+                        raise NotImplementedError, 'We should not reach this'
+                    self.step_old_sol = self.project_outsp_dp(self.all_sol_u[tstep+1],
+                                            self.state.R)
+                    
+                self.solve_odes_reinit()
+                    
         self.last_sol_tstep = tstep
         
         self.view_sol(self.times, self.all_sol_u)
+
+    def project_outsp_dp(self, sol, R):
+        """ project a single phase solution (so only outer) to a double phase
+            solution, with interface at R """
+        print 'introducing interface'
+        #The outer solution is set at meltingtemp
+        newdataC = np.empty(len(sol), float)
+        newrout = self.state.outer_x_to_r(self.state.outer_gridx, R=R)
+        for i in xrange(self.pos_s):
+            newdataC[:self.pos_s] = self.state.meltpoint * newrout
+        #new interface is set
+        newdataC[self.pos_s] = R
+        #and we project the old outer solution to inner solution, which we 
+        # store inverted
+        # SIMPLE: assume projection can be neglected
+        newdataC[self.pos_s+1:] = sol[:self.pos_s]
+        return newdataC
+
+    def project_outdp_sp(self, sol):
+        """ project a double phase solution sol, to a single phase solution
+            over the outer grid, assuming interface goes to 0 """
+        print 'interface at', sol[self.pos_s], ' projecting'
+        origr = self.state.outer_x_to_r(self.state.outer_gridx, R=sol[self.pos_s])
+        origredge = self.state.outer_x_to_r(self.state.outer_gridx_edge, R=sol[self.pos_s])
+        # conserved is volumeshell T = volumeshell U/r
+        origdataC = sol[:self.pos_s] / origr * \
+                        4/3*np.pi * (origredge[:-1]**3 - origredge[1:]**3)
+        newr = self.state.outer_x_to_r(self.state.outer_gridx, R=0.)
+        newredge = self.state.outer_x_to_r(self.state.outer_gridx_edge, R=0.)
+        newdataC = np.empty(self.pos_s, float)
+        pos = 0
+        posorig=0
+        #remaining piece goes to meltpoint temperature
+        newC = self.state.meltpoint * 4/3*np.pi * sol[self.pos_s]**3
+        for pos in np.arange(self.pos_s):
+            while origredge[posorig] > newredge[pos+1]:
+                if origredge[posorig+1] <= newredge[pos+1]:
+                    nextC = -sol[posorig]/origr[posorig] * \
+                        4/3*np.pi * (origredge[posorig+1]**3 - newredge[pos+1]**3)
+                    newC += -sol[posorig]/origr[posorig] * \
+                        4/3*np.pi * (newredge[pos+1]**3 - origredge[posorig]**3)
+                else:
+                    nextC = 0.
+                    newC += -sol[posorig]/origr[posorig] * \
+                        4/3*np.pi * (origredge[posorig+1]**3 - origredge[posorig]**3)
+                posorig += 1
+            newdataC[pos] = newC
+            newC = nextC
+            nextC = 0.
+        #now we derive the new u = r T_avg
+        newdataC = newdataC * newr \
+                    / (4/3*np.pi * (newredge[:-1]**3 - newredge[1:]**3))
+        return newdataC
+
+
+    def project_indp_sp(self, sol):
+        """ project a double phase solution sol, to a single phase solution
+            over the outer grid, assuming interface goes to L, so inner part
+            of double phase needs to be considered
+        """
+        print 'interface at', sol[self.pos_s], ' projecting'
+        origr = self.state.inner_x_to_r(self.state.inner_gridx, R=sol[self.pos_s])
+        origredge = self.state.inner_x_to_r(self.state.inner_gridx_edge, R=sol[self.pos_s])
+        # conserved is volumeshell T = volumeshell U/r
+        origdataC = sol[self.pos_s+1:][::-1] / origr * \
+                        4/3*np.pi * (origredge[:-1]**3 - origredge[1:]**3)
+        newr = self.state.outer_x_to_r(self.state.outer_gridx, R=0.)
+        newredge = self.state.outer_x_to_r(self.state.outer_gridx_edge, R=0.)
+        newdataC = np.empty(self.pos_s, float)
+        pos = 0
+        posorig=self.pos_s-1
+        #remaining piece goes to meltpoint temperature
+        newC = self.state.meltpoint * 4/3*np.pi * (self.state.L**3-sol[self.pos_s]**3)
+        
+        for pos in np.arange(self.pos_s):
+            while origredge[posorig] > newredge[pos+1]:
+                if origredge[posorig-1] <= newredge[pos+1]:
+                    nextC = -sol[posorig]/origr[posorig] * \
+                        4/3*np.pi * (origredge[posorig-1]**3 - newredge[pos+1]**3)
+                    newC += -sol[posorig]/origr[posorig] * \
+                        4/3*np.pi * (newredge[pos+1]**3 - origredge[posorig]**3)
+                else:
+                    nextC = 0.
+                    newC += -sol[posorig]/origr[posorig] * \
+                        4/3*np.pi * (origredge[posorig-1]**3 - origredge[posorig]**3)
+                posorig -= 1
+            newdataC[pos] = newC
+            newC = nextC
+            nextC = 0.
+        #now we derive the new u = r T_avg
+        newdataC = newdataC * newr \
+                    / (4/3*np.pi * (newredge[:-1]**3 - newredge[1:]**3))
+        return newdataC
+
 
     def view_sol(self, times, rTemp):
         """
