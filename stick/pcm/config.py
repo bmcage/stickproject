@@ -106,9 +106,11 @@ class PCMConfigManager(ConfigManager):
         self.register("pcm.density", 779,
             "Density of the material for normal conditions (20 degree Celcius), in kg/m^3")
         self.register("pcm.specific_heat_solid", 1.9,
-            "c_s, Specific heat of the solid for normal conditions (25 degree Celcius), in kJ/(kg K)")
+            "c_s, Specific heat of the solid for normal conditions (25 degree Celcius), "
+            "in kJ/(kg K)")
         self.register("pcm.specific_heat_liquid", 2.1,
-            "c_l, Specific heat of the liquid for normal conditions (35 degree Celcius), in kJ/(kg K)")
+            "c_l, Specific heat of the liquid for normal conditions (35 degree Celcius), "
+            "in kJ/(kg K)")
         self.register("pcm.thermal_cond_solid", 0.4,
             "K_s, Thermal conductivity of the solid, in W/(m K)")
         self.register("pcm.thermal_cond_liquid", 0.3,
@@ -136,11 +138,11 @@ class PCMConfigManager(ConfigManager):
         self.register("fabric.porosity", 0.88,
             "Porosity of the fabric without PCM, in % of REV volume")
         self.register("fabric.vol_heat_capacity", 1847.6,
-            "Volumetric heat capaity of fabric, in kJ/(m^3 K)")
+            "Volumetric heat capacity of fabric, in kJ/(m^3 K)")
         self.register("fabric.therm_cond", 0.0404,
             "Thermal conductivity fabric (K_{mix}), in W/(m K)")
         
-        self.register("time.time_period", 0.01)
+        self.register("time.time_period", 1)
         self.register("time.dt", 0.01)
 
         #plot section
@@ -148,6 +150,6 @@ class PCMConfigManager(ConfigManager):
             'plot average temperature of the PCM over time')
         self.register("plot.plotinterface", True,
             'plot position interface liquid/solid in PCM over time')
-        self.register("plot.plotevery", 10,
+        self.register("plot.plotevery", 1,
             "When plotting over time, indicate how many steps dt to skip before plotting again."
             " If 0, no plot occurs")

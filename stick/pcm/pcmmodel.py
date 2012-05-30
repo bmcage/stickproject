@@ -42,6 +42,8 @@ except:
 
 from scikits.odes.sundials.common_defs import CV_RootFunction
 
+CV_SUCCESS = 0
+CV_TSTOP_RETURN = 1
 CV_ROOT_RETURN = 2
 #-------------------------------------------------------------------------
 #
@@ -74,16 +76,17 @@ class PCMState(object):
         self.meltpoint = config.get("pcm.melting_point")
         self.L = config.get("pcm.radius")  # in mm !
         self.epsilon = 1e-4
-        self.latent_heat_fusion = config.get("pcm.latent_heat_fusion")
+        self.latent_heat_fusion = 1000 * config.get("pcm.latent_heat_fusion")
+        #units in mm instead of m
         self.solid = {
-            'rho' : config.get("pcm.density"),
+            'rho' : config.get("pcm.density") * 10**(-9),
             'C'   : 1000 * config.get("pcm.specific_heat_solid"),
-            'K'   : config.get("pcm.thermal_cond_solid")
+            'K'   : config.get("pcm.thermal_cond_solid") * 10**(-3)
             }
         self.liquid = {
-            'rho' : config.get("pcm.density"),
+            'rho' : config.get("pcm.density") * 10**(-9),
             'C'   : 1000 * config.get("pcm.specific_heat_liquid"),
-            'K'   : config.get("pcm.thermal_cond_liquid")
+            'K'   : config.get("pcm.thermal_cond_liquid") * 10**(-3)
             }
 
         #we store computational grid in the state, as we need to swap grids
@@ -267,7 +270,7 @@ class RootFnsp(CV_RootFunction):
 
     def evaluate(self, t, u, out, userdata):
         out[0] = u[0]/self.L - self.meltpoint
-        print 'test root', t, u[0]/self.L , self.meltpoint, out[0]
+        #print 'test root', t, u[0]/self.L , self.meltpoint, out[0]
         return 0
 
 class RootFndp(CV_RootFunction):
@@ -316,7 +319,9 @@ class PCMModel(object):
             print "Timestep used in pcm model:", self.delta_t
 
         self.state = PCMState(self.cfg)
-        self.hT = self.cfg.get('boundary.heat_transfer_coeff')
+        #unit in mm instead of m
+        self.hT = self.cfg.get('boundary.heat_transfer_coeff') * 10**(-6)
+        self.lambda_m = self.cfg.get('pcm.latent_heat_fusion') * 10**3
         self.Tout = eval(self.cfg.get('boundary.T_out'))
 
         self.initialized = False
@@ -347,8 +352,14 @@ class PCMModel(object):
 
         self.volume = self.calc_volume()
         if self.verbose:
-            print 'initial energy = ', self.calc_energy(self.initial_T_in, 
-                            self.initial_T_out), 'J from base 0 degree Celcius'
+            temps = [0., 10, 20, 25, 30, 35, 40]
+            eno = self.calc_energy(self.initial_T_in, 
+                            self.initial_T_out, temps)
+            print 'initial energy = ', eno[0], 'J from base 0 degree Celcius'
+            olden = 0.;
+            for tt, en in zip(temps, eno[1]):
+                print '  for temp ', tt, 'C, energy =', en , 'diff en =',en-olden
+                olden = en
 
         self.unknowns_single = sp.empty(self.state.n_edge-1, float)
         self.unknowns_double = sp.empty(2*(self.state.n_edge-1)+1, float)
@@ -365,35 +376,58 @@ class PCMModel(object):
             self.unknowns = self.unknowns_double
 
     def calc_volume(self):
-        """ volume in m^3 """
-        return 4/3 * np.pi * self.state.L**3 * 10**(-9)
+        """ volume in mm^3 """
+        return 4/3 * np.pi * self.state.L**3 
 
-    def calc_energy(self, inner_T, outer_T):
+    def calc_energy(self, inner_T, outer_T, base=None):
         """ calculate the energy in the PCM based on temperature over the 
             inner x grid, and outer x grid 
             In J, with 0 degree Celcius equal to 0 J! """
-        Ci = self.state.inner_data['C'] * 1000 # inner specific heat J/kg K
-        rhoi = self.state.inner_data['rho']
-        Co = self.state.outer_data['C'] * 1000 # inner specific heat J/kg K
-        rhoo = self.state.outer_data['rho']
+        Cl = self.state.liquid['C'] # inner specific heat J/kg K
+        rhol = self.state.liquid['rho']
+        Cs = self.state.solid['C'] # inner specific heat J/kg K
+        rhos = self.state.solid['rho']
+        meltpoint = self.state.meltpoint
         innerE = 0.
         prevedgex = 0.
         for xpos, temp in zip(self.state.inner_gridx_edge[1:], self.initial_T_in):
-            volshell = 4/3*np.pi *10**(-9) * \
+            volshell = 4/3*np.pi * \
                 (self.state.inner_x_to_r(xpos)**3 
                  - self.state.inner_x_to_r(prevedgex)**3)
             prevedgex = xpos
-            innerE += Ci * temp * rhoi * volshell
+            if temp > meltpoint:
+                innerE += Cl * (temp-meltpoint) * rhol * volshell \
+                            + Cs * meltpoint * rhos * volshell\
+                            + self.lambda_m * rhos * volshell
+            else:
+                innerE += Cs * temp * rhos * volshell
         outerE = 0.
         prevedgex = 0.
         for xpos, temp in zip(self.state.outer_gridx_edge[1:], self.initial_T_out):
-            volshell = 4/3*np.pi *10**(-9) * \
+            volshell = 4/3*np.pi * \
                 (self.state.outer_x_to_r(prevedgex)**3
                  - self.state.outer_x_to_r(xpos)**3 )
             prevedgex = xpos
-            outerE += Ci * temp * rhoi * volshell
+            if temp > meltpoint:
+                outerE += Cl * (temp-meltpoint) * rhol * volshell \
+                            + Cs * meltpoint * rhos * volshell \
+                            + self.lambda_m * rhos * volshell
+            else:
+                outerE += Cs * temp * rhos * volshell
         #print 'test in - out energy', innerE, outerE
-        return innerE + outerE
+        out = []
+        for temp in base or []:
+            vol = self.calc_volume()
+            if temp > meltpoint:
+                heatmelt = self.lambda_m * rhos * vol
+                out += [Cl * (temp - meltpoint) * rhol * vol 
+                        + Cs * meltpoint* rhos * vol + heatmelt]
+            else:
+                out += [Cs * temp * rhos * vol]
+        if base:
+            return innerE + outerE, out
+        else:
+            return innerE + outerE
 
     def f_odes_sph(self, t, u_rep, diff_u_t):
         """ RHS function for the cvode solver for single phase energy diffusion
@@ -413,19 +447,19 @@ class PCMModel(object):
         dxdr =  -1./L
 
         #print difference in temperature! 
-        temp = u_rep[:]/self.state.outer_x_to_r(self.state.outer_gridx)
-        print 'temp', temp
+        #temp = u_rep[:]/self.state.outer_x_to_r(self.state.outer_gridx)
+        #print 'temp', temp
+        Rlast = self.state.outer_x_to_r(self.state.outer_gridx[0])
 
-        # TODO TODO why L*L ??
-        flux_edge[-1] = -L*L*K/rho/Cv * dxdr * u_rep[-1] \
-                        /self.state.outer_x_to_r(self.state.outer_gridx[-1])**2 #self.state.outer_x_to_r(self.state.outer_gridx[-1])
-        flux_edge[0] = (self.hT / rho / Cv * dxdr*L*(u_rep[0]/L - self.Tout(t))
-                        -K/rho/Cv * dxdr*u_rep[0] /L)
-        flux_edge[1:-1] = -K/rho/Cv * (u_rep[1:]-u_rep[:-1])/ Dxavg[:]*dxdr*dxdr
-        print 'flux', flux_edge
-        #print 'test flux', u_rep[-2], u_rep[-1], flux_edge[-2], flux_edge[-1]
-        diff_u_t[:] = -(flux_edge[:-1]-flux_edge[1:])/Dx[:]
-        raw_input()
+        flux_edge[-1] = -K/rho/Cv * dxdr * u_rep[-1] \
+                        /self.state.outer_x_to_r(self.state.outer_gridx[-1])
+        flux_edge[0] = (self.hT / rho / Cv * dxdr*L*
+                         (u_rep[0]/Rlast - self.Tout(t))
+                        -K/rho/Cv * dxdr*u_rep[0] /Rlast)
+        flux_edge[1:-1] = -K/rho/Cv * (u_rep[1:]-u_rep[:-1])/ Dxavg[:]*dxdr**2
+        diff_u_t[:] = (flux_edge[:-1]-flux_edge[1:])/Dx[:]
+        #print 'flux', t, flux_edge, diff_u_t[0:2]
+        #raw_input()
 
     def f_odes_dph(self, t, u_rep, diff_u_t):
         """ RHS function for the cvode solver for double phase energy diffusion
@@ -502,27 +536,33 @@ class PCMModel(object):
                                     [self.times[tstep],time], 
                                     self.all_sol_u[tstep][:self.solverunknowns],
                                     )
-                print flag, t_retn, time
+                #print flag, t_retn, time, t_out
                 if flag == CV_ROOT_RETURN:
                     print 'At time', t_out, 'no longer single phase'
+                    tret = t_out
                     single_phase = False
                     break
-                elif flag < 0:
+                elif flag == CV_TSTOP_RETURN:
+                    #here crit time is just the last good time we want
+                    self.all_sol_u[tstep+1][:self.solverunknowns] = u_last
+                    self.all_sol_u[tstep+1][self.pos_s] = 0.
+                    tret = t_out
+                elif flag == CV_SUCCESS:
+                    self.all_sol_u[tstep+1][:self.solverunknowns] = u_retn[-1]
+                    self.all_sol_u[tstep+1][self.pos_s] = 0.
+                    tret = t_retn[-1]
+                else:
                     print 'ERROR: unable to compute solution, flag', flag
                     break
-                else:
-                    self.all_sol_u[tstep+1][:self.solverunknowns] = \
-                                                            u_retn[-1]
-                    self.all_sol_u[tstep+1][self.pos_s] = 0.
                     
                 if self.verbose:
-                    print 'INFO: pcmmodel at t = ', t_retn[-1]
+                    print 'INFO: pcmmodel at t = ', tret
                 tstep += 1
             else:
                 raise NotImplementedError
         self.last_sol_tstep = tstep
         
-        #self.view_sol(self.times, self.all_sol_u)
+        self.view_sol(self.times, self.all_sol_u)
 
     def view_sol(self, times, rTemp):
         """
@@ -531,38 +571,38 @@ class PCMModel(object):
         """
         from fipy import CellVariable, Matplotlib1DViewer, Grid1D
         if rTemp[0][self.pos_s] == 0.:
-            meshr = self.state.outer_x_to_r(self.state.outer_gridx, rTemp[0][self.pos_s])
-            
-            mesh_PCM = Grid1D(dx=tuple(self.state.outer_x_to_r(
-                            self.state.outer_delta_x, rTemp[0][self.pos_s])))
+            meshr = self.state.outer_x_to_r(self.state.outer_gridx, 
+                                                        rTemp[0][self.pos_s])
+            dr = -(self.state.outer_x_to_r(
+                self.state.outer_delta_x, rTemp[0][self.pos_s])-self.state.L)
+            mesh_PCM = Grid1D(dx=tuple(dr[::-1]))
             value = rTemp[0][:self.pos_s] / meshr[:]
             solution_view = CellVariable(name = "PCM temperature", 
-                mesh = mesh_PCM, value = value[::-1])
-            #print 'init', rTemp[0][:self.pos_s] / meshr[:]
+                                        mesh = mesh_PCM, value = value[::-1])
         else:
             raise NotImplementedError
-            
-        self.viewer =  Matplotlib1DViewer(vars = solution_view, datamin=0.)#, datamax=conc.max()+0.20*conc.max())
-        self.viewer.plot()
-        self.plotevery = 1
+        if self.plotevery:
+            self.viewer =  Matplotlib1DViewer(vars = solution_view, datamin=0., 
+                                datamax=45.)
+            self.viewer.plot()
         self.viewerplotcount = 0
         for time, rT in zip(times[1:self.last_sol_tstep], rTemp[1:self.last_sol_tstep][:]):
             if rT[self.pos_s] == 0.:
                 #meshr = self.state.outer_x_to_r(self.state.outer_gridx, rT[self.pos_s])
                 #print' sol', rT[:self.pos_s]/meshr
                 value = rT[:self.pos_s]/meshr
-                solution_view.setValue(value[::-1])
-                self.viewer.axes.set_title('PCM Temp vs radius at time %s' %str(time))
-                self.viewer.axes.set_xlabel('Radius')
-                self.viewer.axes.set_ylabel('Temp')
-                if self.viewerplotcount == 0:
+                if self.plotevery and self.viewerplotcount == 0:
+                    solution_view.setValue(value[::-1])
+                    self.viewer.axes.set_title('PCM Temp vs radius at time %s' %str(time))
+                    self.viewer.axes.set_xlabel('Radius')
+                    self.viewer.axes.set_ylabel('Temp')
                     self.viewer.plot()
                     #self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'PCM%sconc%08.4f.png' % (name,time))
                 #else:
                 #    self.viewer.plot()
-                    
-                self.viewerplotcount += 1
-                self.viewerplotcount = self.viewerplotcount % self.plotevery
+                if self.plotevery:
+                    self.viewerplotcount += 1
+                    self.viewerplotcount = self.viewerplotcount % self.plotevery
             else:
                 raise NotImplementedError  
 
