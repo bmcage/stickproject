@@ -154,8 +154,8 @@ class YarnConfigManager(ConfigManager):
         self.register("initial.init_conc", 'lambda x: 0.', 
             "Initial concentration of tracked compound in the yarn in terms of radius")
         
-        self.register("diffusion.diffusion_coeff", 2e-5,
-            "Diffusion coefficient of tracked compound in the yarn")
+        self.register("diffusion.diffusion_coeff", 25.,
+            "Diffusion coefficient of tracked compound in the yarn in mm2/s")
         
         #boundary section
         self.register("boundary.type_right", 'diff_flux', 
@@ -164,12 +164,12 @@ class YarnConfigManager(ConfigManager):
             "outside concentration, so if type diff_flux, "
             "flux = - D_out * (conc_out - yarn_edge_conc)/dist_conc_out")
         self.register("boundary.D_out", 25.,
-            "outside diffusion coef [unit ??], so if type diff_flux, "
+            "outside diffusion coef [unit mm2/s], so if type diff_flux, "
             "flux = - D_out * (conc_out - yarn_edge_conc)/dist_conc_out")
         self.register("boundary.dist_conc_out", 0.1,
             "distance of conc_out to yarn edge in mm, so if type diff_flux, "
             "flux = - D_out * (conc_out - yarn_edge_conc)/dist_conc_out")
-        self.register("boundary.transfer_coef", 5.3e-9,
+        self.register("boundary.transfer_coef", 5.3e-3,
             "tracked compound exterior transfer coef, so if type transfer, "
             "flux - D dC/dx = + transfer_coef C")
 

@@ -128,7 +128,7 @@ class Yarn1DModel(object):
         
         #Initialize the tortuosity
         self.tortuosity= self.cfg.get('yarn.tortuosity')
-        
+                
         # boundary data
         self.bound_type = conf.BOUND_TYPE[self.cfg.get('boundary.type_right')]
         self.boundary_conc_out = self.cfg.get('boundary.conc_out')
@@ -163,8 +163,7 @@ class Yarn1DModel(object):
         
         #nrf is number of fibers in the shell at that grid position
         # per radial
-        self.nrf_shell = (self.delta_rsquare/self.end_point**2 * self.nr_fibers 
-                            / 2. / np.pi)
+        self.nrf_shell = (self.delta_rsquare/(self.end_point**2) * self.nr_fibers)
         
         #create fiber models as needed: one per fibertype and per cell in the yarn model
         self.fiber_models = [0] * (self.nr_edge - 1)
@@ -175,7 +174,12 @@ class Yarn1DModel(object):
             self.fiber_models[ind] = []
             for cfg in self.cfg_fiber:
                 self.fiber_models[ind].append(FiberModel(cfg))
-
+        
+        #calculate the porosity as n=(pi Ry^2-nr_fibers pi Rf^2) / pi Ry^2
+        for ind, models in enumerate(self.fiber_models):
+            for type, model in enumerate(models):
+                self.porosity = (sp.power(self.end_point,2) - self.nr_fibers *  sp.power(model.radius(),2))/ sp.power(self.end_point,2)     
+        
         #create cylindrical 1D grid over domain for using fipy to view.
         if self.plotevery:
             self.mesh_yarn = CylindricalGrid1D(dr=tuple(self.delta_r))
@@ -219,8 +223,11 @@ class Yarn1DModel(object):
                 #rebind the out_conc method to a call to yarn1d
                 model.yarndata = ind
                 model.out_conc = lambda t, data: self.out_conc(data, t)
-                self.fiber_mass[ind, type] = model.calc_mass(model.initial_c1)
-
+                init_concentration = model.init_conc[type](1)
+                #print 'mass',model.calc_mass(init_concentration)
+                self.fiber_mass[ind, type] = model.calc_mass(init_concentration)
+                                
+                
     def do_fiber_step(self, stoptime):
         """
         Solve the diffusion process on the fiber up to stoptime, starting
@@ -231,8 +238,10 @@ class Yarn1DModel(object):
             for type, model in enumerate(models):
                 time, result = model.do_step(stoptime, needreinit=False)
                 tmp = model.calc_mass(result)
+                #print 'fibermass', ind, type, self.fiber_mass[ind, type], 'tmp', tmp
                 self.source_mass[ind, type] = self.fiber_mass[ind, type] - tmp
                 self.fiber_mass[ind, type] = tmp
+                
 
     def _set_bound_flux(self, flux_edge, conc_r):
         """
@@ -253,48 +262,55 @@ class Yarn1DModel(object):
                     (self.boundary_conc_out - conc_r[-1]) / self.boundary_dist 
                     * self.grid_edge[-1])
 
-    def calc_mass(self):
+    def calc_mass(self,conc):
         """
         calculate current amount of mass of volatile based on data currently
         stored
         """
         #first we calculate the mass in the void space:
-        mass = sp.sum(self.step_old_sol * (sp.power(self.grid_edge[1:],2) - 
-                                sp.power(self.grid_edge[:-1],2)) ) * sp.pi
+        mass = sp.sum(conc * (sp.power(self.grid_edge[1:],2) - 
+                                sp.power(self.grid_edge[:-1],2)) ) *sp.pi
+        #print 'calc mass', mass,
         #now we add the mass in the fibers
         for ind, pos in enumerate(self.grid):
             for type, blend in enumerate(self.blend):
                 #nrf is number of fibers of blend in the shell at that grid position
-                # per radial
+                #print 'fiber mass', self.fiber_mass
                 mass += (self.fiber_mass[ind, type] 
-                            * self.nrf_shell[ind] * blend * 2 * np.pi)
+                            * self.nrf_shell[ind] * blend)
+                            
+        print 'yarn totalmass',  mass
         return mass
 
     def set_source(self, timestep):
         """
         Method to calculate the radial source term
         Per radial we have the global equation 
-           \partial_t (r C) = \partial_r (D/tau) r \partial_r C + r Source
+           \partial_t (n r C) = \partial_r (D/tau) r \partial_r (n C) + r Source
         where Source is amount per time per volume released/absorbed
-        This equation is integrated over a shell, and we determine 
-            d_t w, with w = rC, where the sourceterm is \int_{r_i}^{r_{i+1}} r Source
+        This equation is integrated over a shell and devided by n (the porosity), and we determine 
+            d_t w, with w = rC, where the sourceterm is \int_{r_i}^{r_{i+1}} r Source/n
         and is the term here calculated and stored in self.source
-        As we assume Source constant over a shell, we have
-            sourceterm = Source * \Delta r_i^2 / 2
+        As we assume Source constant over a shell by averaging out the mass over the area of a shell (nV), we have
+            sourceterm = Source/(nV) * \Delta r_i^2 / 2
         self.source_mass contains per shell how much mass was released in 
-        previous step by a fiber. Suppose this mass is A. 
-        We determine how many fibers there are radially, multiply this with A
-        and divide by volume and timestep to obtain Source
+        previous step by a fiber. Suppose this mass is M. 
+        We determine how many fibers there are radially, multiply this with M
+        and divide by volume V to obtain Source-concentration, since concentration is mass/volume. 
+        Afterwards we multiply this Source with \Delta r_i^2 / 2nV
         """
         for ind, pos in enumerate(self.grid):
             self.source[ind] = 0.
+            #V is the area of the shell
+            V = sp.pi*(pos+self.delta_r)**2-pos**2
             for type, blend in enumerate(self.blend):
                 #nrf is number of fibers of blend in the shell at that grid position
                 # per radial
                 self.source[ind] += (self.source_mass[ind, type] 
                                         * self.nrf_shell[ind] * blend)
-            self.source[ind] /= timestep
-        self.source *= self.delta_rsquare / 2.
+            #self.source[ind] /= timestep
+        self.source *= self.delta_rsquare / (2.*V*self.porosity)
+      
 
     def f_conc1_ode(self, t, conc_r, diff_u_t):
         """
@@ -342,7 +358,7 @@ class Yarn1DModel(object):
         self.conc1[0][:] = self.init_conc[:]
         self.step_old_sol = self.conc1[0]
         
-        self.solver = sc_ode('cvode', self.f_conc1_ode,
+        self.solver = sc_ode('cvode', self.f_conc1_ode,min_step_size = 1e-8, rtol=1e+2, atol=1e+2 , 
                              max_steps=50000, lband=1, uband=1)
         self.solver.init_step(self.step_old_time, self.init_conc)
         self.initialized = True

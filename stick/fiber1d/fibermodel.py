@@ -312,7 +312,14 @@ class FiberModel(object):
         """
         return sp.sum(conc_r * (sp.power(self.grid_edge[1:],2) - 
                                 sp.power(self.grid_edge[:-1],2)) 
-                            * self.porosity_domain) * sp.pi 
+                           * self.porosity_domain) * sp.pi 
+
+        #self.__Rf = self.radius()
+        #som = sp.sum(sp.power(self.grid_edge[1:],2) - sp.power(self.grid_edge[:-1],2))
+        #mass = conc_r * som  *sp.pi
+        #print 'fibermass', mass
+                       
+        
 
     def calc_volume(self):
         """calculate the volume over which the compound can move. We have

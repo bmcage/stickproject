@@ -138,7 +138,9 @@ class FiberConfigManager(ConfigManager):
         self.register("fiber.diffusion_coef", 0.)
         self.register("fiber.diffusion_polymer_exp_factor", 0.)
         self.register("fiber.n_edge", 41)
-        self.register("fiber.init_conc", 'lambda x: 0.')
+        self.register("fiber.init_conc", 'lambda x: 0.',
+                        'initial concentration in the layer in terms '
+                        'of radius, unit microg/mm**3')
         self.register("fiber.porosity_in", 0.2)
         self.register("fiber.percentage_active", 1.0)
         self.register("fiber.mean_deviation", 0.00355,
@@ -147,9 +149,11 @@ class FiberConfigManager(ConfigManager):
         self.register("fiberlayer_0.n_edge", 41)
         self.register("fiberlayer_0.thickness", 0.0017,
             "thickness/width of the coating in mm")
-        self.register("fiberlayer_0.diffusion_coef", 5.2e-9)
+        self.register("fiberlayer_0.diffusion_coef", 25., "diffusion coefficient in mm2/s")
         self.register("fiberlayer_0.diffusion_polymer_exp_factor", 0.)
-        self.register("fiberlayer_0.init_conc", 'lambda x: 0.70')
+        self.register("fiberlayer_0.init_conc", 'lambda x: 0.70',
+                        'initial concentration in the layer in terms '
+                        'of radius, unit microg/mm**3')
         self.register("fiberlayer_0.porosity_layer", 1.0)
 
         self.register("boundary.type_left", 'flux')
