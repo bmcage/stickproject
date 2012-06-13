@@ -880,6 +880,7 @@ class FiberModel(object):
         self.solution_view = CellVariable(name = "fiber concentration", 
                             mesh = self.mesh_fiber,
                             value = conc[0][:])
+        name = self.solution_view.name                    
         if self.plotevery:
             self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.20*conc.max())
         self.viewerplotcount = 0
