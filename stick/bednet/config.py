@@ -92,13 +92,13 @@ class BednetConfigManager(ConfigManager):
         self.register("general.read", False)
         self.register("general.verbose", False)
         
-        self.register("observer.x0", [1.0,])
+        self.register("observer.x0", [1e-3,])
         
         self.register("domain.nr_vert_yarns",50)
         self.register("domain.nr_hor_yarns",100)
-        self.register("domain.domain_size", [5.0e-2, 1.5e-1])
-        self.register("domain.dx", 2.5e-3)
-        self.register("domain.dy", 2.5e-3)
+        self.register("domain.domain_size", [5.0e-2, 1.5e-1], 'size fabric in m')
+        self.register("domain.dx", 2.5, 'size hole in mm')
+        self.register("domain.dy", 2.5, 'size hole in mm')
         
         self.register("sample.size_sample", [2e-2, 4.92e-3])
         self.register("sample.yarn_config", ['../yarn/defaultyarn.ini'])
