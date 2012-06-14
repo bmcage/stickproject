@@ -132,6 +132,12 @@ class Bednet(object):
         self.tstep = 0
         for ind, model in enumerate(self.yarn_models):
             model.do_yarn_init()
+            model.boundary_conc_out = self.initconc
+            if model.bound_type != 0 : 
+                print ' ***********************************************'
+                print ' ******  WARNING: Boundary condition not diffusion flux,'\
+                      '\n        so yarn does not consider the fabric !!'
+                print ' ***********************************************'
             self.yarn_mass[ind] = model.calc_mass(model.init_conc)
             # no mass released at start time
             self.source_mass[ind, self.tstep] = 0
@@ -218,29 +224,13 @@ class Bednet(object):
         print 'solV', solV
         solH = self.__loop_over_yarn(self.nhoryarns, self.dy)
         print 'solH', solH        
-        sol = solV+solH 
-        print 'solution', sol
-        #if sol[0]<0:
-            #sol[0]=0
-        #else:
-            #return sol      
-        for ind, val in enumerate(sol):
-            self.sol[self.tstep, ind] = float(val)
-            print 'solution on timestep', self.sol[self.tstep,:]    
-                        #ubfac = factor/((k-1)*self.delta_t-(tt+1))
-                        #lbfac = factor/(k*self.delta_t-(tt+1))  
-                        #integralV[ind] = quad(lambda x: sp.exp(-x)/x,RV[ind]*lbfac,RV[ind]*ubfac)[1]
-                        #integralH[ind] = quad(lambda x: sp.exp(-x)/x,RH[ind]*lbfac,RH[ind]*ubfac)[1]
-                        #termV[ind] += self.source_mass[ttype,tt+1]*integralV[ind]
-                        #termH[ind] += self.source_mass[ttype,tt+1]*integralH[ind]       
-                                    
-            # 3. for next timestep, we need to set correct boundary condition
-            #    on the yarn level
+        self.sol[self.tstep, :] = solV+solH 
+        print 'solution', self.sol[self.tstep,:]
+        # 3. for next timestep, we need to set correct boundary condition
+        #    on the yarn level
         for ind, model in enumerate(self.yarn_models):
             model.boundary_conc_out = self.sol[self.tstep, 0]
             print 'boundary conc yarn', model.boundary_conc_out, self.sol[self.tstep, 0]
-        
-         
 
     def view_sol(self):
         #maxv = np.max(self.sol)
