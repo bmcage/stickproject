@@ -230,7 +230,7 @@ class Bednet(object):
         #    on the yarn level
         for ind, model in enumerate(self.yarn_models):
             model.boundary_conc_out = self.sol[self.tstep, 0]
-            print 'boundary conc yarn', model.boundary_conc_out, self.sol[self.tstep, 0]
+            print 'boundary conc yarn', model.boundary_conc_out
 
     def view_sol(self):
         #maxv = np.max(self.sol)
@@ -241,7 +241,7 @@ class Bednet(object):
             plt.figure(ind)
             plt.plot(self.times, self.sol[:, ind+1])
             #plt.ylim(0, maxv*1.1)
-            plt.title('Concentration at position %g' % pos)
+            plt.title('Concentration at position %g mm' % pos)
             plt.show()
 
     def init_bednet(self):

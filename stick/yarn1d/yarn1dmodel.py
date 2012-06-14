@@ -277,7 +277,7 @@ class Yarn1DModel(object):
                 mass += (self.fiber_mass[ind, type] 
                             * self.nrf_shell[ind] * blend)
                             
-        print 'yarn totalmass',  mass
+        print 'yarn totalmass',  mass, 'microgram'
         return mass
 
     def set_source(self, timestep):
@@ -431,7 +431,7 @@ class Yarn1DModel(object):
                     self.viewerwritecount += 1
                     self.viewerwritecount = self.viewerwritecount % self.writeevery
 
-    def run(self, wait=False): 
+    def run(self, wait=False):
         self.do_yarn_init()
         
         print 'Start mass of DEET per grid cell per fiber type'
