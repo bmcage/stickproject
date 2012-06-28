@@ -29,6 +29,7 @@ import sys
 import const
 import numpy as np
 import scipy as sp
+from fipy import *
 from scipy import integrate
 from scipy.integrate import quad
 import matplotlib.pyplot as plt
@@ -90,12 +91,7 @@ class Bednet(object):
         x0 = self.cfg.get('observer.x0')
         self.x0 = sp.empty(len(x0)+1, float)
         self.x0[1:] = x0[:]
-        """
-        self.distance_yarn = self.cfg.get('domain.distance_yarn')
-        self.grid_space_vertical = self.cfg.get('domain.grid_space_vertical')
-        self.number_nodes = (self.domain_size[0] / self.distance_yarn + 1) * \
-                            (self.domain_size[1] / self.grid_space_vertical + 1)
-        """
+        
         #we set a distance for the yarn bc
         self.x0[0] = 0.1
         self.cfg_yarn = []
@@ -231,18 +227,29 @@ class Bednet(object):
         for ind, model in enumerate(self.yarn_models):
             model.boundary_conc_out = self.sol[self.tstep, 0]
             print 'boundary conc yarn', model.boundary_conc_out
+        
+        dump.write({
+                        'time':self.tstep,
+                        'concentration': self.sol[self.tstep,0] },
+                        filename=utils.OUTPUTDIR + os.sep + 'bednet_sol_%08d.gz'%(self.tstep)   ,
+                        extension='.gz')    
+    
+      
 
-    def view_sol(self):
+    def view_sol(self,times,sol,t):
         #maxv = np.max(self.sol)
         #minv = np.min(self.sol)
         #print 'max', maxv, minv
+        self.plottimes = np.arange(self.times[0],self.times[-1]+1,self.plotevery)
         plt.ion()
         for ind, pos in enumerate(self.x0[1:]):
-            plt.figure(ind)
-            plt.plot(self.times, self.sol[:, ind+1])
-            #plt.ylim(0, maxv*1.1)
-            plt.title('Concentration at position %g mm' % pos)
-            plt.show()
+            if t in self.plottimes:
+                plt.figure(ind)
+                plt.plot(self.times, self.sol[:, ind+1])
+                #plt.ylim(0, maxv*1.1)
+                plt.title('Concentration at position %g mm' % pos)
+                plt.show()
+            else: break    
 
     def init_bednet(self):
         self.sol = sp.empty((self.timesteps+1, len(self.x0)), float)
@@ -251,11 +258,13 @@ class Bednet(object):
         self.init_yarn()
 
     def run(self, wait=False):
+        raw_input()   
         self.init_bednet()
         for t in self.times[1:]:
             self.solve_timestep(t)
-
-        self.view_sol()
+            self.view_sol(self.times,self.sol,t)
+        
+        #self.view_sol(self.times,self.sol)    
 
         if wait:
             raw_input("Finished bednet run")
