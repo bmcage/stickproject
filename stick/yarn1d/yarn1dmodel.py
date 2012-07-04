@@ -97,6 +97,8 @@ class Yarn1DModel(object):
         self.number_fiber = self.cfg.get('fiber.number_fiber')
         self.blend = self.cfg.get('fiber.blend')
         self.blend = [x/100. for x in self.blend]
+        print 'the number of types for fibers', self.blend
+        raw_input('Enter')
         self.nr_models = self.cfg.get('fiber.number_type')
         assert self.nr_models == len(self.blend) == len(self.cfg.get('fiber.fiber_config'))
 
@@ -218,11 +220,15 @@ class Yarn1DModel(object):
         
         for ind, models in enumerate(self.fiber_models):
             for type, model in enumerate(models):
+                print 'the type of the fiber in running', type
                 model.run_init()
                 model.solve_init()
                 #rebind the out_conc method to a call to yarn1d
                 model.yarndata = ind
                 model.out_conc = lambda t, data: self.out_conc(data, t)
+                init_concentration = model.init_conc[type](1)
+                self.fiber_mass[ind, type] = model.calc_mass(init_concentration)
+                print 'the mass in the fiber', self.fiber_mass[ind, type]
                 #print 'mass',model.calc_mass(init_concentration)
                 self.fiber_mass[ind, type] = model.calc_mass(model.initial_c1)
 
@@ -234,12 +240,13 @@ class Yarn1DModel(object):
         """
         for ind, models in enumerate(self.fiber_models):
             for type, model in enumerate(models):
+                print 'the stoptime is', stoptime
+                raw_input('Enter')
                 time, result = model.do_step(stoptime, needreinit=False)
                 tmp = model.calc_mass(result)
                 #print 'fibermass', ind, type, self.fiber_mass[ind, type], 'tmp', tmp
                 self.source_mass[ind, type] = self.fiber_mass[ind, type] - tmp
                 self.fiber_mass[ind, type] = tmp
-                
 
     def _set_bound_flux(self, flux_edge, conc_r):
         """
