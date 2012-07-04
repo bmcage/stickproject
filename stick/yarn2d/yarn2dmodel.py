@@ -100,7 +100,7 @@ class Yarn2DModel(object):
                             os.path.dirname(self.cfg.filename), filename))
             self.cfg_fiber.append(FiberConfigManager.get_instance(filename))
             #set values from the yarn on this inifile
-            self.cfg_fiber[-1].set("time.time_period", self.cfg.get("time.time_period"))
+            self.cfg_fiber[-1].set("time.time_period", self.time_period)
             if self.cfg_fiber[-1].get("time.dt") > self.cfg.get("time.time_period"):
                 self.cfg_fiber[-1].set("time.dt", self.cfg.get("time.time_period"))
         
