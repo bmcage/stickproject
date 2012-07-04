@@ -227,13 +227,11 @@ class Yarn1DModel(object):
                 model.yarndata = ind
                 model.out_conc = lambda t, data: self.out_conc(data, t)
                 init_concentration = model.init_conc[type](1)
-                #print 'the length of the init_concentration', len(init_concentration)
-                print 'the initial concentration value is', init_concentration
-                #print 'mass',model.calc_mass(init_concentration)
                 self.fiber_mass[ind, type] = model.calc_mass(init_concentration)
                 print 'the mass in the fiber', self.fiber_mass[ind, type]
-                                
-                
+                #print 'mass',model.calc_mass(init_concentration)
+                self.fiber_mass[ind, type] = model.calc_mass(model.initial_c1)
+
     def do_fiber_step(self, stoptime):
         """
         Solve the diffusion process on the fiber up to stoptime, starting
@@ -286,7 +284,7 @@ class Yarn1DModel(object):
                 mass += (self.fiber_mass[ind, type] 
                             * self.nrf_shell[ind] * blend)
                             
-        print 'yarn totalmass',  mass
+        print 'yarn totalmass',  mass, 'microgram'
         return mass
 
     def set_source(self, timestep):
@@ -440,7 +438,7 @@ class Yarn1DModel(object):
                     self.viewerwritecount += 1
                     self.viewerwritecount = self.viewerwritecount % self.writeevery
 
-    def run(self, wait=False): 
+    def run(self, wait=False):
         self.do_yarn_init()
         
         print 'Start mass of DEET per grid cell per fiber type'

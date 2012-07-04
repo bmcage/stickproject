@@ -29,6 +29,7 @@ import sys
 import const
 import numpy as np
 import scipy as sp
+from fipy import *
 from scipy import integrate
 from scipy.integrate import quad
 import matplotlib.pyplot as plt
@@ -90,12 +91,7 @@ class Bednet(object):
         x0 = self.cfg.get('observer.x0')
         self.x0 = sp.empty(len(x0)+1, float)
         self.x0[1:] = x0[:]
-        """
-        self.distance_yarn = self.cfg.get('domain.distance_yarn')
-        self.grid_space_vertical = self.cfg.get('domain.grid_space_vertical')
-        self.number_nodes = (self.domain_size[0] / self.distance_yarn + 1) * \
-                            (self.domain_size[1] / self.grid_space_vertical + 1)
-        """
+        
         #we set a distance for the yarn bc
         self.x0[0] = 0.1
         self.cfg_yarn = []
@@ -132,6 +128,12 @@ class Bednet(object):
         self.tstep = 0
         for ind, model in enumerate(self.yarn_models):
             model.do_yarn_init()
+            model.boundary_conc_out = self.initconc
+            if model.bound_type != 0 : 
+                print ' ***********************************************'
+                print ' ******  WARNING: Boundary condition not diffusion flux,'\
+                      '\n        so yarn does not consider the fabric !!'
+                print ' ***********************************************'
             self.yarn_mass[ind] = model.calc_mass(model.init_conc)
             # no mass released at start time
             self.source_mass[ind, self.tstep] = 0
@@ -139,6 +141,54 @@ class Bednet(object):
     def initial_boundary_conc(self):
         self.initconc = self.cfg.get('initial.init_conc')
         self.initvoidconc = self.cfg.get('initial.init_void')
+
+    def __loop_over_yarn(self, nryarns, dx):
+        x0 = self.x0
+        n = 1
+        termV = sp.zeros(len(x0),float)
+        expn1V = sp.empty(len(x0),float)
+        expn2V = sp.empty(len(x0),float)
+        sol = 0 
+        while n <= nryarns: 
+            for ttt in np.arange(self.tstep):
+                tt = ttt+1
+                factor = 4 * self.diff_DEET_void
+                for ttype in np.arange(self.nr_models):
+                    # TODO: this should be dx/dy per yarn ttype!!
+                    RV = sp.power(x0[:],2) + sp.power(n*dx, 2)
+                    #integralV = sp.empty(len(x0),float)
+                    #integralH = sp.empty(len(x0),float)
+                    k=1
+                    #for ind, xstart in enumerate(self.x0):
+                    #print 'x0', x0, 'delta_t', self.delta_t, 'tt', tt
+                    while k <= tt:
+                            z1V = -RV/(factor*(self.times[tt]-k*self.delta_t))
+                            z2V = -RV/(factor*(self.times[tt]-(k-1)*self.delta_t))
+                            #print 'z1V', z1V, 'z2V', z2V
+                            #raw_input()
+                            for i,z1 in enumerate(z1V):
+                                if k == tt:
+                                    expn1V[i] = 0.
+                                else:    
+                                    expn1V[i] = sp.special.expi(z1)
+                            for i,z2 in enumerate(z2V):  
+                                expn2V[i] = sp.special.expi(z2)
+                            #print 'expn1V', expn1V, 'expn2V', expn2V
+                            #raw_input()    
+                            #print 'self.source_mass[ttype,tt]', self.source_mass[ttype,tt], '(expn2V[ind]-expn1V[ind])', (expn2V[ind]-expn1V[ind])    
+                            #raw_input()
+                            termV += self.source_mass[ttype,tt]*(expn1V-expn2V)/(factor*sp.pi)
+                            k += 1
+
+                    #print 'termV', termV 
+                        #raw_input()
+                    solstep = (
+                        self.source_mass[ttype,0] /(factor*sp.pi*self.times[tt]) 
+                        * sp.exp(-RV/(factor*self.times[tt])) + termV 
+                                )
+                    sol += solstep        
+                n+=1
+        return sol
 
     def solve_timestep(self, t):
         print "solve timestep", t
@@ -152,140 +202,54 @@ class Bednet(object):
             #print 'rety',rety
             #raw_input()
             tmp = model.calc_mass(rety[-1])
+            #V = sp.pi * sp.power(model.end_point, 2)    
             self.source_mass[ttype, self.tstep] = self.yarn_mass[ttype] - tmp
+            #self.source_mass[ttype, self.tstep] /= V
             #print 'mass yarn', tmp, self.yarn_mass[ttype], self.source_mass[ttype, self.tstep]
             self.yarn_mass[ttype] = tmp
-            self.yarnradius = model.end_point
-            V = sp.pi * sp.power(self.yarnradius,2)    
-        self.source_mass /= V
+
         # 2. step two, solve the bednet model
         #    to obtain value near yarn, and at observer
         #    we know that self.source_mass[ttype] has been released since
         #    last step
-        x0 = self.x0
-        termV = sp.zeros(len(x0),float)
-        termH = sp.zeros(len(x0),float)
-        expn1V = sp.empty(len(x0),float)
-        expn2V = sp.empty(len(x0),float)
-        expn1H = sp.empty(len(x0),float)
-        expn2H = sp.empty(len(x0),float)
+        
         # concentration is a consequence of all previous releases, so sum 
         # over all times, and compute contribution of that moment.
         self.sol[self.tstep, :] = 0.
-        n=1
-        m=1
-        solV=0
-        solH=0
-        while n <= self.nvertyarns: 
-            for ttt in np.arange(self.tstep):
-                tt = ttt+1
-                factor = 4 * self.diff_DEET_void
-                for ttype in np.arange(self.nr_models):
-                    # TODO: this should be dx/dy per yarn ttype!!
-                    RV = sp.power(x0[:],2)+math.pow(n*self.dx, 2)
-                    #integralV = sp.empty(len(x0),float)
-                    #integralH = sp.empty(len(x0),float)
-                    k=1
-                    #for ind, xstart in enumerate(self.x0):
-                    #print 'x0', x0, 'delta_t', self.delta_t, 'tt', tt
-                    while k <= tt:
-                            z1V = -sp.power(RV,2)/(factor*(k*self.delta_t-self.times[tt]))
-                            z2V = -sp.power(RV,2)/(factor*((k-1)*self.delta_t-self.times[tt]))
-                            #print 'z1V', z1V, 'z2V', z2V
-                            #raw_input()
-                            for i,z1 in enumerate(z1V):
-                                if k == tt:
-                                    expn1V[i] = 0.
-                                else:    
-                                    expn1V[i] = -sp.special.expi(-z1)
-                            for i,z2 in enumerate(z2V):  
-                                expn2V[i] = -sp.special.expi(-z2)
-                            #print 'expn1V', expn1V, 'expn2V', expn2V
-                            #raw_input()    
-                            #print 'self.source_mass[ttype,tt]', self.source_mass[ttype,tt], '(expn2V[ind]-expn1V[ind])', (expn2V[ind]-expn1V[ind])    
-                            #raw_input()
-                            termV += self.source_mass[ttype,tt]*(expn2V-expn1V)/(factor*sp.pi)
-                            k += 1
-                            
-                                
-                    #print 'termV', termV 
-                        #raw_input()
-                    solVstep = (
-                        self.source_mass[ttype,0] /(factor*sp.pi*self.times[tt]) 
-                        * sp.exp(-sp.power(RV,2)/(factor*self.times[tt]))+ termV 
-                                )    
-                    solV += solVstep        
-                n+=1
-        print 'solV', solV    
-        while m <= self.nhoryarns: 
-                for ttt in np.arange(self.tstep):
-                    tt = ttt+1
-                    factor = 4 * self.diff_DEET_void
-                    for ttype in np.arange(self.nr_models):
-                        # TODO: this should be dx/dy per yarn ttype!!
-                        RH = sp.power(x0[:],2)+math.pow(m*self.dy, 2)   
-                        #integralV = sp.empty(len(x0),float)
-                        #integralH = sp.empty(len(x0),float)
-                        k=1
-                        #for ind, xstart in enumerate(self.x0):
-                            #print 'index', ind, 'x0', xstart, 'delta_t', self.delta_t, 'tt', tt
-                        while k < tt:
-                                z1H = -sp.power(RH,2)/(factor*(k*self.delta_t-self.times[tt]))
-                                z2H = -sp.power(RH,2)/(factor*((k-1)*self.delta_t-self.times[tt]))
-                                #print 'z1H', z1H, 'z2H', z2H
-                                for i,z1 in enumerate(z1H):
-                                    if k == tt:
-                                        expn1V[i] = 0.
-                                    else:    
-                                        expn1H[i] = -sp.special.expi(-z1)
-                                for i,z2 in enumerate(z2H):    
-                                    expn2H[i] = -sp.special.expi(-z2)
-                                #print 'expn1H', expn1H, 'expn2H', expn2H, 'source',self.source_mass[ttype,tt]    
-                                termH += self.source_mass[ttype,tt]*(expn2H-expn1H)/(factor*sp.pi)  
-                                k += 1    
-                        #print 'termH', termH
-                        solHstep = (
-                            self.source_mass[ttype,0] /(factor*sp.pi*self.times[tt]) 
-                            * sp.exp(-sp.power(RH,2)/(factor*self.times[tt]))+ termH 
-                                    )
-                        solH += solHstep        
-                m+=1
+        solV = self.__loop_over_yarn(self.nvertyarns, self.dx)
+        print 'solV', solV
+        solH = self.__loop_over_yarn(self.nhoryarns, self.dy)
         print 'solH', solH        
-        sol = solV+solH 
-        print 'solution', sol
-        #if sol[0]<0:
-            #sol[0]=0
-        #else:
-            #return sol      
-        for ind, val in enumerate(sol):
-            self.sol[self.tstep, ind] = float(val)
-            print 'solution on timestep', self.sol[self.tstep,:]    
-                        #ubfac = factor/((k-1)*self.delta_t-(tt+1))
-                        #lbfac = factor/(k*self.delta_t-(tt+1))  
-                        #integralV[ind] = quad(lambda x: sp.exp(-x)/x,RV[ind]*lbfac,RV[ind]*ubfac)[1]
-                        #integralH[ind] = quad(lambda x: sp.exp(-x)/x,RH[ind]*lbfac,RH[ind]*ubfac)[1]
-                        #termV[ind] += self.source_mass[ttype,tt+1]*integralV[ind]
-                        #termH[ind] += self.source_mass[ttype,tt+1]*integralH[ind]       
-                                    
-            # 3. for next timestep, we need to set correct boundary condition
-            #    on the yarn level
+        self.sol[self.tstep, :] = solV+solH 
+        print 'solution', self.sol[self.tstep,:]
+        # 3. for next timestep, we need to set correct boundary condition
+        #    on the yarn level
         for ind, model in enumerate(self.yarn_models):
             model.boundary_conc_out = self.sol[self.tstep, 0]
-            print 'boundary conc yarn', model.boundary_conc_out, self.sol[self.tstep, 0]
+            print 'boundary conc yarn', model.boundary_conc_out
         
-         
+        dump.write({
+                        'time':self.tstep,
+                        'concentration': self.sol[self.tstep,0] },
+                        filename=utils.OUTPUTDIR + os.sep + 'bednet_sol_%08d.gz'%(self.tstep)   ,
+                        extension='.gz')    
+    
+      
 
-    def view_sol(self):
+    def view_sol(self,times,sol,t):
         #maxv = np.max(self.sol)
         #minv = np.min(self.sol)
         #print 'max', maxv, minv
+        self.plottimes = np.arange(self.times[0],self.times[-1]+1,self.plotevery)
         plt.ion()
         for ind, pos in enumerate(self.x0[1:]):
-            plt.figure(ind)
-            plt.plot(self.times, self.sol[:, ind+1])
-            #plt.ylim(0, maxv*1.1)
-            plt.title('Concentration at position %g' % pos)
-            plt.show()
+            if t in self.plottimes:
+                plt.figure(ind)
+                plt.plot(self.times, self.sol[:, ind+1])
+                #plt.ylim(0, maxv*1.1)
+                plt.title('Concentration at position %g mm' % pos)
+                plt.show()
+            else: break    
 
     def init_bednet(self):
         self.sol = sp.empty((self.timesteps+1, len(self.x0)), float)
@@ -294,11 +258,13 @@ class Bednet(object):
         self.init_yarn()
 
     def run(self, wait=False):
+        raw_input()   
         self.init_bednet()
         for t in self.times[1:]:
             self.solve_timestep(t)
-
-        self.view_sol()
+            self.view_sol(self.times,self.sol,t)
+        
+        #self.view_sol(self.times,self.sol)    
 
         if wait:
             raw_input("Finished bednet run")

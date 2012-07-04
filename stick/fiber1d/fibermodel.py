@@ -315,12 +315,8 @@ class FiberModel(object):
                                 sp.power(self.grid_edge[:-1],2)) 
                            * self.porosity_domain) * sp.pi 
 
-        #self.__Rf = self.radius()
-        #som = sp.sum(sp.power(self.grid_edge[1:],2) - sp.power(self.grid_edge[:-1],2))
-        #mass = conc_r * som  *sp.pi
         #print 'fibermass', mass
-                       
-        
+        #return mass
 
     def calc_volume(self):
         """calculate the volume over which the compound can move. We have
@@ -887,6 +883,7 @@ class FiberModel(object):
         self.solution_view = CellVariable(name = "fiber concentration", 
                             mesh = self.mesh_fiber,
                             value = conc[0][:])
+        name = self.solution_view.name                    
         if self.plotevery:
             self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.20*conc.max())
         self.viewerplotcount = 0

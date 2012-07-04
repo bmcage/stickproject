@@ -469,7 +469,7 @@ class PCMModel(object):
         at L and 1 is at interface, then the interface position, then x from 1
         to 0 with innter data, with 1 the interface, and 0 the center
         """
-        pass
+        raise NotImplementedError, 'TODO'
 
     def solve_odes_reinit(self):
         """
