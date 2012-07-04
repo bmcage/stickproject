@@ -158,7 +158,7 @@ def integration_layout(radius_fiber, radius_yarn, radius_each_circle, number_fib
     return (each_circle_zone_num, x_position, y_position)
 
 
-def vl_distribution(num_fiber_VL, number_fiber_distribution, x_position_vl, y_position_vl):
+def vl_distribution(num_fiber_VL, number_fiber_distribution, x_position_VL, y_position_VL):
 #
 #number_fiber_VL: array, the virtual locations number in each ring zone;
 #number_fiber_distribution: integer, the number of the fiber distributed;

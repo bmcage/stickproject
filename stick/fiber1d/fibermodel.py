@@ -180,8 +180,8 @@ class FiberModel(object):
             #we determine radius of the fiber with same surface area
             #pi a b = pi r**2
             a = rad
-            b = sqrt(a**2 * (1-ecc**2))
-            rad = sqrt(a*b)
+            b = sp.sqrt(a**2 * (1-ecc**2))
+            rad = sp.sqrt(a*b)
         else:
             raise Exception, 'Fiber form is not supported for a 1D fiber model'
         self.__Rf_pure = rad
@@ -223,6 +223,7 @@ class FiberModel(object):
         self.surf_begin = [0.]
         self.surf = [self.radius_pure()]
         for i in range(self.nrlayers):
+            print 'the value for the layer on the fiber', i
             section = 'fiberlayer_%i' % i
             n_edge += [self.cfg.get(section + '.n_edge')]
             self.surf_begin += [self.surf[-1]]
@@ -515,12 +516,17 @@ class FiberModel(object):
         if not self.initialized:
             raise Exception, 'Solver ode not initialized'
         if needreinit:
+            print 'initializing the initial condition'
             self.solve_odes_reinit()
         else:
+            print 'solve the ODE by using tcrit'
             self.solver.set_tcrit(tcrit=stoptime)
         compute = True
         #even is step is large, we don't compute for a longer time than delta_t
         t = self.step_old_time
+        print 'begin to calculate the ODE'
+        print 'value of time', t
+        print 'value of ret_y', self.ret_y
         while compute:
             t +=  self.delta_t
             if  t >= stoptime - self.delta_t/100.:
@@ -846,6 +852,7 @@ class FiberModel(object):
         The resulting time and r*concentration is returned
         """
         if  self.submethod in ['cvode', 'cvode_step']:
+            print 'begin to solve the ode in the fiber'
             return self.do_step_odes(stoptime, needreinit)
         #elif  self.submethod in ['odew', 'odew_step']:
         #    res = self.do_step_ode(step)

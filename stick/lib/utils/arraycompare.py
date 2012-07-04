@@ -158,7 +158,7 @@ def circledist(a, b, rada, radb):
     distreqsqr = np.empty(tmp.shape, float)
     #print 'tmp', tmp
     for i in range(len(rada)):
-        distreqsqr[i,:] = np.power(rada[i] + radb[:] + 0.003, 2)
+        distreqsqr[i,:] = np.power(rada[i] + radb[:] + 0.005, 2)
     #now determine all indices that overlap
     result = (tmp < distreqsqr) # point itself is returned too!
     return result.flatten(), [np.sqrt(tmp), np.sqrt(distreqsqr)]

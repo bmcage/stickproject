@@ -302,7 +302,7 @@ def calculate_proportion(rad_yarn, rad_fib, x_fib, y_fib, nrzones=5):
     print 'the area of the sum of ring zones', total_zone_area
     print 'the value of zone area is', zone_area
     print 'the ratio value in each zone', ratio_each
-    print 'the total fiber area in each ring zone', area_fib_zone, sp.sum(area_fib_zone), rad_fib[0], len(rad_fib)
+##    print 'the total fiber area in each ring zone', area_fib_zone, sp.sum(area_fib_zone), rad_fib[0], len(rad_fib)
     #raw_input("Record this value for the polyester")
     zone_point = sp.zeros(len(zone_radius))
     for i_circle in sp.arange(len(zone_radius)):
@@ -318,7 +318,7 @@ def plot_ratio_function(zone_position, each_time_ratio, type_fiber,
     """ A function to nicely plot area proportions found after the iteration """
     iteration_times = int(len(each_time_ratio) / 2)
     each_kind_ratio = [0] * type_fiber
-    each_coefficients = [0.0130, 0.0185]
+    each_coefficients = [1.0, 0.0065]#[0.0130, 0.0185]
     mean_ratio_subplot = [0] * type_fiber
     
     for i_type in sp.arange(type_fiber):
@@ -348,51 +348,81 @@ def plot_ratio_function(zone_position, each_time_ratio, type_fiber,
         position_for_function = sp.linspace(0, zone_position[0][-1], 50)
         each_probability_function = probability_function[i_type]
         coefficient = each_coefficients[i_type]
-        import pylab
-        pylab.figure()
-        pylab.plot(position_for_function, each_probability_function(position_for_function) / coefficient, '--')
-        pylab.boxplot(each_kind_ratio[i_type], notch = 0, sym = '', vert = 1, 
-                    whis = 1.6)
-        pylab.plot(zone_position[i_type], mean_ratio, 'o')
-        pylab.plot()
-        pylab.xlabel('Relative position in the yarn domain')
-        pylab.ylabel('Probability value')
-        pylab.xlim(0., 1.05)
-        pylab.ylim(0., 0.90)
+##        import pylab
+        plt.figure()
+        if i_type == 1:
+            plt.plot(position_for_function, each_probability_function(position_for_function) 
+                / coefficient, '--')
+        box_position, box_x_lable = plt.xticks()
+        box_y_value, box_y_lable = plt.yticks()
+        plt.plot(zone_position[i_type], mean_ratio, 'go')
+        print "length of the position and the ration", len(zone_position[i_type]),\
+                len(each_kind_ratio[i_type])
+        raw_input('check the length value')
+        plt.boxplot(each_kind_ratio[i_type],notch = 0, sym = '', vert = 0.8,
+                    whis = 1.0, positions = zone_position[i_type][:-1],widths = 0.05)
+        plt.xticks(box_position)
+        
+        plt.yticks(sp.arange(0., 1.0, 0.1))
+        plt.plot()
+        plt.xlabel('Relative position in the yarn domain')
+        plt.ylabel('Probability value')
+        plt.xlim(-0.05, 1.05)
+        plt.ylim(0., 1.0)
+        #plt.yaxis.set_major_locator(sp.arange(0., 0.9, 0.1))
         #pylab.title('Area probability for %s kind of fiber'% (i_kind))
     #part for drawing in subplot way
-    pylab.ion()
-    pylab.figure()
-    for i_type in sp.arange(type_fiber):
-        mean_for_plot = sp.zeros(len(mean_ratio_subplot[i_type]))
-        mean_for_plot[:] = mean_ratio_subplot[i_type][:]
-        each_probability_function = probability_function[i_type]
-        pylab.subplot(type_fiber, 1, i_type + 1)
-        pylab.title('Area probability for %d th kind of fiber'% (i_type+1))
-        pylab.plot(zone_position[i_type], mean_for_plot, 'o')
-        pylab.xlim(0., 1.05)
-        pylab.ylim(0., 0.8)
-        pylab.xlabel('Relative position in the yarn domain')
-        pylab.ylabel('Probalility value')
-        pylab.plot(position_for_function, each_probability_function(position_for_function) / coefficient, '--')
-        pylab.axis()
-    pylab.show()
-
-def compare_relative_error(mean_value_each, mean_value_alpha, nrzones, type_fiber):
+    plt.ion()
+    plt.figure()
+##    for i_type in sp.arange(type_fiber):
+##        mean_for_plot = sp.zeros(len(mean_ratio_subplot[i_type]))
+##        mean_for_plot[:] = mean_ratio_subplot[i_type][:]
+##        each_probability_function = probability_function[i_type]
+##        plt.subplot(type_fiber, 1, i_type + 1)
+##        plt.title('Area probability for %d th kind of fiber'% (i_type+1))
+##        plt.plot(zone_position[i_type], mean_for_plot, 'o')
+##        plt.xlim(-0.05, 1.05)
+##        plt.ylim(0., 0.7)
+##        plt.xlabel('Relative position in the yarn domain')
+##        plt.ylabel('Probalility value')
+##        plt.plot(position_for_function, each_probability_function(position_for_function) / coefficient, '--')
+##        plt.axis()
+##    plt.show()
+    
+def compare_relative_error(mean_value_each, mean_value_alpha, mean_value_alpha_1,
+                            nrzones, type_fiber):
     ind = sp.arange(nrzones)
-    width = 0.2
-    color1 = ['g','y']
+    width = 0.15
+    color1 = ['g','g']
     color2 = ['r', 'r']
+    color3 = ['b', 'b']
     for i_type in sp.arange(type_fiber):
         plt.figure()
         propor_draw = plt.bar(ind, mean_value_each[i_type], width, color = '%s'%color1[i_type])
         alpha_draw = plt.bar(ind + width, mean_value_alpha[i_type], width, color = '%s' %color2[i_type])
-        
+        alpha_draw_1 = plt.bar(ind + 2 * width, mean_value_alpha_1[i_type], width, color = '%s' %color3[i_type])
         plt.ylabel(ur'Average Relative Error')
         plt.xticks(ind + width, ('Zone1', 'Zone2', 'Zone3', 'Zone4', 'Zone5'))
-        plt.legend((propor_draw[0], alpha_draw[0]), (r'$\alpha = \frac{R_{f}^{m}}{R_{f}^{n}}$', r'$\alpha = \frac{1}{2}$'), loc = 'upper left')
-        plt.ylim(0., 0.07)
+        plt.legend((propor_draw[0], alpha_draw[0], alpha_draw_1[0]), (r'$\alpha = -\frac{R_{f}^{m}}{R_{f}^{n}}$', r'$\alpha = -\frac{1}{2}$',\
+                    r'$\alpha = -1.0$'), bbox_to_anchor = (0.95, 0.97), loc = 'upper right')
+        #plt.ylim(0., 0.07)
         plt.show()
+
+##def compare_relative_error(mean_value_each, mean_value_alpha, nrzones, type_fiber):
+##    ind = sp.arange(nrzones)
+##    width = 0.2
+##    color1 = ['g','y']
+##    color2 = ['r', 'r']
+##    for i_type in sp.arange(type_fiber):
+##        plt.figure()
+##        propor_draw = plt.bar(ind, mean_value_each[i_type], width, color = '%s'%color1[i_type])
+##        alpha_draw = plt.bar(ind + width, mean_value_alpha[i_type], width, color = '%s' %color2[i_type])
+##        
+##        plt.ylabel(ur'Average Relative Error')
+##        plt.xticks(ind + width, ('Zone1', 'Zone2', 'Zone3', 'Zone4', 'Zone5'))
+##        plt.legend((propor_draw[0], alpha_draw[0]), (r'$\alpha = \frac{R_{f}^{m}}{R_{f}^{n}}$', r'$\alpha = \frac{1}{2}$'), loc = 'upper left')
+##        plt.ylim(0., 0.07)
+##        plt.show()
         
         
     
