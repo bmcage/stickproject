@@ -125,8 +125,6 @@ class Yarn2DModel(object):
                 raise ValueError, 'Boundary type for a fiber should be evaporation or transfer'
             if self.verbose:
                 print 'NOTE: Fiber has boundary out of type %s' %  bty
-            
->>>>>>> b2b9e52b98bdc950acaa63bc1ff51077b826a94e
         #create fiber models
         self.fiber_models = []
         for cfg in self.cfg_fiber:
@@ -201,7 +199,7 @@ class Yarn2DModel(object):
         """
         print 'the length of the self.fiber_models', len((self.fiber_models))
         
-        for ind, model in enumerate((self.fiber_models)):
+        for ind, model in enumerate(self.fiber_models):
             print 'the type of the models', ind
             model.run_init()
             model.solve_init()
@@ -213,6 +211,7 @@ class Yarn2DModel(object):
             print 'the concentration value', initial_concentration
             self.fiber_mass[ind] = model.calc_mass(initial_concentration)
             print 'the mass in the fiber', self.fiber_mass[ind]
+            self.fiber_mass[ind] = model.calc_mass(model.initial_c1)
 
     def solve_fiber_step(self, stoptime):
         """

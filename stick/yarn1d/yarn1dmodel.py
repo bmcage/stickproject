@@ -227,6 +227,7 @@ class Yarn1DModel(object):
                 model.yarndata = ind
                 model.out_conc = lambda t, data: self.out_conc(data, t)
                 init_concentration = model.init_conc[type](1)
+                print 'the initial concentration value', init_concentration
                 self.fiber_mass[ind, type] = model.calc_mass(init_concentration)
                 print 'the mass in the fiber', self.fiber_mass[ind, type]
                 #print 'mass',model.calc_mass(init_concentration)

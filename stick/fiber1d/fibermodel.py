@@ -300,6 +300,7 @@ class FiberModel(object):
             self.diffusion_coeff[i] = self.diff_coef[st]
             self.diffusion_exp_fact[i] = self.diff_exp_fact[st]
             self.porosity_domain[i] = self.porosity[st]
+        print 'the initial concentration value in the whole domain', self.initial_c1
         self.initial_w1 = self.initial_c1 * self.grid
         self.volume = self.calc_volume()
         if self.verbose:
@@ -397,6 +398,7 @@ class FiberModel(object):
 
     def f_conc1_ode(self, t, w_rep):
         self.f_conc1_odes(t, w_rep, self.__tmp_diff_w_t)
+        print 'check the value', self.__tmp_diff_w_t
         return self.__tmp_diff_w_t
     
     def f_conc1_odes(self, t, w_rep, diff_w_t):
@@ -451,7 +453,7 @@ class FiberModel(object):
         self.step_old_sol = self.initial_w1
         #data storage
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
-        self.ret_y = sp.empty(len(self.initial_c1), float)
+        self.ret_y = sp.zeros(len(self.initial_c1), float)
 
         self.conc1[0][:] = self.initial_c1
         n_cell = len(self.grid)
@@ -467,6 +469,7 @@ class FiberModel(object):
         Reinitialize the cvode solver to start again
         """
         self.initial_t = self.times[0]
+        print 'reinitialize the cvode solver'
         self.solver = sc_ode('cvode', self.f_conc1_odes,
                              max_steps=50000, lband=1, uband=1)
         self.solver.init_step(self.step_old_time, self.step_old_sol)
