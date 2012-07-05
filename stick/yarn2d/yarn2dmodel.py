@@ -82,20 +82,22 @@ class Yarn2DModel(object):
         a config class must be passed in that contains the required settings
         """
         self.cfg = config
-
         self.verbose = self.cfg.get('general.verbose')
         #time data
         self.time_period = self.cfg.get('time.time_period')
-        step = self.cfg.get('time.dt')
-        self.steps = int((self.time_period*(1. + step*1e-6)) // step)
+        self.delta_t = self.cfg.get('time.dt')
+        self.steps = int((self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t)
         self.times = sp.linspace(0, self.time_period, self.steps + 1)
         self.delta_t = self.times[1] - self.times[0]
         if self.verbose:
             print "Timestep used in yarn1d model:", self.delta_t
-
+        self.diffusion_DEET = self.cfg.get('diffusion.diffusion_conc')
+        self.init_conc = eval(self.cfg.get('initial.init_conc'))
+        
         self.Ry = self.cfg.get('domain.yarnradius')
         self.scaleL = 1./self.Ry #get the scale factor for relative domain
         self.eps_value = self.cfg.get('fiber.eps_value')
+        
         self.number_fiber = self.cfg.get('fiber.number_fiber')
         self.blend = self.cfg.get('fiber.blend')
         self.nrtypefiber = self.cfg.get('fiber.number_type')
@@ -112,8 +114,6 @@ class Yarn2DModel(object):
             self.cfg_fiber.append(FiberConfigManager.get_instance(filename))
             #set values from the yarn on this inifile
             self.cfg_fiber[-1].set("time.time_period", self.time_period)
-            if self.cfg_fiber[-1].get("time.dt") > self.cfg.get("time.time_period"):
-                self.cfg_fiber[-1].set("time.dt", self.cfg.get("time.time_period"))
             if self.cfg_fiber[-1].get("time.dt") > self.cfg.get("time.dt"):
                 self.cfg_fiber[-1].set("time.dt", self.cfg.get("time.dt"))
             #we need stepwize solution, we select cvode
@@ -135,7 +135,13 @@ class Yarn2DModel(object):
         for fmodel in self.fiber_models:
             self.Rf.append(fmodel.radius())
         self.radius_fiber =  [self.scaleL * rad for rad in self.Rf]
-        
+        # boundary data
+        self.bound_type = conf.BOUND_TYPE[self.cfg.get('boundary.type_right')]
+        #self.boundary_conc_out = self.cfg.get('boundary.conc_out')
+        self.boundary_D_out = self.cfg.get('boundary.D_out')
+        self.boundary_dist = self.cfg.get('boundary.dist_conc_out')
+        self.boundary_transf_right = self.cfg.get('boundary.transfer_coef')
+        self.nr_fibers = self.cfg.get('fiber.number_fiber')
         self.plotevery = self.cfg.get("plot.plotevery")
         self.writeevery = self.cfg.get("plot.writeevery")
         self.writeoutcount = 0
@@ -173,9 +179,10 @@ class Yarn2DModel(object):
         raise ValueError, 'out concentration should only be requested at a later time'
     
     def initial_yarn2d(self):
-        self.init_conc = eval(self.cfg.get('initial.init_conc'))
+        self.solve_fiber_init()
         datamax = self.cfg.get('plot.maxval')
-        
+        self.initial_t = self.times[0]
+        self.step_old_time = self.initial_t
         cellCenter_x, cellCenter_y = self.mesh2d.getCellCenters()
         initialConc = []
         for i_x, i_y in zip(cellCenter_x, cellCenter_y):
@@ -206,7 +213,6 @@ class Yarn2DModel(object):
             #rebind the out_conc to call yarn2D
             model.yarndata = ind
             model.out_conc = lambda t, data: self.out_conc(data, t)
-            
             initial_concentration = model.init_conc[ind](1)
             print 'the concentration value', initial_concentration
             self.fiber_mass[ind] = model.calc_mass(initial_concentration)
@@ -252,8 +258,6 @@ class Yarn2DModel(object):
         of fiber and yarn are changed to constant flux (Neumann boundary condition)
         """
         compute = True
-        self.solve_fiber_init()
-        self.diffusion_DEET = self.cfg.get('diffusion.diffusion_conc')
         #input the trsient equation of diffusion        
         self.eq = TransientTerm() == MyDiffusionTermNoCorrection(
                                                 coeff = self.diffusion_DEET)
@@ -305,13 +309,13 @@ class Yarn2DModel(object):
         conc_on_fib = sp.empty(self.nrtypefiber)
         flux_in_fib = sp.empty(self.nrtypefiber)
         conc_fib_out = [0] *  self.steps
-        self.initial_t = 0.
+        #self.initial_t = 0.
         value_face_out = np.zeros(len(self.ext_bound), float)
         determine_out = np.zeros(len(self.ext_bound), bool)
         self.record_conc = open(filepath4, "w")
         ## TODO: IMPROVE THIS BC
         extBC = FixedFlux(self.ext_bound, value = 0.0)
-        t = 0. # self.step_old_time
+        t = self.step_old_time
         stop_time = self.time_period
         boundary_ex = self.boundary_diff_out
         each_step = 0
@@ -323,6 +327,7 @@ class Yarn2DModel(object):
             if t >= stop_time -self.delta_t / 100:
                 t = stop_time
                 compute = False
+            print 'the time for the fiber_step', t
             self.solve_fiber_step(t)
             extBC = FixedFlux(self.ext_bound, value = boundary_ex)
             BCs = [extBC]
@@ -410,21 +415,13 @@ class Yarn2DModel(object):
             flux_out = self.boundary_Diff * (self.boundary_diff_out - 
                         conc_face_edge) / self.distance_out
         return flux_out
-           
-    def set_source(self):
-        """
-        Method to calculate the source term in 2-D condition:
-        \partial_t(C) = \partial_xy(C) + Source_xy
-        where source is per time per volumn released/absorbed
-        The equation is integrated in 2-D condition:
-        """
-        
-        
+               
     def run(self):
         """
         Method that is called to do a full model run
         """
         self.create_mesh()
+        self.initial_yarn2d()
         if not self.cfg.onlymesh:
             self.initial_yarn2d()
             self.solve_single_component()

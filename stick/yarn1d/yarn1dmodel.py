@@ -91,14 +91,12 @@ class Yarn1DModel(object):
         if self.verbose:
             print "Timestep used in yarn1d model:", self.delta_t
         
-        self.diff_coef = self.cfg.get('diffusion.diffusion_coeff')
+        self.diff_coef = self.cfg.get('diffusion.diffusion_conc')
         self.init_conc_func = eval(self.cfg.get('initial.init_conc'))
         
         self.number_fiber = self.cfg.get('fiber.number_fiber')
         self.blend = self.cfg.get('fiber.blend')
         self.blend = [x/100. for x in self.blend]
-        print 'the number of types for fibers', self.blend
-        raw_input('Enter')
         self.nr_models = self.cfg.get('fiber.number_type')
         assert self.nr_models == len(self.blend) == len(self.cfg.get('fiber.fiber_config'))
 
@@ -241,8 +239,6 @@ class Yarn1DModel(object):
         """
         for ind, models in enumerate(self.fiber_models):
             for type, model in enumerate(models):
-                print 'the stoptime is', stoptime
-                raw_input('Enter')
                 time, result = model.do_step(stoptime, needreinit=False)
                 tmp = model.calc_mass(result)
                 #print 'fibermass', ind, type, self.fiber_mass[ind, type], 'tmp', tmp
@@ -408,6 +404,7 @@ class Yarn1DModel(object):
             if  t >= stoptime - self.delta_t/100.:
                 t = stoptime
                 compute = False
+            print 'the time for the fiber_step', t
             self.do_fiber_step(t)
             self.set_source(t-self.step_old_time)
             realtime, self.step_old_sol = self.do_ode_step(t)
