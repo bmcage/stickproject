@@ -453,13 +453,17 @@ class FiberModel(object):
         self.step_old_sol = self.initial_w1
         #data storage
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
+        print 'the value for determine the array', len(self.times), len(self.initial_c1)
+        print 'before giving the value for self.conc1', self.conc1
         self.ret_y = sp.zeros(len(self.initial_c1), float)
 
         self.conc1[0][:] = self.initial_c1
         n_cell = len(self.grid)
         self.__tmp_diff_w_t = sp.empty(n_cell, float)
         self.__tmp_flux_edge = sp.empty(n_cell+1, float)
-        
+        print 'the initial concentration', self.conc1
+        print 'the value of self.initial_c1 here', self.initial_c1
+        raw_input('check initializing the solver')
         self.tstep = 0
         self.solve_odes_reinit()
         self.initialized = True
@@ -470,17 +474,27 @@ class FiberModel(object):
         """
         self.initial_t = self.times[0]
         print 'reinitialize the cvode solver'
+        print 'the value of self.f_conc1_odes', self.f_conc1_odes
         self.solver = sc_ode('cvode', self.f_conc1_odes,
                              max_steps=50000, lband=1, uband=1)
+        print 'the value of self.step.old_time', self.step_old_time
+        print 'the value of self.step_old_sol', self.step_old_sol
         self.solver.init_step(self.step_old_time, self.step_old_sol)
+        raw_input('reinitialize the condition and check the value')
 
     def solve_odes(self, run_per_step = None, viewend = True):
         self.solve_odes_init()
         endT = self.times[-1]
         self.initial_w1 = self.initial_c1 * self.grid
+        print 'reinitialize condition', self.initial_w1
+        raw_input('check the value of self.initial_w1')
         tstep = 0
         self.conc1[tstep][:] = self.initial_c1
+        print 'the value of self.initial_c1', self.initial_c1
+        raw_input('check the value of self.initial_c1')
         for time in self.times[1:]:
+            print 'the value on the right side of the equation', time, self.conc1[tstep+1]
+            raw_input('check the right side of the equation for solve_odes')
             flag, realtime = self.solver.step(time, self.conc1[tstep+1])
             if flag != 0:
                 print 'ERROR: unable to compute solution'
@@ -531,6 +545,8 @@ class FiberModel(object):
             if  t >= stoptime - self.delta_t/100.:
                 t = stoptime
                 compute = False
+            print 'the right side of the equation', t, self.ret_y
+            raw_input('check the value on the right side')
             flag, realtime = self.solver.step(t, self.ret_y)
             if flag < 0:
                 raise Exception, 'could not find solution'
