@@ -224,6 +224,7 @@ class Yarn1DModel(object):
                 #rebind the out_conc method to a call to yarn1d
                 model.yarndata = ind
                 model.out_conc = lambda t, data: self.out_conc(data, t)
+                print 'the function of out_conc', model.out_conc
                 init_concentration = model.init_conc[type](1)
                 print 'the initial concentration value', init_concentration
                 self.fiber_mass[ind, type] = model.calc_mass(init_concentration)
