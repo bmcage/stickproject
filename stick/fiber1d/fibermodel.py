@@ -403,10 +403,18 @@ class FiberModel(object):
     
     def f_conc1_odes(self, t, w_rep, diff_w_t):
         grid = self.grid
+        print 'the grid in the f_conc1_odes', grid
+        raw_input('Enter for grid')
         n_cell = len(grid)
+        print 'the number of cells', n_cell
+        raw_input('Enter for the number of the cell')
         #Initialize the left side of ODE equations
         #initialize the flux rate on the edge with replace 'w'
         flux_edge = self.__tmp_flux_edge
+        print 'the flux on the edge', flux_edge
+        raw_input('Enter for the flux_edge value')
+        print 'the value of the w_rep', w_rep
+        raw_input('Enter for the value of w_rep')
         self._set_bound_flux(flux_edge, w_rep, t)
         #Diffusion coefficient changes with the concentration changing
         #calculate flux rate in each edge of the domain
@@ -417,8 +425,11 @@ class FiberModel(object):
                         * self.grid_edge[1:-1] \
                         * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
                         / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
-
+        print 'the new edge in the flux_edge', flux_edge[:]
+        raw_input('Enter for the new value of flux_edge')
         diff_w_t[:]=(flux_edge[:-1]-flux_edge[1:])/self.delta_r[:] / self.porosity_domain[:]
+        print 'the value in diff_w_t', diff_w_t[:]
+        raw_input('Enter for the value of diff_w_t')
     
     def f_conc1_odeu(self, t, conc_r):
         grid = self.grid
@@ -455,6 +466,7 @@ class FiberModel(object):
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
         print 'the value for determine the array', len(self.times), len(self.initial_c1)
         print 'before giving the value for self.conc1', self.conc1
+        print 'the value of self.initial_c1', self.initial_c1
         self.ret_y = sp.zeros(len(self.initial_c1), float)
 
         self.conc1[0][:] = self.initial_c1
@@ -548,6 +560,7 @@ class FiberModel(object):
             print 'the right side of the equation', t, self.ret_y
             raw_input('check the value on the right side')
             flag, realtime = self.solver.step(t, self.ret_y)
+            print 'the value on the right side again', t, self.ret_y
             if flag < 0:
                 raise Exception, 'could not find solution'
         

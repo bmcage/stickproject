@@ -423,5 +423,5 @@ class Yarn2DModel(object):
         self.create_mesh()
         self.initial_yarn2d()
         if not self.cfg.onlymesh:
-            self.initial_yarn2d()
+            #self.initial_yarn2d()
             self.solve_single_component()
