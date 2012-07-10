@@ -152,7 +152,8 @@ class FiberModel(object):
             self.evap_transfer = self.cfg.get('boundary.evap_transfer')
             self.evap_minbound = self.cfg.get('boundary.evap_minbound')
             self.out_conc = eval(self.cfg.get('boundary.out_conc'))
-        
+            print 'check whether the function works or not', self.out_conc(0., 0.)
+            raw_input('Enter for check the function self.out_conc')
         #data for stepwise operation
         self.initialized = False
         self.yarndata = None
@@ -404,6 +405,12 @@ class FiberModel(object):
             # flux S h_lg (C_sat(T) - C_free) H(C - C_bo)
             print 'the value of self.yarndata', self.yarndata
             raw_input('Enter for the value of self.yarndata')
+            show_out_conc = self.cfg.get('boundary.out_conc')
+            print 'the equation is used in out_conc', show_out_conc
+            raw_input('Enter for the function to show')
+            print 'the time in the equation', t
+            #print 'the value from the function: out_conc', self.out_conc(0., 0.)
+            self.out_conc = eval(self.cfg.get('boundary.out_conc'))
             eCy = self.out_conc(t, self.yarndata)
             print 'the value of eCy', eCy
             print 'the value of self.temp', self.temp
