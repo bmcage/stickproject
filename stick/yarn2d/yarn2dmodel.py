@@ -137,7 +137,7 @@ class Yarn2DModel(object):
         self.radius_fiber =  [self.scaleL * rad for rad in self.Rf]
         # boundary data
         self.bound_type = conf.BOUND_TYPE[self.cfg.get('boundary.type_right')]
-        #self.boundary_conc_out = self.cfg.get('boundary.conc_out')
+        self.boundary_conc_out = self.cfg.get('boundary.conc_out')
         self.boundary_D_out = self.cfg.get('boundary.D_out')
         self.boundary_dist = self.cfg.get('boundary.dist_conc_out')
         self.boundary_transf_right = self.cfg.get('boundary.transfer_coef')
@@ -150,6 +150,8 @@ class Yarn2DModel(object):
         #some memory
         self.step_old_time = None
         self.step_old_sol = None
+        
+        self.initialized = False
         
     def create_mesh(self):
         """
@@ -175,11 +177,10 @@ class Yarn2DModel(object):
        #self.solve_fiber_init()
         timenowyarn = self.step_old_time
         if t >= timenowyarn:
-            return self.step_old_sol[cellnr]
+            return self.step_old_sol#[cellnr]
         raise ValueError, 'out concentration should only be requested at a later time'
     
     def initial_yarn2d(self):
-        self.solve_fiber_init()
         datamax = self.cfg.get('plot.maxval')
         self.initial_t = self.times[0]
         self.step_old_time = self.initial_t
@@ -188,12 +189,11 @@ class Yarn2DModel(object):
         for i_x, i_y in zip(cellCenter_x, cellCenter_y):
             initialConc.append(self.init_conc(i_x, i_y))
         initialConc = sp.array(initialConc)
+        self.step_old_sol = initialConc[0]
+        self.solve_fiber_init()    
         self.conc = CellVariable(name = "Conc. Active Component", 
                     mesh = self.mesh2d, value = initialConc)
-        self.viewer = None
-        print 'the length for draw', len(self.conc)
-        print 'the initial value', self.init_conc
-        
+        self.viewer = None        
         self.viewer = Viewer(vars = self.conc, title = 'Concentration of DEET', 
                             datamin = 0., datamax = 0.0005)
         self.viewer.plot()
@@ -203,9 +203,7 @@ class Yarn2DModel(object):
     def solve_fiber_init(self):
         """
         Initialize the solvers that do the fiber simulation
-        """
-        print 'the length of the self.fiber_models', len((self.fiber_models))
-        
+        """        
         for ind, model in enumerate(self.fiber_models):
             print 'the type of the models', ind
             model.run_init()
@@ -214,9 +212,7 @@ class Yarn2DModel(object):
             model.yarndata = ind
             model.out_conc = lambda t, data: self.out_conc(data, t)
             initial_concentration = model.init_conc[ind](1)
-            print 'the concentration value', initial_concentration
             self.fiber_mass[ind] = model.calc_mass(initial_concentration)
-            print 'the mass in the fiber', self.fiber_mass[ind]
             self.fiber_mass[ind] = model.calc_mass(model.initial_c1)
 
     def solve_fiber_step(self, stoptime):
@@ -234,9 +230,7 @@ class Yarn2DModel(object):
 ##            self.fiber_edge_result[nyfib] = model.run_step(step)[-1]
         for nyfib, model in enumerate(self.fiber_models):
             #for type, model in enumerate(models):
-            print 'begin to clculate step by step'
-            print 'the stoptime value', stoptime
-            raw_input('Enter')
+            print 'begin to calculate step by step'
             time_simulate, result = model.do_step(stoptime, needreinit = False)
             print 'begin to calculate in fiber', result
             tmp = model.calc_mass(result)
@@ -319,7 +313,6 @@ class Yarn2DModel(object):
         stop_time = self.time_period
         boundary_ex = self.boundary_diff_out
         each_step = 0
-        print 'begin to calculate the DEET concentration'
         i = 0
         while compute:
             
@@ -327,7 +320,6 @@ class Yarn2DModel(object):
             if t >= stop_time -self.delta_t / 100:
                 t = stop_time
                 compute = False
-            print 'the time for the fiber_step', t
             self.solve_fiber_step(t)
             extBC = FixedFlux(self.ext_bound, value = boundary_ex)
             BCs = [extBC]

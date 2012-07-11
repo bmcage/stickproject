@@ -395,32 +395,14 @@ class FiberModel(object):
         elif self.bound_right == TRANSFER:
             # a transfer coeff to the right, which is a given flux of
             # h_tf * C
-            print 'the value of self.boundary_transf_right', self.boundary_transf_right
-            raw_input('Enter for the value of self.boundary_transf_right')
-            print 'the value of self.porosity_domain[-1]', self.porosity_domain[-1]
-            raw_input('Enter for the value of self.porosity_domain[-1]')
             return self.boundary_transf_right * conc_r \
                              * self.porosity_domain[-1]
         elif self.bound_right == EVAP:
             # flux S h_lg (C_sat(T) - C_free) H(C - C_bo)
-            print 'the value of self.yarndata', self.yarndata
-            raw_input('Enter for the value of self.yarndata')
-            show_out_conc = self.cfg.get('boundary.out_conc')
-            print 'the equation is used in out_conc', show_out_conc
-            raw_input('Enter for the function to show')
-            print 'the time in the equation', t
             #print 'the value from the function: out_conc', self.out_conc(0., 0.)
-            self.out_conc = eval(self.cfg.get('boundary.out_conc'))
+            #self.out_conc = eval(self.cfg.get('boundary.out_conc'))
             eCy = self.out_conc(t, self.yarndata)
-            print 'the value of eCy', eCy
-            print 'the value of self.temp', self.temp
-            raw_input('Enter for the value of self.temp')
             eCs = self.evap_satconc(self.temp)
-            print 'the value of eCs', eCs
-            print 'the value of self.porosity_domain[-1]', self.porosity_domain[-1]
-            raw_input('Enter for the value of self.porosity_domain[-1]')
-            print 'the value of self.evap_minbound', self.evap_minbound
-            raw_input('Enter for the value of self.evap_minbound')
             return (self.porosity_domain[-1] 
                     * self.evap_transfer * (eCs - eCy) 
                     * Heaviside_oneside(conc_r - self.evap_minbound, 
@@ -441,36 +423,17 @@ class FiberModel(object):
 
     def f_conc1_ode(self, t, w_rep):
         self.f_conc1_odes(t, w_rep, self.__tmp_diff_w_t)
-        print 'check the value', self.__tmp_diff_w_t
         return self.__tmp_diff_w_t
     
     def f_conc1_odes(self, t, w_rep, diff_w_t):
         grid = self.grid
-        print 'the grid in the f_conc1_odes', grid
-        raw_input('Enter for grid')
         n_cell = len(grid)
-        print 'the number of cells', n_cell
-        raw_input('Enter for the number of the cell')
         #Initialize the left side of ODE equations
         #initialize the flux rate on the edge with replace 'w'
         flux_edge = self.__tmp_flux_edge
-        print 'the flux on the edge', flux_edge
-        raw_input('Enter for the flux_edge value')
-        print 'the value of the w_rep', w_rep
-        raw_input('Enter for the value of w_rep')
         self._set_bound_flux(flux_edge, w_rep, t)
         #Diffusion coefficient changes with the concentration changing
         #calculate flux rate in each edge of the domain
-        print 'the porosity_domain value in the equation', self.porosity_domain[:]
-        raw_input('Enter for the value of the porosity')
-        print 'the diffusion coefficient in the equation', self.diffusion_coeff[:]
-        raw_input('Enter for the value of the diffusion')
-        print 'the value of self.diffusion_exp_fac', self.diffusion_exp_fac[:]
-        raw_input('Enter for the value of the diffusion_exp_fac')
-        print 'the value of self.grid_edge', self.grid_edge[:]
-        raw_input('Enter for the value of self.grid_edge')
-        print 'the value of self.delata_r', self.delta_r[:]
-        raw_input('Enter for value of self.delta_r')
         flux_edge[1:-1] = -(self.porosity_domain[:-1] * self.diffusion_coeff[:-1] * 
                             sp.exp(-self.diffusion_exp_fact[:-1] * w_rep[:-1]/self.grid[:-1]) \
                          + self.porosity_domain[1:] * self.diffusion_coeff[1:] * 
@@ -478,11 +441,6 @@ class FiberModel(object):
                         * self.grid_edge[1:-1] \
                         * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
                         / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
-        print 'the new edge in the flux_edge', flux_edge[:]
-        raw_input('Enter for the new value of flux_edge')
-        diff_w_t[:]=(flux_edge[:-1]-flux_edge[1:])/self.delta_r[:] / self.porosity_domain[:]
-        print 'the value in diff_w_t', diff_w_t[:]
-        raw_input('Enter for the value of diff_w_t')
     
     def f_conc1_odeu(self, t, conc_r):
         grid = self.grid
@@ -517,18 +475,12 @@ class FiberModel(object):
         self.step_old_sol = self.initial_w1
         #data storage
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
-        print 'the value for determine the array', len(self.times), len(self.initial_c1)
-        print 'before giving the value for self.conc1', self.conc1
-        print 'the value of self.initial_c1', self.initial_c1
         self.ret_y = sp.zeros(len(self.initial_c1), float)
 
         self.conc1[0][:] = self.initial_c1
         n_cell = len(self.grid)
         self.__tmp_diff_w_t = sp.empty(n_cell, float)
         self.__tmp_flux_edge = sp.empty(n_cell+1, float)
-        print 'the initial concentration', self.conc1
-        print 'the value of self.initial_c1 here', self.initial_c1
-        raw_input('check initializing the solver')
         self.tstep = 0
         self.solve_odes_reinit()
         self.initialized = True
@@ -538,28 +490,17 @@ class FiberModel(object):
         Reinitialize the cvode solver to start again
         """
         self.initial_t = self.times[0]
-        print 'reinitialize the cvode solver'
-        print 'the value of self.f_conc1_odes', self.f_conc1_odes
         self.solver = sc_ode('cvode', self.f_conc1_odes,
                              max_steps=50000, lband=1, uband=1)
-        print 'the value of self.step.old_time', self.step_old_time
-        print 'the value of self.step_old_sol', self.step_old_sol
         self.solver.init_step(self.step_old_time, self.step_old_sol)
-        raw_input('reinitialize the condition and check the value')
 
     def solve_odes(self, run_per_step = None, viewend = True):
         self.solve_odes_init()
         endT = self.times[-1]
         self.initial_w1 = self.initial_c1 * self.grid
-        print 'reinitialize condition', self.initial_w1
-        raw_input('check the value of self.initial_w1')
         tstep = 0
         self.conc1[tstep][:] = self.initial_c1
-        print 'the value of self.initial_c1', self.initial_c1
-        raw_input('check the value of self.initial_c1')
         for time in self.times[1:]:
-            print 'the value on the right side of the equation', time, self.conc1[tstep+1]
-            raw_input('check the right side of the equation for solve_odes')
             flag, realtime = self.solver.step(time, self.conc1[tstep+1])
             if flag != 0:
                 print 'ERROR: unable to compute solution'
@@ -594,26 +535,18 @@ class FiberModel(object):
         if not self.initialized:
             raise Exception, 'Solver ode not initialized'
         if needreinit:
-            print 'initializing the initial condition'
             self.solve_odes_reinit()
         else:
-            print 'solve the ODE by using tcrit'
             self.solver.set_tcrit(tcrit=stoptime)
         compute = True
         #even is step is large, we don't compute for a longer time than delta_t
         t = self.step_old_time
-        print 'begin to calculate the ODE'
-        print 'value of time', t
-        print 'value of ret_y', self.ret_y
         while compute:
             t +=  self.delta_t
             if  t >= stoptime - self.delta_t/100.:
                 t = stoptime
                 compute = False
-            print 'the right side of the equation', t, self.ret_y
-            raw_input('check the value on the right side')
             flag, realtime = self.solver.step(t, self.ret_y)
-            print 'the value on the right side again', t, self.ret_y
             if flag < 0:
                 raise Exception, 'could not find solution'
         
@@ -933,7 +866,6 @@ class FiberModel(object):
         The resulting time and r*concentration is returned
         """
         if  self.submethod in ['cvode', 'cvode_step']:
-            print 'begin to solve the ode in the fiber'
             return self.do_step_odes(stoptime, needreinit)
         #elif  self.submethod in ['odew', 'odew_step']:
         #    res = self.do_step_ode(step)
