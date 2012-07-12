@@ -152,8 +152,7 @@ class FiberModel(object):
             self.evap_transfer = self.cfg.get('boundary.evap_transfer')
             self.evap_minbound = self.cfg.get('boundary.evap_minbound')
             self.out_conc = eval(self.cfg.get('boundary.out_conc'))
-            print 'check whether the function works or not', self.out_conc(0., 0.)
-            raw_input('Enter for check the function self.out_conc')
+            
         #data for stepwise operation
         self.initialized = False
         self.yarndata = None
@@ -224,7 +223,6 @@ class FiberModel(object):
         self.surf_begin = [0.]
         self.surf = [self.radius_pure()]
         for i in range(self.nrlayers):
-            print 'the value for the layer on the fiber', i
             section = 'fiberlayer_%i' % i
             n_edge += [self.cfg.get(section + '.n_edge')]
             self.surf_begin += [self.surf[-1]]
@@ -301,7 +299,6 @@ class FiberModel(object):
             self.diffusion_coeff[i] = self.diff_coef[st]
             self.diffusion_exp_fact[i] = self.diff_exp_fact[st]
             self.porosity_domain[i] = self.porosity[st]
-        print 'the initial concentration value in the whole domain', self.initial_c1
         self.initial_w1 = self.initial_c1 * self.grid
         self.volume = self.calc_volume()
         if self.verbose:
@@ -340,25 +337,12 @@ class FiberModel(object):
                 print 'ERROR: Flux boundary to left, but at center of radial symmetry'
                 sys.exit(0)
             if self.boundary_fib_left == 0:
-                print 'run this part to calculate the flux value'
                 flux_edge[0] = 0
-                print 'the value on the flux edge', flux_edge[:]
-                raw_input('Enter for the value of flux_edge')
             else:
                 # a FVM cannot do pure Neumann condition, instead we set the
                 # FVM flux D \partial_x C with the value we want for \partial_x C.
                 # eg: \partial_x C = F, set D \partial_x C = D F. 
                 # for radial coordinates, this flux times r.
-                print 'the value of porosity in use', self.porosity_domain[0]
-                raw_input('Enter for the value of self.porosity_domain')
-                print 'the value of diffusion in use', self.diffusion_coeff[0]
-                raw_input('Enter for the value of self.diffusion_coeff')
-                print 'the value of self.diffusion_exp_fact', self.diffusion_exp_fact[0]
-                raw_input('Enter for the value of sel.diffusion_exp_fact')
-                print 'the value of self.grid_edge', self.grid_edge[0]
-                raw_input('Enter for the value of self.grid_edge')
-                print 'the value of self.boundary_fib_left', self.boundary_fib_left
-                raw_input('Enter for the value of self.boundary_fib_left')
                 flux_edge[0] =  -(self.porosity_domain[0] * self.diffusion_coeff[0] * 
                             sp.exp(-self.diffusion_exp_fact[0] * w_rep[0]/self.grid_edge[0]) \
                         ) * self.boundary_fib_left * self.grid_edge[0]
@@ -366,8 +350,6 @@ class FiberModel(object):
             print 'ERROR: boundary type left not implemented'
             sys.exit(0)
         #calculate normal val with w_rep = C*r, instead of C:
-        print 'the value of self.grid_edge[-1]', self.grid_edge[-1]
-        raw_input('Enter for the value of self.grid_edge[-1]')
         flux_edge[-1] = self._bound_flux_uR(w_rep[-1]/self.grid_edge[-1], t)
         #and correct, flux needed is r times the x coord flux
         flux_edge[-1] = flux_edge[-1] * self.grid_edge[-1]
@@ -381,14 +363,6 @@ class FiberModel(object):
             # a FVM cannot do pure Neumann condition, instead we set the
             # FVM flux - D \partial_x C with the value we want for \partial_x C.
             # eg: \partial_x C = F, set - D \partial_x C = - D F
-            print 'the value of self.porosity_domain[-1]', self.porosity_domain[-1]
-            raw_input('Enter for the value of self.grid_domain[-1]')
-            print 'the value of self.diffusion_coeff[-1]', self.diffusion_coeff[-1]
-            raw_input('Enter for the value of self.diffusion_coeff[-1]')
-            print 'the value of self.diffusion_exp_fact[-1]', self.diffusion_exp_fact[-1]
-            raw_input('Enter for the value of self.diffusion_exp_fact[-1]')
-            print 'the value of self.boundary_fib_right', self.boundary_fib_right
-            raw_input('Enter for the value of self.boundary_fib_right')
             return -(self.porosity_domain[-1] * self.diffusion_coeff[-1] * 
                             sp.exp(-self.diffusion_exp_fact[-1] * conc_r) \
                         ) * self.boundary_fib_right

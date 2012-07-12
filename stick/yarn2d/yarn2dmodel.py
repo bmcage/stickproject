@@ -205,7 +205,6 @@ class Yarn2DModel(object):
         Initialize the solvers that do the fiber simulation
         """        
         for ind, model in enumerate(self.fiber_models):
-            print 'the type of the models', ind
             model.run_init()
             model.solve_init()
             #rebind the out_conc to call yarn2D
@@ -230,14 +229,11 @@ class Yarn2DModel(object):
 ##            self.fiber_edge_result[nyfib] = model.run_step(step)[-1]
         for nyfib, model in enumerate(self.fiber_models):
             #for type, model in enumerate(models):
-            print 'begin to calculate step by step'
             time_simulate, result = model.do_step(stoptime, needreinit = False)
-            print 'begin to calculate in fiber', result
             tmp = model.calc_mass(result)
-            print 'the mass in the void space', tmp
             self.source_mass[nyfib] = self.fiber_mass[nyfib] - tmp
             self.fiber_mass[nyfib] = tmp
-            #self.fiber_edge_result[nyfib] = result[-1]
+            self.fiber_edge_result[nyfib] = result[-1]
 
     def solve_single_component(self):
         """
@@ -321,17 +317,36 @@ class Yarn2DModel(object):
                 t = stop_time
                 compute = False
             self.solve_fiber_step(t)
+            print 'begin to calculate the part of yarn'
+            raw_input('Enter for the scale in the yarn')
+            print 'the vaue of boundary_ex', boundary_ex
+            raw_input('Enter for the value boundary_ex')
             extBC = FixedFlux(self.ext_bound, value = boundary_ex)
+            print 'print for the extBC', extBC.value
             BCs = [extBC]
+            #print 'the BCs', BCs
+            raw_input('Enter for beginning the loop')
             for nyfib in sp.arange(self.nrtypefiber):
+                print 'the value of self.fiber_edge_result', self.fiber_edge_result[nyfib]
+                if self.fiber_edge_result[nyfib] < 1.0e-7:
+                    self.fiber_edge_result[nyfib] = 0.0
                 conc_on_fib[nyfib] = self.fiber_edge_result[nyfib]
                 flux_in_fib[nyfib] = (
                                     self.fiber_models[nyfib].boundary_transf_right * 
                                     conc_on_fib[nyfib]
                                     )
                 BCs.append(FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib]))
+            print 'Finish the loop'
+            print 'After updating the BCs', BCs
+            print 'The flux from the fiber', flux_in_fib[:]
+            print 'the value of conc_on_fib', conc_on_fib[:]
+            raw_input('Enter for checking the value from the loop')
             conc_fib_out[each_step] = copy(conc_on_fib)
+            print 'the value of conc_fib_out', conc_fib_out[each_step]
             self.initial_t = self.times[i+1]
+            print 'the value of initial_t', self.initial_t
+            raw_input('Enter for setting up the solver of the equation')
+            print 'the variable in the eq.solver', self.conc
             self.eq.solve(var = self.conc, boundaryConditions = tuple(BCs), 
                         dt = self.delta_t)
                         
@@ -358,15 +373,29 @@ class Yarn2DModel(object):
             self.step_old_time = t
             each_step += 1
             if self.writeoutcount == 0:
+                print 'begin to calculate the concentration on the boundary'
                 conc_tot_each = self.conc.getValue()
+                print 'the value of conc_tot_each', conc_tot_each
+                raw_input('Enter for the value of conc_tot_each')
                 conc_face_ex = self.conc.getArithmeticFaceValue()
+                print 'the value of conc_face_ex', conc_face_ex
+                raw_input('Enter for the value of conc_face_ex')
+                print 'the length of the array: self.ext_bound', len(self.ext_bound)
                 for i_out in sp.arange(len(self.ext_bound)):
                     value_face_out[i_out] = float(conc_face_ex[i_out])
                     determine_out[i_out] = self.ext_bound[i_out]
+                print 'finish the loop for value_face_out'
+                raw_input('Enter for confirming the loop is finished')
+                
                 value_out_record = value_face_out[determine_out]
+                print 'the value for the value_out_record', value_out_record
+                raw_input('Enter for the value of value_out_record')
                 conc1_average_out = np.sum(value_out_record) / len(value_out_record)
+                print 'the value of conc1_average_out', conc1_average_out
+                raw_input('Enter for conc1_average_out')
                 if self.verbose:
                     print 'average concentration out', conc1_average_out
+                print 'begin to boundary_ex'
                 boundary_ex = self._set_bound_flux(conc_face_ex, self.ext_bound)
 
                 self.record_conc.write("%g, %g \n" %(self.times[i], conc1_average_out))
