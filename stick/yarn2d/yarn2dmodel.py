@@ -169,16 +169,33 @@ class Yarn2DModel(object):
         if self.cfg.onlymesh and self.verbose:
             print "Finished Mesh generation"
             
-    def out_conc(self, cellnr, t):
+    def get_data(self, t):
+        """
+        pass the data on the concentration outside the fiber and use it in the 
+        boundary condition calculation. When there is no data directly available
+        the data is default as NONE
+        """
+        data_out = None
+        if abs(0 - t) < 1.e-5:
+            data_out = self.init_conc(x = 0., y = 0.)
+        elif abs(0 - t) >= 1.e-5:
+            data_out = sp.sum(self.conc.getValue()) / len(self.conc.getValue())
+        return data_out
+            
+    def out_conc(self, data, t):
         """
         return the concentration of compound in the void zone of cell cellnr at
         time t
         """
        #self.solve_fiber_init()
-        timenowyarn = self.step_old_time
-        if t >= timenowyarn:
-            return self.step_old_sol#[cellnr]
-        raise ValueError, 'out concentration should only be requested at a later time'
+        timeownyarn = self.step_old_time
+        if t > self.step_old_time:
+            data_use = data
+        return data_use
+        #timenowyarn = self.step_old_time
+        #if t >= timenowyarn:
+            #return self.step_old_sol#[cellnr]
+        #raise ValueError, 'out concentration should only be requested at a later time'
     
     def initial_yarn2d(self):
         datamax = self.cfg.get('plot.maxval')
@@ -195,7 +212,7 @@ class Yarn2DModel(object):
                     mesh = self.mesh2d, value = initialConc)
         self.viewer = None        
         self.viewer = Viewer(vars = self.conc, title = 'Concentration of DEET', 
-                            datamin = 0., datamax = 0.0005)
+                            datamin = 0., datamax = 0.000005)
         self.viewer.plot()
         raw_input("take the example of the initial condition")
         self.viewerplotcount = 1
@@ -230,6 +247,8 @@ class Yarn2DModel(object):
         for nyfib, model in enumerate(self.fiber_models):
             #for type, model in enumerate(models):
             time_simulate, result = model.do_step(stoptime, needreinit = False)
+            print 'the results from the fiber solver', result
+            raw_input('Enter for checking the value from results')
             tmp = model.calc_mass(result)
             self.source_mass[nyfib] = self.fiber_mass[nyfib] - tmp
             self.fiber_mass[nyfib] = tmp
@@ -311,25 +330,25 @@ class Yarn2DModel(object):
         each_step = 0
         i = 0
         while compute:
-            
             t += self.delta_t
             if t >= stop_time -self.delta_t / 100:
                 t = stop_time
                 compute = False
             self.solve_fiber_step(t)
+            
             print 'begin to calculate the part of yarn'
-            raw_input('Enter for the scale in the yarn')
+            #raw_input('Enter for the scale in the yarn')
             print 'the vaue of boundary_ex', boundary_ex
-            raw_input('Enter for the value boundary_ex')
+            #raw_input('Enter for the value boundary_ex')
             extBC = FixedFlux(self.ext_bound, value = boundary_ex)
             print 'print for the extBC', extBC.value
             BCs = [extBC]
             #print 'the BCs', BCs
-            raw_input('Enter for beginning the loop')
+            #raw_input('Enter for beginning the loop')
             for nyfib in sp.arange(self.nrtypefiber):
                 print 'the value of self.fiber_edge_result', self.fiber_edge_result[nyfib]
                 if self.fiber_edge_result[nyfib] < 1.0e-7:
-                    self.fiber_edge_result[nyfib] = 0.0
+                    self.fiber_edge_result[nyfib] = 1.0e-5
                 conc_on_fib[nyfib] = self.fiber_edge_result[nyfib]
                 flux_in_fib[nyfib] = (
                                     self.fiber_models[nyfib].boundary_transf_right * 
@@ -337,15 +356,15 @@ class Yarn2DModel(object):
                                     )
                 BCs.append(FixedFlux(self.int_bound[nyfib], value = -flux_in_fib[nyfib]))
             print 'Finish the loop'
-            print 'After updating the BCs', BCs
+            #print 'After updating the BCs', BCs
             print 'The flux from the fiber', flux_in_fib[:]
             print 'the value of conc_on_fib', conc_on_fib[:]
-            raw_input('Enter for checking the value from the loop')
+            #raw_input('Enter for checking the value from the loop')
             conc_fib_out[each_step] = copy(conc_on_fib)
             print 'the value of conc_fib_out', conc_fib_out[each_step]
             self.initial_t = self.times[i+1]
             print 'the value of initial_t', self.initial_t
-            raw_input('Enter for setting up the solver of the equation')
+            #raw_input('Enter for setting up the solver of the equation')
             print 'the variable in the eq.solver', self.conc
             self.eq.solve(var = self.conc, boundaryConditions = tuple(BCs), 
                         dt = self.delta_t)
@@ -372,27 +391,32 @@ class Yarn2DModel(object):
             #self.tstep += 1
             self.step_old_time = t
             each_step += 1
+            if self.viewer is not None:
+                if self.viewerplotcount == 0:
+                    self.viewer.plot()
+                self.viewerplotcount += 1
+                self.viewerplotcount = self.viewerplotcount % self.plotevery
             if self.writeoutcount == 0:
                 print 'begin to calculate the concentration on the boundary'
                 conc_tot_each = self.conc.getValue()
                 print 'the value of conc_tot_each', conc_tot_each
-                raw_input('Enter for the value of conc_tot_each')
+                #raw_input('Enter for the value of conc_tot_each')
                 conc_face_ex = self.conc.getArithmeticFaceValue()
                 print 'the value of conc_face_ex', conc_face_ex
-                raw_input('Enter for the value of conc_face_ex')
+                #raw_input('Enter for the value of conc_face_ex')
                 print 'the length of the array: self.ext_bound', len(self.ext_bound)
                 for i_out in sp.arange(len(self.ext_bound)):
                     value_face_out[i_out] = float(conc_face_ex[i_out])
                     determine_out[i_out] = self.ext_bound[i_out]
                 print 'finish the loop for value_face_out'
-                raw_input('Enter for confirming the loop is finished')
+                #raw_input('Enter for confirming the loop is finished')
                 
                 value_out_record = value_face_out[determine_out]
                 print 'the value for the value_out_record', value_out_record
-                raw_input('Enter for the value of value_out_record')
+                #raw_input('Enter for the value of value_out_record')
                 conc1_average_out = np.sum(value_out_record) / len(value_out_record)
                 print 'the value of conc1_average_out', conc1_average_out
-                raw_input('Enter for conc1_average_out')
+                #raw_input('Enter for conc1_average_out')
                 if self.verbose:
                     print 'average concentration out', conc1_average_out
                 print 'begin to boundary_ex'
@@ -404,11 +428,7 @@ class Yarn2DModel(object):
             self.writeoutcount += 1
             self.writeoutcount = self.writeoutcount % self.writeevery
                 
-            if self.viewer is not None:
-                if self.viewerplotcount == 0:
-                    self.viewer.plot()
-                self.viewerplotcount += 1
-                self.viewerplotcount = self.viewerplotcount % self.plotevery
+
             
         self.record_conc.close()
         dump.write({'time_step': self.times, 'conc_fib': conc_fib_out}, 
@@ -428,8 +448,8 @@ class Yarn2DModel(object):
         the method that takes BC into account to set the flux on edge
          
         """
-        conc_face_ex = float(conc_face_ex)
-        conc_face_edge = conc_face_ex(ext_bound)
+        conc_face_ex = sp.array(conc_face_ex)#float(conc_face_ex)
+        conc_face_edge = conc_face_ex#(ext_bound)
         if self.bound_type == conf.TRANSFER:
             flux_out = conc_face_edge * self.boundary_transf_right
         elif self.bound_type == conf.DIFF_FLUX:

@@ -415,6 +415,7 @@ class FiberModel(object):
                         * self.grid_edge[1:-1] \
                         * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
                         / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
+        diff_w_t[:] = (flux_edge[:-1]) / self.delta_r[:] / self.porosity_domain[:]
     
     def f_conc1_odeu(self, t, conc_r):
         grid = self.grid
@@ -449,7 +450,7 @@ class FiberModel(object):
         self.step_old_sol = self.initial_w1
         #data storage
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
-        self.ret_y = sp.zeros(len(self.initial_c1), float)
+        self.ret_y = sp.empty(len(self.initial_c1), float)
 
         self.conc1[0][:] = self.initial_c1
         n_cell = len(self.grid)

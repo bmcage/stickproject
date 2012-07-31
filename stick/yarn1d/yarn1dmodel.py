@@ -239,6 +239,8 @@ class Yarn1DModel(object):
         for ind, models in enumerate(self.fiber_models):
             for type, model in enumerate(models):
                 time, result = model.do_step(stoptime, needreinit=False)
+                #print 'result from the calculation', result
+                #raw_input('Enter for checking the result')
                 tmp = model.calc_mass(result)
                 #print 'fibermass', ind, type, self.fiber_mass[ind, type], 'tmp', tmp
                 self.source_mass[ind, type] = self.fiber_mass[ind, type] - tmp
