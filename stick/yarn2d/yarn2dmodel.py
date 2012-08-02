@@ -169,16 +169,16 @@ class Yarn2DModel(object):
         if self.cfg.onlymesh and self.verbose:
             print "Finished Mesh generation"
             
-    def get_data(self, t):
+    def get_data(self):
         """
         pass the data on the concentration outside the fiber and use it in the 
         boundary condition calculation. When there is no data directly available
         the data is default as NONE
         """
         data_out = None
-        if abs(0 - t) < 1.e-5:
+        if abs(0 - self.step_old_time) < 1.e-5:
             data_out = self.init_conc(x = 0., y = 0.)
-        elif abs(0 - t) >= 1.e-5:
+        elif abs(0 - self.step_old_time) >= 1.e-5:
             data_out = sp.sum(self.conc.getValue()) / len(self.conc.getValue())
         return data_out
             
@@ -189,13 +189,13 @@ class Yarn2DModel(object):
         """
        #self.solve_fiber_init()
         timeownyarn = self.step_old_time
-        if t > self.step_old_time:
-            data_use = data
-        return data_use
+        if t >= timeownyarn:
+            return data
         #timenowyarn = self.step_old_time
         #if t >= timenowyarn:
             #return self.step_old_sol#[cellnr]
-        #raise ValueError, 'out concentration should only be requested at a later time'
+        print 'the value of t used here', t
+        raise ValueError, 'out concentration should only be requested at a later time'
     
     def initial_yarn2d(self):
         datamax = self.cfg.get('plot.maxval')
@@ -212,7 +212,7 @@ class Yarn2DModel(object):
                     mesh = self.mesh2d, value = initialConc)
         self.viewer = None        
         self.viewer = Viewer(vars = self.conc, title = 'Concentration of DEET', 
-                            datamin = 0., datamax = 0.000005)
+                            datamin = 0., datamax = 1.5e-7)
         self.viewer.plot()
         raw_input("take the example of the initial condition")
         self.viewerplotcount = 1
@@ -225,7 +225,7 @@ class Yarn2DModel(object):
             model.run_init()
             model.solve_init()
             #rebind the out_conc to call yarn2D
-            model.yarndata = ind
+            model.set_userdata(self.get_data())
             model.out_conc = lambda t, data: self.out_conc(data, t)
             initial_concentration = model.init_conc[ind](1)
             self.fiber_mass[ind] = model.calc_mass(initial_concentration)
@@ -365,10 +365,15 @@ class Yarn2DModel(object):
             self.initial_t = self.times[i+1]
             print 'the value of initial_t', self.initial_t
             #raw_input('Enter for setting up the solver of the equation')
-            print 'the variable in the eq.solver', self.conc
             self.eq.solve(var = self.conc, boundaryConditions = tuple(BCs), 
                         dt = self.delta_t)
-                        
+            print 'the variable in the eq.solver', self.conc
+            
+            if self.viewer is not None:
+                #if self.viewerplotcount == 0:
+                self.viewer.plot()
+                self.viewerplotcount += 1
+                self.viewerplotcount = self.viewerplotcount % self.plotevery 
 ##        for i in sp.arange(0, self.steps, 1, dtype=int):
 ##            #advance fiber solution one step
 ##            self.solve_fiber_step(self.times[i+1])
@@ -391,11 +396,7 @@ class Yarn2DModel(object):
             #self.tstep += 1
             self.step_old_time = t
             each_step += 1
-            if self.viewer is not None:
-                if self.viewerplotcount == 0:
-                    self.viewer.plot()
-                self.viewerplotcount += 1
-                self.viewerplotcount = self.viewerplotcount % self.plotevery
+
             if self.writeoutcount == 0:
                 print 'begin to calculate the concentration on the boundary'
                 conc_tot_each = self.conc.getValue()

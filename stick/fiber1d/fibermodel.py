@@ -155,16 +155,28 @@ class FiberModel(object):
             
         #data for stepwise operation
         self.initialized = False
-        self.yarndata = None
+        ##self.yarndata = None
+        self.__userdata = None
         
         self.__Rf_pure = None
         self.__Rf = None
 
         self.plotevery = self.cfg.get("plot.plotevery")
 
+    def set_userdata(self, data):
+        """
+        Read the data of the concentration in the void space and overwrite the 
+        default value 
+        """
+        if data == None:
+            self.get_userdata = self.__userdata
+        self.get_userdata = data
+        #return self.__userdata
+        
     def radius_pure(self):
-        """method that returns the radius of the fiber seen as a circle,
-           without coatings
+        """
+        method that returns the radius of the fiber seen as a circle,
+        without coatings
         """
         if self.__Rf_pure:
             return self.__Rf_pure
@@ -375,7 +387,7 @@ class FiberModel(object):
             # flux S h_lg (C_sat(T) - C_free) H(C - C_bo)
             #print 'the value from the function: out_conc', self.out_conc(0., 0.)
             #self.out_conc = eval(self.cfg.get('boundary.out_conc'))
-            eCy = self.out_conc(t, self.yarndata)
+            eCy = self.out_conc(t, self.get_userdata)
             eCs = self.evap_satconc(self.temp)
             return (self.porosity_domain[-1] 
                     * self.evap_transfer * (eCs - eCy) 

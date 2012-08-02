@@ -201,6 +201,9 @@ class Yarn1DModel(object):
         """
         timenowyarn = self.step_old_time
         if t >= timenowyarn:
+            print 'the value of t used here', t
+            print 'the value of the self.step_old_time', self.step_old_time
+            raw_input('to check whether the t value is larger than self.step_old_time')
             return self.step_old_sol[cellnr]
         raise ValueError, 'out concentration should only be requested at a later time'
 
