@@ -111,21 +111,21 @@ class PCMConfigManager(ConfigManager):
         self.register("pcm.specific_heat_liquid", 2.1,
             "c_l, Specific heat of the liquid for normal conditions (35 degree Celcius), "
             "in kJ/(kg K)")
-        self.register("pcm.thermal_cond_solid", 0.4,
+        self.register("pcm.thermal_cond_solid", 0.4, #0.00004,# 0.4,
             "K_s, Thermal conductivity of the solid, in W/(m K)")
-        self.register("pcm.thermal_cond_liquid", 0.3,
+        self.register("pcm.thermal_cond_liquid", 0.3, #0.00003,# 0.3,
             "K_l, Thermal conductivity of the liquid, in W/(m K)")
 
         self.register("discretization.n_edge", 41,
             "Numerical method needs a grid discritization, here number of edges")
     
-        self.register("init.init_temp", 'lambda x: 26.',
+        self.register("init.init_temp", 'lambda x: 20.',
             "Initial temperature of the pcm in terms of mm distance from "
             "center, in degree Celcius")
 
         self.register("boundary.heat_transfer_coeff", 8.5,
             "h_t, heat transfer coefficient through pcm boundary, in W/(m^2 K)")
-        self.register("boundary.T_out", 'lambda T: 31.5',
+        self.register("boundary.T_out", 'lambda T: 31.3',#28.9', #31.3',
             "Outside temperature, in degree Celcius, as function of Temp")
         
         self.register("fabric.simulate", False,
@@ -142,7 +142,7 @@ class PCMConfigManager(ConfigManager):
         self.register("fabric.therm_cond", 0.0404,
             "Thermal conductivity fabric (K_{mix}), in W/(m K)")
         
-        self.register("time.time_period", 1)
+        self.register("time.time_period", 1.)
         self.register("time.dt", 0.01)
 
         #plot section
