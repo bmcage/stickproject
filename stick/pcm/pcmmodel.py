@@ -540,7 +540,7 @@ class PCMModel(object):
                  (Ki*dxdri*(Tmelt-ui[-1]/s/gridi[-1])/(1-gridi[-1]) 
                 - Ko*dxdro*(Tmelt-uo[-1]/(L-(L-s)*grido[-1]))/(1-grido[-1]))
         print 's', s, 'sdot', sdot, sdot2
-        #sdot = 0.
+        sdot = 0.
 
         #average value of dxdt at the edge, take value at edge point
         dxdti = - gridi_edge[1:-1] / s * sdot
@@ -809,7 +809,7 @@ class PCMModel(object):
             solution, with interface at R """
         print 'introducing interface, project out sp to dp'
         #The outer solution is set at meltingtemp
-        newdataC = np.empty(len(sol), float)
+        newdataC = np.zeros(len(self.state.outer_gridx)+1+len(self.state.inner_gridx), float)
         newrout = self.state.outer_x_to_r(self.state.outer_gridx, R=R)
         for i in xrange(self.pos_s):
             newdataC[self.pos_s+1:] = self.state.meltpoint \
@@ -818,9 +818,52 @@ class PCMModel(object):
         newdataC[self.pos_s] = R
         #and we project the old outer solution to inner solution, which we 
         # store inverted
-        # SIMPLE: assume projection can be neglected
-        newdataC[:self.pos_s] = sol[:self.pos_s][::-1]/self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=0.) \
-                                * self.state.inner_x_to_r(self.state.inner_gridx, R=R)
+##        # SIMPLE: assume projection can be neglected
+##        newdataC[:self.pos_s] = sol[:self.pos_s][::-1]/self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=0.) \
+##                                * self.state.inner_x_to_r(self.state.inner_gridx, R=R)
+        
+        origr = self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=0.)
+        origredge = self.state.outer_x_to_r(self.state.outer_gridx_edge[::-1], R=0.)
+        #in one phase mode, sol is in inverse r order
+        uo = sol[:self.pos_s][::-1]
+        # conserved is volumeshell T = volumeshell U/r
+        origdataC = uo / origr * \
+                        4/3*np.pi * (origredge[:-1]**3 - origredge[1:]**3)
+        newr = self.state.inner_x_to_r(self.state.inner_gridx[:], R=R)
+        newredge = self.state.inner_x_to_r(self.state.inner_gridx_edge[:], R=R)
+        pos = 0
+        posorig=0
+        for pos in np.arange(self.pos_s):
+            while origredge[posorig] < newredge[pos+1]:
+                if origredge[posorig+1] >= newredge[pos+1]:
+                    if origredge[posorig] >= newredge[pos]:
+                        newdataC[pos] += uo[posorig]/origr[posorig] * \
+                            4/3*np.pi * (newredge[pos+1]**3 - origredge[posorig]**3)
+                    else:
+                        newdataC[pos] += uo[posorig]/origr[posorig] * \
+                            4/3*np.pi * (newredge[pos+1]**3 - newredge[pos]**3**3)
+                    ind = 0
+                    while (pos+1+ind < self.pos_s) and \
+                            (origredge[posorig+1] > newredge[pos+1+ind]):
+                        if origredge[posorig+1] > newredge[pos+1+ind+1]:
+                            newdataC[pos+1+ind] = uo[posorig]/origr[posorig] * \
+                                4/3*np.pi * (newredge[pos+1+ind+1]**3 - newredge[pos+1+ind]**3)
+                        else:
+                            newdataC[pos+1+ind] = uo[posorig]/origr[posorig] * \
+                                4/3*np.pi * (origredge[posorig+1]**3 - newredge[pos+1+ind]**3)
+                        ind += 1
+                else:
+                    nextC = 0.
+                    if origredge[posorig] >= newredge[pos]:
+                        newdataC[pos] += uo[posorig]/origr[posorig] * \
+                            4/3*np.pi * (origredge[posorig+1]**3 - origredge[posorig]**3)
+                    else:
+                        newdataC[pos] += uo[posorig]/origr[posorig] * \
+                            4/3*np.pi * (newredge[pos+1]**3 - newredge[pos]**3**3)
+                posorig += 1
+        #now we derive the new u = r T_avg
+        newdataC[:self.pos_s] = newdataC[:self.pos_s] * newr \
+                    / (4/3*np.pi * (newredge[1:]**3 - newredge[:-1]**3))
         print 'before T', sol[:self.pos_s][::-1]/self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=0.)
         print '  over', self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=0.) / self.state.L
         print 'after T', R, newdataC[:self.pos_s] / self.state.inner_x_to_r(self.state.inner_gridx, R=R)
@@ -846,23 +889,35 @@ class PCMModel(object):
         pos = 0
         posorig=0
         #remaining piece goes to meltpoint temperature
-        newC = self.state.meltpoint * 4/3*np.pi * sol[self.pos_s]**3
-        nextC = 0.
+        newdataC[pos] = self.state.meltpoint * 4/3*np.pi * sol[self.pos_s]**3
         for pos in np.arange(self.pos_s):
             while origredge[posorig] < newredge[pos+1]:
                 if origredge[posorig+1] >= newredge[pos+1]:
-                    nextC = uo[posorig]/origr[posorig] * \
-                        4/3*np.pi * (origredge[posorig+1]**3 - newredge[pos+1]**3)
-                    newC += uo[posorig]/origr[posorig] * \
-                        4/3*np.pi * (newredge[pos+1]**3 - origredge[posorig]**3)
+                    if origredge[posorig] >= newredge[pos]:
+                        newdataC[pos] += uo[posorig]/origr[posorig] * \
+                            4/3*np.pi * (newredge[pos+1]**3 - origredge[posorig]**3)
+                    else:
+                        newdataC[pos] += uo[posorig]/origr[posorig] * \
+                            4/3*np.pi * (newredge[pos+1]**3 - newredge[pos]**3**3)
+                    ind = 0
+                    while (pos+1+ind < self.pos_s) and \
+                            (origredge[posorig+1] > newredge[pos+1+ind]):
+                        if origredge[posorig+1] > newredge[pos+1+ind+1]:
+                            newdataC[pos+1+ind] = uo[posorig]/origr[posorig] * \
+                                4/3*np.pi * (newredge[pos+1+ind+1]**3 - newredge[pos+1+ind]**3)
+                        else:
+                            newdataC[pos+1+ind] = uo[posorig]/origr[posorig] * \
+                                4/3*np.pi * (origredge[posorig+1]**3 - newredge[pos+1+ind]**3)
+                        ind += 1
                 else:
                     nextC = 0.
-                    newC += sol[posorig]/origr[posorig] * \
-                        4/3*np.pi * (origredge[posorig+1]**3 - origredge[posorig]**3)
+                    if origredge[posorig] >= newredge[pos]:
+                        newdataC[pos] += uo[posorig]/origr[posorig] * \
+                            4/3*np.pi * (origredge[posorig+1]**3 - origredge[posorig]**3)
+                    else:
+                        newdataC[pos] += uo[posorig]/origr[posorig] * \
+                            4/3*np.pi * (newredge[pos+1]**3 - newredge[pos]**3**3)
                 posorig += 1
-            newdataC[pos] = newC
-            newC = nextC
-            nextC = 0.
         #now we derive the new u = r T_avg
         newdataC = newdataC * newr \
                     / (4/3*np.pi * (newredge[1:]**3 - newredge[:-1]**3))
