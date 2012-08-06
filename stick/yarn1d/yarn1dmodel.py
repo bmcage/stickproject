@@ -193,18 +193,29 @@ class Yarn1DModel(object):
         self.init_conc = sp.ones(self.nr_edge-1, float)
         for ind, r in enumerate(self.grid):
             self.init_conc[ind] = self.init_conc_func(r)
+            
+    def get_data(self, cellnr):
+        index = cellnr
+        return index
+        ##print 'the length of the self.step_old_sol', len(self.step_old_sol)
+        ##raw_input('check the value of length of sel.step_old_sol')
+        ##data_out = self.step_old_sol[cellnr]
+        #return self.step_old_sol[cellnr]
+        ##data_out = self.step_old_sol()
 
-    def out_conc(self, cellnr, t):
+    def out_conc(self, data, t):
         """
         return the concentration of compound in the void zone of cell cellnr at
         time t
         """
         timenowyarn = self.step_old_time
+        print 'the value of time t', t
+        print 'the time for determine', timenowyarn
+        #raw_input('compare two time')
         if t >= timenowyarn:
-            print 'the value of t used here', t
-            print 'the value of the self.step_old_time', self.step_old_time
-            raw_input('to check whether the t value is larger than self.step_old_time')
-            return self.step_old_sol[cellnr]
+
+            #return data
+            return self.step_old_sol[data]
         raise ValueError, 'out concentration should only be requested at a later time'
 
     def solve_fiber_init(self):
@@ -225,7 +236,8 @@ class Yarn1DModel(object):
                 model.run_init()
                 model.solve_init()
                 #rebind the out_conc method to a call to yarn1d
-                model.yarndata = ind
+                #model.yarndata = ind
+                model.set_userdata(self.get_data(ind))
                 model.out_conc = lambda t, data: self.out_conc(data, t)
                 init_concentration = model.init_conc[type](1)
                 self.fiber_mass[ind, type] = model.calc_mass(init_concentration)

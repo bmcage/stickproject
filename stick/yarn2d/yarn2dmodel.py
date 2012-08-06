@@ -92,7 +92,7 @@ class Yarn2DModel(object):
         if self.verbose:
             print "Timestep used in yarn1d model:", self.delta_t
         self.diffusion_DEET = self.cfg.get('diffusion.diffusion_conc')
-        self.init_conc = eval(self.cfg.get('initial.init_conc'))
+        self.init_conc = eval(self.cfg.get('initial.init_conc2d'))
         
         self.Ry = self.cfg.get('domain.yarnradius')
         self.scaleL = 1./self.Ry #get the scale factor for relative domain
@@ -212,9 +212,9 @@ class Yarn2DModel(object):
                     mesh = self.mesh2d, value = initialConc)
         self.viewer = None        
         self.viewer = Viewer(vars = self.conc, title = 'Concentration of DEET', 
-                            datamin = 0., datamax = 1.5e-7)
+                            datamin = 0., datamax = 5e-5)
         self.viewer.plot()
-        raw_input("take the example of the initial condition")
+        #raw_input("take the example of the initial condition")
         self.viewerplotcount = 1
 
     def solve_fiber_init(self):
@@ -248,7 +248,7 @@ class Yarn2DModel(object):
             #for type, model in enumerate(models):
             time_simulate, result = model.do_step(stoptime, needreinit = False)
             print 'the results from the fiber solver', result
-            raw_input('Enter for checking the value from results')
+            #raw_input('Enter for checking the value from results')
             tmp = model.calc_mass(result)
             self.source_mass[nyfib] = self.fiber_mass[nyfib] - tmp
             self.fiber_mass[nyfib] = tmp
@@ -329,6 +329,7 @@ class Yarn2DModel(object):
         boundary_ex = self.boundary_diff_out
         each_step = 0
         i = 0
+        conc_out_yarn = []
         while compute:
             t += self.delta_t
             if t >= stop_time -self.delta_t / 100:
@@ -420,17 +421,16 @@ class Yarn2DModel(object):
                 #raw_input('Enter for conc1_average_out')
                 if self.verbose:
                     print 'average concentration out', conc1_average_out
+                conc_out_yarn.append(conc1_average_out)
                 print 'begin to boundary_ex'
                 boundary_ex = self._set_bound_flux(conc_face_ex, self.ext_bound)
 
-                self.record_conc.write("%g, %g \n" %(self.times[i], conc1_average_out))
+                self.record_conc.write("%g, %g \n" %(t, conc1_average_out))
                 print 'mass conservative with two fibers', self.cal_mass_void(conc_tot_each,
                                                     self.cell_volume) / self.scaleL
             self.writeoutcount += 1
             self.writeoutcount = self.writeoutcount % self.writeevery
-                
-
-            
+                      
         self.record_conc.close()
         dump.write({'time_step': self.times, 'conc_fib': conc_fib_out}, 
                     filename = filepath5, extension = '.gz')

@@ -151,8 +151,10 @@ class YarnConfigManager(ConfigManager):
         self.register("fiber.prob_area", '[lambda r: r ** 2]')
 
         #initial section
-        self.register("initial.init_conc", 'lambda x: 0.', 
-            "Initial concentration of tracked compound in the yarn in terms of radius")
+        self.register("initial.init_conc1d", 'lambda x: 0.', 
+            "Initial concentration of tracked compound in the yarn in terms of radius in 1D")
+        self.register("initial.init_conc2d", 'lambda x, y: 0', 
+            "Initial concentration of tracked compound in the yarn in terms of radius in 2D")
         
         self.register("diffusion.diffusion_coeff", 25.,
             "Diffusion coefficient of tracked compound in the yarn in mm2/s")
