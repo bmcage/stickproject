@@ -77,6 +77,13 @@ def deriv131(x1,v1,x2,v2,x3,v3):
     return deriv132(x2,v2,x1,v1,x3,v3)
 
 #-------------------------------------------------------------------------
+# derivative based on 2e order Lagrange interpolant in the right point x3,
+#   so deriv131=subs(x=x3, diff(inter3 , x))
+#-------------------------------------------------------------------------
+def deriv133(x1,v1,x2,v2,x3,v3):
+    return deriv132(x1,v1,x3,v3,x2,v2)
+
+#-------------------------------------------------------------------------
 # second derivative of the 2e order Lagrange interpolant
 #   Note: this is a constant
 #-------------------------------------------------------------------------
