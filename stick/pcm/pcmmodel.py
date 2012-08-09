@@ -573,7 +573,7 @@ class PCMModel(object):
                     + dxdto * (uo[:-1]+uo[1:])/2
         flux_edgeo[self.pos_s] = -ao * dudxo_ats *dxdro**2\
                     + dxdto_ats * s * Tmelt
-        
+        tmp = (flux_edgeo[:-1]-flux_edgeo[1:])/Dxo[:]
         #we store it inverse, like the physical PCM in order !
         diff_u_t[self.pos_s+1:] = tmp[::-1]
         
