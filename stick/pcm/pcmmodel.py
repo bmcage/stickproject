@@ -474,6 +474,8 @@ class PCMModel(object):
                         -K/rho/Cv * dxdr*u_rep[0] /Rlast)
         flux_edge[1:-1] = -K/rho/Cv * (u_rep[1:]-u_rep[:-1])/ Dxavg[:]*dxdr**2
         diff_u_t[:] = (flux_edge[:-1]-flux_edge[1:])/Dx[:]
+        print 'flux in', flux_edge[0], Dx[0]
+        #print 'tmp', t, diff_u_t[0], u_rep[0]/Rlast, K/rho/Cv , self.hT / rho / Cv
         ##print 'test', diff_u_t[1], flux_edge[1], flux_edge[2], Dx[1]
         ##if not self.__cont:
         ##    print 'u_t', diff_u_t
@@ -487,7 +489,7 @@ class PCMModel(object):
         to 0 with innter data, with 1 the interface, and 0 the center
         """
         if not self.__cont:
-            print 'info dph', t, 'int', u_rep[self.pos_s] / self.state.L, 'T',
+            print 'info doubleph time', t
         gridi = self.state.inner_gridx
         gridi_edge = self.state.inner_gridx_edge
         ui = u_rep[:self.pos_s]
@@ -500,8 +502,6 @@ class PCMModel(object):
         grido_edge = self.state.outer_gridx_edge
         Dxo = self.state.outer_delta_x
         Dxoavg = self.state.outer_delta_x_avg
-        if not self.__cont:
-            print ui/self.state.inner_x_to_r(gridi), uo[::-1]/self.state.outer_x_to_r(grido[::-1])
 
         n_celli = len(gridi) 
         n_cello = len(grido) 
@@ -523,14 +523,10 @@ class PCMModel(object):
 
         dxdri =  1./s
         dxdro = -1./(L-s)
-        assert dxdro < 0., 'dxdro < 0, %f' % dxdro
+        
         #at interface
         dudxi_ats = deriv133(gridi[-2],ui[-2],gridi[-1],ui[-1],1.,s*Tmelt)
         dudxo_ats = deriv133(grido[-2],uo[-2],grido[-1],uo[-1],1.,s*Tmelt)
-
-        #print difference in temperature! 
-        #temp = u_rep[:]/self.state.outer_x_to_r(self.state.outer_gridx)
-        #print 'temp', temp
 
         #equation sdot
         sdot = 1./rhoo/self.lambda_m *(
@@ -539,27 +535,18 @@ class PCMModel(object):
         sdot2 = 1./rhoo/self.lambda_m*\
                  (Ki*dxdri*(Tmelt-ui[-1]/s/gridi[-1])/(1-gridi[-1]) 
                 - Ko*dxdro*(Tmelt-uo[-1]/(L-(L-s)*grido[-1]))/(1-grido[-1]))
-        print 's', s, 'sdot', sdot, sdot2
-        sdot = 0.
+        sdot3 = 1/self.lambda_m /s*(ai*Cvi*dxdri*dudxi_ats-ao*Cvo*dxdro*dudxo_ats) \
+                -Tmelt/self.lambda_m/ s**3 *(ai*Cvi - ao*Cvo)
+        sdot = sdot3
 
         #average value of dxdt at the edge, take value at edge point
         dxdti = - gridi_edge[1:-1] / s * sdot
         dxdto = grido_edge[1:-1] / (L-s) * sdot
         dxdti_ats = -sdot / s
         dxdto_ats = sdot / (L-s)
-        
-        #if not self.__cont:
-        #    print 'sdot', sdot
 
         # at center point of PCM, dTdr=0, so x=0 for inner
         r_center = gridi[0]
-##        Tcenter = inter3(gridi[0],ui[0] /self.state.inner_x_to_r(gridi[0]),
-##                        gridi[1],ui[1] /self.state.inner_x_to_r(gridi[1]),
-##                        gridi[2],ui[2] /self.state.inner_x_to_r(gridi[2]),
-##                        0.)
-##        Tcenter = inter2(gridi[0],ui[0] /self.state.inner_x_to_r(gridi[0]),
-##                        gridi[1],ui[1] /self.state.inner_x_to_r(gridi[1]),
-##                        0.)
         Tcenter =  (ui[0] /self.state.inner_x_to_r(r_center))
         flux_edgei[0] = -ai * dxdri * Tcenter
         #inner part
@@ -574,11 +561,11 @@ class PCMModel(object):
         diff_u_t[self.pos_s] = sdot
         
         # at edge of PCM, transfer cond, so x=0 for outer
-        r_edge = self.state.outer_x_to_r(self.state.outer_gridx[0])
+        r_edge = self.state.outer_x_to_r(self.state.outer_gridx[0], s)
         flux_edgeo[0] = (self.hT / rhoo / Cvo * dxdro*L*
                          (uo[0]/r_edge - self.Tout(t))
                         -ao * dxdro * uo[0] /r_edge)
-        #assert flux_edgeo[0] > 0., 'flux_edge > 0, %f' % flux_edgeo[0]
+    
         if flux_edgeo[0] < 0.:
             print  'flux_edge < 0,', flux_edgeo[0], uo[0]/r_edge, self.Tout(t)
         #outer part
@@ -586,15 +573,13 @@ class PCMModel(object):
                     + dxdto * (uo[:-1]+uo[1:])/2
         flux_edgeo[self.pos_s] = -ao * dudxo_ats *dxdro**2\
                     + dxdto_ats * s * Tmelt
-        tmp = (flux_edgeo[:-1]-flux_edgeo[1:])/Dxo[:]
-        #print 'test', tmp[-2], flux_edgeo[-3], flux_edgeo[-2], Dxo[-2]
-        #print 'test', diff_u_t[-2:]
         
         #we store it inverse, like the physical PCM in order !
         diff_u_t[self.pos_s+1:] = tmp[::-1]
-        print 'tmp', t, tmp[0], flux_edgeo[0], u_rep[-1]/r_edge
-        #if not self.__cont:
-        #    print 'out flux',  flux_edgeo[0], 'u_t',diff_u_t
+        
+        #flux diff at interface
+        print 'flux in', flux_edgei[-1], 'out', flux_edgeo[-1], 's', sdot
+
         if not self.__cont:
             if '0' == raw_input('0 to cont: '):
                 self.__cont = True
@@ -623,7 +608,7 @@ class PCMModel(object):
                                  max_steps=50000, 
                                  #lband=1, uband=1,
                                  nr_rootfns=2, rootfn=rootfn,
-                                 atol=1e-6, rtol=1e-6
+                                 atol=1e-10, rtol=1e-10
                                 )
         self.solver.init_step(self.step_old_time, self.step_old_sol)
 
@@ -793,6 +778,7 @@ class PCMModel(object):
                         self.state.state = PCMState.SOLID_LIQUID
                         self.state.inner_data = self.state.outer_data
                         self.state.outer_data = self.state.liquid
+                        print 'to SOLID_LIQUID', self.state.R
                     else:
                         raise NotImplementedError, 'We should not reach this'
                     self.step_old_sol = self.project_outsp_dp(self.all_sol_u[tstep+1],
@@ -990,7 +976,6 @@ class PCMModel(object):
         self.__figid = 1
         self.__figaxes.set_title('Temp over PCM radius')
         
-        #from fipy import CellVariable, Matplotlib1DViewer, Grid1D
         if rTemp[0][self.pos_s] == 0.:
             meshr = self.state.outer_x_to_r(self.state.outer_gridx[::-1], 
                                                         rTemp[0][self.pos_s])
