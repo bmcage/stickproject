@@ -482,7 +482,130 @@ class PCMModel(object):
         #print 'flux', t, flux_edge, diff_u_t[0:2]
         #raw_input()
 
-    def f_odes_dph(self, t, u_rep, diff_u_t):
+
+    def f_odes_dph_FD(self, t, u_rep, diff_u_t):
+        """ RHS function for the cvode solver for double phase energy diffusion
+        The grid is in x with first x from 0 to 1 with outer data, so 0 is 
+        at L and 1 is at interface, then the interface position, then x from 1
+        to 0 with innter data, with 1 the interface, and 0 the center
+        """
+        if not self.__cont:
+            print 'info doubleph time', t
+        gridi = self.state.inner_gridx
+        gridi_edge = self.state.inner_gridx_edge
+        ui = u_rep[:self.pos_s]
+        s = u_rep[self.pos_s]
+        #we store outer from highest x to lowest x!
+        uo =  u_rep[self.pos_s+1:][::-1]
+        Dxi = self.state.inner_delta_x
+        Dxiavg = self.state.inner_delta_x_avg
+        grido = self.state.outer_gridx
+        grido_edge = self.state.outer_gridx_edge
+        Dxo = self.state.outer_delta_x
+        Dxoavg = self.state.outer_delta_x_avg
+
+        n_celli = len(gridi) 
+        n_cello = len(grido) 
+        flux_edgei = self.__tmp_flux_edge[:n_celli+1]
+        flux_edgeo = self.__tmp_flux_edge[n_celli+1:n_celli+n_cello+2]
+        L = self.state.L
+        Cvo = self.state.outer_data['C']
+        Ko = self.state.outer_data['K']
+        rhoo = self.state.outer_data['rho']
+        Cvi = self.state.inner_data['C']
+        Ki = self.state.inner_data['K']
+        rhoi = self.state.inner_data['rho']
+        
+        Tmelt = self.state.meltpoint
+        if uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0]) > self.Tout(t):
+            print 'WRONG', t, uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0]), '>',  self.Tout(t)
+        ao = Ko/rhoo/Cvo
+        ai = Ki/rhoi/Cvi
+
+        dxdri =  1./s
+        dxdro = -1./(L-s)
+        
+        #at interface
+        dudxi_ats = deriv133(gridi[-2],ui[-2],gridi[-1],ui[-1],1.,s*Tmelt)
+        dudxo_ats = deriv133(grido[-2],uo[-2],grido[-1],uo[-1],1.,s*Tmelt)
+
+        #equation sdot
+        sdot = 1./rhoo/self.lambda_m *(
+                Ki*(dudxi_ats*dxdri/s - Tmelt/s)
+              - Ko*(dudxo_ats*dxdro/s - Tmelt/s))
+        sdot2 = 1./rhoo/self.lambda_m*\
+                 (Ki*dxdri*(Tmelt-ui[-1]/s/gridi[-1])/(1-gridi[-1]) 
+                - Ko*dxdro*(Tmelt-uo[-1]/(L-(L-s)*grido[-1]))/(1-grido[-1]))
+        sdot3 = 1/self.lambda_m /s*(ai*Cvi*dxdri*dudxi_ats-ao*Cvo*dxdro*dudxo_ats) \
+                -Tmelt/self.lambda_m/ s**3 *(ai*Cvi - ao*Cvo)
+        sdot = sdot3
+
+        #average value of dxdt at the gridpoints of centers
+        dxdtic = - gridi / s * sdot
+        dxdtoc = grido / (L-s) * sdot
+        dxdti_ats = -sdot / s
+        dxdto_ats = sdot / (L-s)
+
+        # at center point of PCM, dTdr=0, so x=0 for inner
+        r_center = gridi[0]
+        Tcenter =  (ui[0] /self.state.inner_x_to_r(r_center))
+        flux_edgei[0] = -ai * dxdri * Tcenter
+        #inner part
+        flux_edgei[1:self.pos_s] = -ai * (ui[1:]-ui[:-1])/ Dxiavg[:]*dxdri**2
+        #at interface
+        flux_edgei[self.pos_s] = -ai * dudxi_ats *dxdri**2
+        diff_u_t[:self.pos_s] = (flux_edgei[:-1]-flux_edgei[1:])/Dxi[:]
+        #FD part
+        # 1. use flux_edgei to store u_edgei
+        u_edgei = flux_edgei
+        u_edgei[0] = 0. # at r=0, u =r*T is 0! ui[0]
+        u_edgei[-1] = s * Tmelt
+        u_edgei[1:-1] = inter2(gridi[:-1], ui[:-1], gridi[1:], ui[1:], gridi_edge[1:-1])#(ui[:-1] + ui[:-1])/2. ##TODO should we not average T ??
+        # 2. add the FD part of dxdt term
+        print 'u_t start', diff_u_t[0],
+        #tt = diff_u_t[0]
+        diff_u_t[:self.pos_s] += dxdtic[:]/Dxi[:] * (u_edgei[:-1] - u_edgei[1:])
+##        for i in range(self.pos_s):
+##            if ui[i]/self.state.inner_x_to_r(gridi[i],s) > Tmelt :
+##                if i==0:
+##                    print 'projecting'
+##                diff_u_t[i] = max(ui[i]/gridi[i] * dxdtic[0], -0.01)
+        print diff_u_t[0]
+        #diff_u_t[0] = diff_u_t[1]
+        #interface equation
+        diff_u_t[self.pos_s] = sdot
+        
+        # at edge of PCM, transfer cond, so x=0 for outer
+        r_edge = self.state.outer_x_to_r(self.state.outer_gridx[0], s)
+        flux_edgeo[0] = (self.hT / rhoo / Cvo * dxdro*L*
+                         (uo[0]/r_edge - self.Tout(t))
+                        -ao * dxdro * uo[0] /r_edge)
+    
+        if flux_edgeo[0] < 0.:
+            print  'flux_edge < 0,', flux_edgeo[0], uo[0]/r_edge, self.Tout(t)
+        #outer part
+        flux_edgeo[1:self.pos_s] = -ao * (uo[1:]-uo[:-1])/ Dxoavg[:]*dxdro**2
+        flux_edgeo[self.pos_s] = -ao * dudxo_ats *dxdro**2
+        tmp = (flux_edgeo[:-1]-flux_edgeo[1:])/Dxo[:]
+        #FD part
+        # 1. use flux_edgeo to store u_edgeo
+        u_edgeo = flux_edgeo
+        u_edgeo[0] = uo[0] # at r=L, u =L*T 
+        u_edgeo[-1] = s * Tmelt
+        u_edgeo[1:-1] = (uo[:-1] + uo[:-1])/2. ##TODO should we not average T ??
+        # 2. add the FD part of dxdt term
+        tmp[:self.pos_s] += dxdtoc[:]/Dxo[:] * (u_edgeo[:-1] - u_edgeo[1:])
+        #we store it inverse, like the physical PCM in order !
+        diff_u_t[self.pos_s+1:] = tmp[::-1]
+        
+        #flux diff at interface
+        print 'flux in', flux_edgei[-1], 'out', flux_edgeo[-1], 's', s
+
+        if not self.__cont:
+            if '0' == raw_input('0 to cont: '):
+                self.__cont = True
+
+    def f_odes_dph_FV(self, t, u_rep, diff_u_t):
         """ RHS function for the cvode solver for double phase energy diffusion
         The grid is in x with first x from 0 to 1 with outer data, so 0 is 
         at L and 1 is at interface, then the interface position, then x from 1
@@ -604,11 +727,11 @@ class PCMModel(object):
             self.solverunknowns = self.nrunknowns
             rootfn=RootFndp()
             rootfn.set_data(self.state.L, self.pos_s, self.state.epsilon)
-            self.solver = sc_ode('cvode', self.f_odes_dph,
+            self.solver = sc_ode('cvode', self.f_odes_dph_FD,
                                  max_steps=50000, 
                                  #lband=1, uband=1,
                                  nr_rootfns=2, rootfn=rootfn,
-                                 atol=1e-10, rtol=1e-10
+                                 atol=1e-12, rtol=1e-12
                                 )
         self.solver.init_step(self.step_old_time, self.step_old_sol)
 
