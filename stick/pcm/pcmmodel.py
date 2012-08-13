@@ -548,7 +548,9 @@ class PCMModel(object):
 
         # at center point of PCM, dTdr=0, so x=0 for inner
         r_center = gridi[0]
-        Tcenter =  (ui[0] /self.state.inner_x_to_r(r_center))
+        Tcenter =  inter2(gridi[0], ui[0] /self.state.inner_x_to_r(r_center), 
+                            gridi[1], ui[1] /self.state.inner_x_to_r(gridi[1]),
+                            0.)
         flux_edgei[0] = -ai * dxdri * Tcenter
         #inner part
         flux_edgei[1:self.pos_s] = -ai * (ui[1:]-ui[:-1])/ Dxiavg[:]*dxdri**2
@@ -565,6 +567,7 @@ class PCMModel(object):
         print 'u_t start', diff_u_t[0],
         #tt = diff_u_t[0]
         diff_u_t[:self.pos_s] += dxdtic[:]/Dxi[:] * (u_edgei[:-1] - u_edgei[1:])
+        #diff_u_t[0] -= dxdtic[0] *s *Tcenter
 ##        for i in range(self.pos_s):
 ##            if ui[i]/self.state.inner_x_to_r(gridi[i],s) > Tmelt :
 ##                if i==0:
