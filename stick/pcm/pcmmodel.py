@@ -169,14 +169,46 @@ class PCMState(object):
         Determines the fixed grid on the unit interval for the current state
         """
         #nonuniform partition
-        self.inner_gridx_edge = sp.linspace(0., 1., self.n_edge)
-        self.outer_gridx_edge = sp.linspace(0., 1., self.n_edge)
-        dh = np.empty(self.n_edge-1, float)
-        N = self.n_edge - 1
-        for j in range(N):
-            dh[j] = 2/(N+1) * (N-j)/N
-            self.inner_gridx_edge[j+1] = self.inner_gridx_edge[j] + dh[j]
-            self.outer_gridx_edge[j+1] = self.outer_gridx_edge[j] + dh[j]
+        UNIFORM = 1 
+        REFINTF = 2
+        REFBOTH = 3
+        METHOD = REFBOTH
+        if METHOD == UNIFORM:
+            #uniform x grid
+            self.inner_gridx_edge = sp.linspace(0., 1., self.n_edge)
+            self.outer_gridx_edge = sp.linspace(0., 1., self.n_edge)
+        elif METHOD == REFINTF:
+            #refined grid at interface
+            self.inner_gridx_edge = np.empty(self.n_edge, float)
+            self.outer_gridx_edge = np.empty(self.n_edge, float)
+            dh = np.empty(self.n_edge-1, float)
+            N = self.n_edge - 1
+            for j in range(N):
+                dh[j] = 2/(N+1) * (N-j)/N
+                self.inner_gridx_edge[j+1] = self.inner_gridx_edge[j] + dh[j]
+                self.outer_gridx_edge[j+1] = self.outer_gridx_edge[j] + dh[j]
+        elif METHOD == REFBOTH:
+            #Edge and interface refined
+            self.inner_gridx_edge = np.empty(self.n_edge, float)
+            self.outer_gridx_edge = np.empty(self.n_edge, float)
+            if self.n_edge // 2 == 0:
+                print 'ERROR: n_edge should be odd !'
+                sys.exit()
+            dh = np.empty(self.n_edge-1, float)
+            N = self.n_edge - 1
+            Nh = N//2
+            for j in range(Nh):
+                dh[Nh-1-j] = (2/(Nh+1) * (Nh-j)/Nh)/2.
+                dh[Nh+j] = dh[Nh-1-j]
+            self.inner_gridx_edge[0] = 0.
+            self.outer_gridx_edge[0] = 0.
+            for j in range(N):
+                self.inner_gridx_edge[j+1] = self.inner_gridx_edge[j] + dh[j]
+                self.outer_gridx_edge[j+1] = self.outer_gridx_edge[j] + dh[j]
+        else:
+            print 'ERROR: Unknown GRID type'
+            sys.exit()
+        #make sure 1 is 1!
         self.inner_gridx_edge[-1] = 1.
         self.outer_gridx_edge[-1] = 1.
         #construct cell centers from this
@@ -517,8 +549,8 @@ class PCMModel(object):
         rhoi = self.state.inner_data['rho']
         
         Tmelt = self.state.meltpoint
-        if uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0]) > self.Tout(t):
-            print 'WRONG', t, uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0]), '>',  self.Tout(t)
+        if uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s) > self.Tout(t):
+            print 'WRONG', t, uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s), '>',  self.Tout(t)
         ao = Ko/rhoo/Cvo
         ai = Ki/rhoi/Cvi
 
@@ -530,15 +562,15 @@ class PCMModel(object):
         dudxo_ats = deriv133(grido[-2],uo[-2],grido[-1],uo[-1],1.,s*Tmelt)
 
         #equation sdot
-        sdot = 1./rhoo/self.lambda_m *(
-                Ki*(dudxi_ats*dxdri/s - Tmelt/s)
-              - Ko*(dudxo_ats*dxdro/s - Tmelt/s))
-        sdot2 = 1./rhoo/self.lambda_m*\
-                 (Ki*dxdri*(Tmelt-ui[-1]/s/gridi[-1])/(1-gridi[-1]) 
-                - Ko*dxdro*(Tmelt-uo[-1]/(L-(L-s)*grido[-1]))/(1-grido[-1]))
-        sdot3 = 1/self.lambda_m /s*(ai*Cvi*dxdri*dudxi_ats-ao*Cvo*dxdro*dudxo_ats) \
+        ##sdot = 1./rhoo/self.lambda_m *(
+        ##        Ki*(dudxi_ats*dxdri/s - Tmelt/s)
+        ##      - Ko*(dudxo_ats*dxdro/s - Tmelt/s))
+        ##sdot2 = 1./rhoo/self.lambda_m*\
+        ##         (Ki*dxdri*(Tmelt-ui[-1]/s/gridi[-1])/(1-gridi[-1]) 
+        ##        - Ko*dxdro*(Tmelt-uo[-1]/(L-(L-s)*grido[-1]))/(1-grido[-1]))
+        sdot = 1/self.lambda_m /s*(ai*Cvi*dxdri*dudxi_ats-ao*Cvo*dxdro*dudxo_ats) \
                 -Tmelt/self.lambda_m/ s**3 *(ai*Cvi - ao*Cvo)
-        sdot = sdot3
+        ##sdot = sdot3
 
         #average value of dxdt at the gridpoints of centers
         dxdtic = - gridi / s * sdot
@@ -548,10 +580,14 @@ class PCMModel(object):
 
         # at center point of PCM, dTdr=0, so x=0 for inner
         r_center = gridi[0]
-        Tcenter =  inter2(gridi[0], ui[0] /self.state.inner_x_to_r(r_center), 
-                            gridi[1], ui[1] /self.state.inner_x_to_r(gridi[1]),
+        Tcenter =  inter2(gridi[0], ui[0] /self.state.inner_x_to_r(r_center, s),
+                            gridi[1], ui[1] /self.state.inner_x_to_r(gridi[1], s),
                             0.)
         flux_edgei[0] = -ai * dxdri * Tcenter
+        ## alternative form:
+        ##flux_edgei[0] = -Ki/rhoi/Cvi * dxdri * ui[0] \
+        ##                /self.state.inner_x_to_r(self.state.inner_gridx[0],s)
+
         #inner part
         flux_edgei[1:self.pos_s] = -ai * (ui[1:]-ui[:-1])/ Dxiavg[:]*dxdri**2
         #at interface
@@ -564,17 +600,16 @@ class PCMModel(object):
         u_edgei[-1] = s * Tmelt
         u_edgei[1:-1] = inter2(gridi[:-1], ui[:-1], gridi[1:], ui[1:], gridi_edge[1:-1])#(ui[:-1] + ui[:-1])/2. ##TODO should we not average T ??
         # 2. add the FD part of dxdt term
-        print 'u_t start', diff_u_t[0],
-        #tt = diff_u_t[0]
-        diff_u_t[:self.pos_s] += dxdtic[:]/Dxi[:] * (u_edgei[:-1] - u_edgei[1:])
-        #diff_u_t[0] -= dxdtic[0] *s *Tcenter
-##        for i in range(self.pos_s):
-##            if ui[i]/self.state.inner_x_to_r(gridi[i],s) > Tmelt :
-##                if i==0:
-##                    print 'projecting'
-##                diff_u_t[i] = max(ui[i]/gridi[i] * dxdtic[0], -0.01)
-        print diff_u_t[0]
-        #diff_u_t[0] = diff_u_t[1]
+        diff_u_t[:self.pos_s] += sdot * dxdri * \
+                    ((gridi_edge[1:] * u_edgei[1:] - gridi_edge[:-1] * u_edgei[:-1])/Dxi[:]
+                    - (u_edgei[:-1]/2 + u_edgei[1:]/2))
+        ## alternative 1
+        ##diff_u_t[:self.pos_s] += dxdtic[:]/Dxi[:] * (u_edgei[:-1] - u_edgei[1:])
+        ## alternative 2
+        ##diff_u_t[:self.pos_s] += sdot * dxdri * \
+        ##            ((gridi_edge[1:] * u_edgei[1:] - gridi_edge[:-1] * u_edgei[:-1])/Dxi[:]
+        ##            - ui[:])
+
         #interface equation
         diff_u_t[self.pos_s] = sdot
         
@@ -600,9 +635,6 @@ class PCMModel(object):
         tmp[:self.pos_s] += dxdtoc[:]/Dxo[:] * (u_edgeo[:-1] - u_edgeo[1:])
         #we store it inverse, like the physical PCM in order !
         diff_u_t[self.pos_s+1:] = tmp[::-1]
-        
-        #flux diff at interface
-        print 'flux in', flux_edgei[-1], 'out', flux_edgeo[-1], 's', s
 
         if not self.__cont:
             if '0' == raw_input('0 to cont: '):
@@ -614,6 +646,8 @@ class PCMModel(object):
         at L and 1 is at interface, then the interface position, then x from 1
         to 0 with innter data, with 1 the interface, and 0 the center
         """
+        print "ERROR , Finite Volume way not working"
+        sys.exit(1)
         if not self.__cont:
             print 'info doubleph time', t
         gridi = self.state.inner_gridx
@@ -642,8 +676,8 @@ class PCMModel(object):
         rhoi = self.state.inner_data['rho']
         
         Tmelt = self.state.meltpoint
-        if uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0]) > self.Tout(t):
-            print 'WRONG', t, uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0]), '>',  self.Tout(t)
+        if uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s) > self.Tout(t):
+            print 'WRONG', t, uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s), '>',  self.Tout(t)
         ao = Ko/rhoo/Cvo
         ai = Ki/rhoi/Cvi
 
@@ -673,7 +707,7 @@ class PCMModel(object):
 
         # at center point of PCM, dTdr=0, so x=0 for inner
         r_center = gridi[0]
-        Tcenter =  (ui[0] /self.state.inner_x_to_r(r_center))
+        Tcenter =  (ui[0] /self.state.inner_x_to_r(r_center,s))
         flux_edgei[0] = -ai * dxdri * Tcenter
         #inner part
         flux_edgei[1:self.pos_s] = -ai * (ui[1:]-ui[:-1])/ Dxiavg[:]*dxdri**2\
@@ -864,6 +898,7 @@ class PCMModel(object):
                     tstep += 1
 
             if tstep == len(self.times)-1:
+                print 'End reached'
                 break
             if changed:
                 # we need to swap the solver we use!
@@ -1103,7 +1138,7 @@ class PCMModel(object):
         self.__figaxes.set_title('Temp over PCM radius')
         
         if rTemp[0][self.pos_s] == 0.:
-            meshr = self.state.outer_x_to_r(self.state.outer_gridx[::-1], 
+            meshr = self.state.outer_x_to_r(self.state.outer_gridx[::-1],
                                                         rTemp[0][self.pos_s])
             solr = rTemp[0][:self.pos_s][::-1] / meshr[:]
             
@@ -1117,6 +1152,8 @@ class PCMModel(object):
         self.viewerplotcount = 0
         for time, rT in zip(times[1:self.last_sol_tstep], rTemp[1:self.last_sol_tstep][:]):
             if rT[self.pos_s] == 0.:
+                meshr = self.state.outer_x_to_r(self.state.outer_gridx[::-1], 
+                                                        rT[self.pos_s])
                 if self.plotevery and self.viewerplotcount == 0:
                     solr = rT[:self.pos_s][::-1]/meshr
                     self.__figaxes.clear()
