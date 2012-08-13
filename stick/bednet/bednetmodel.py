@@ -236,20 +236,21 @@ class Bednet(object):
     
       
 
-    def view_sol(self,times,sol,t):
+    def view_sol(self,times,sol):
         #maxv = np.max(self.sol)
         #minv = np.min(self.sol)
         #print 'max', maxv, minv
-        self.plottimes = np.arange(self.times[0],self.times[-1]+1,self.plotevery)
+        #self.plottimes = np.arange(self.times[0],self.times[-1]+1,self.plotevery)
         plt.ion()
         for ind, pos in enumerate(self.x0[1:]):
-            if t in self.plottimes:
+            #if t in self.plottimes:
                 plt.figure(ind)
                 plt.plot(self.times, self.sol[:, ind+1])
                 #plt.ylim(0, maxv*1.1)
                 plt.title('Concentration at position %g mm' % pos)
                 plt.show()
-            else: break    
+            #else: break    
+        dump.write({plt.plot},filename=utils.OUTPUTDIR + os.sep + 'bednetconc%08.4f.png' % t)    
 
     def init_bednet(self):
         self.sol = sp.empty((self.timesteps+1, len(self.x0)), float)
@@ -262,7 +263,8 @@ class Bednet(object):
         self.init_bednet()
         for t in self.times[1:]:
             self.solve_timestep(t)
-            self.view_sol(self.times,self.sol,t)
+          
+        self.view_sol(self.times,self.sol)
         
         #self.view_sol(self.times,self.sol)    
 
