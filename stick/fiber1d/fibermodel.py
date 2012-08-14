@@ -482,7 +482,7 @@ class FiberModel(object):
         self.solver.init_step(self.step_old_time, self.step_old_sol)
 
     def solve_odes(self, run_per_step = None, viewend = True):
-        self.solve_odes_init()
+        #self.solve_odes_init()
         endT = self.times[-1]
         self.initial_w1 = self.initial_c1 * self.grid
         tstep = 0
@@ -490,7 +490,7 @@ class FiberModel(object):
         for time in self.times[1:]:
             flag, realtime = self.solver.step(time, self.conc1[tstep+1])
             if flag != 0:
-                print 'ERROR: unable to compute solution'
+                print 'ERROR: unable to compute solution, flag', flag
                 break
             if self.verbose:
                 print 'INFO: fibermodel at t = ', realtime
@@ -803,7 +803,7 @@ class FiberModel(object):
             elif self.submethod == 'cvode':
                 self.solve_odes()
             elif self.submethod == 'cvode_step':                    
-                self.solve_odes_init()
+                #self.solve_odes_init()
                 if self.plotevery:
                     self.solution_view = CellVariable(name = "fiber concentration", 
                             mesh = self.mesh_fiber,
