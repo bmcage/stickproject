@@ -168,11 +168,11 @@ class FiberModel(object):
         Read the data of the concentration in the void space and overwrite the 
         default value 
         """
-        if data == None:
-            self.get_userdata = self.__userdata
-        self.get_userdata = data
-        #return self.__userdata
-        
+        self.__userdata = data
+
+    def get_userdata(self):
+        return self.__userdata
+
     def radius_pure(self):
         """
         method that returns the radius of the fiber seen as a circle,
@@ -387,7 +387,7 @@ class FiberModel(object):
             # flux S h_lg (C_sat(T) - C_free) H(C - C_bo)
             #print 'the value from the function: out_conc', self.out_conc(0., 0.)
             #self.out_conc = eval(self.cfg.get('boundary.out_conc'))
-            eCy = self.out_conc(t, self.get_userdata)
+            eCy = self.out_conc(t, self.get_userdata())
             eCs = self.evap_satconc(self.temp)
             return (self.porosity_domain[-1] 
                     * self.evap_transfer * (eCs - eCy) 
@@ -524,7 +524,7 @@ class FiberModel(object):
         if needreinit:
             self.solve_odes_reinit()
         else:
-            self.solver.set_tcrit(tcrit=stoptime)
+            self.solver.set_options(tcrit=stoptime)
         compute = True
         #even is step is large, we don't compute for a longer time than delta_t
         t = self.step_old_time

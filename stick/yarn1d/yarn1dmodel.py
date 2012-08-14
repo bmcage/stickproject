@@ -92,7 +92,7 @@ class Yarn1DModel(object):
             print "Timestep used in yarn1d model:", self.delta_t
         
         self.diff_coef = self.cfg.get('diffusion.diffusion_conc')
-        self.init_conc_func = eval(self.cfg.get('initial.init_conc'))
+        self.init_conc_func = eval(self.cfg.get('initial.init_conc1d'))
         
         self.number_fiber = self.cfg.get('fiber.number_fiber')
         self.blend = self.cfg.get('fiber.blend')
@@ -385,7 +385,7 @@ class Yarn1DModel(object):
         """Solve the yarnmodel up to stoptime, continuing from the present
            state, return the time, concentration after step
         """
-        self.solver.set_tcrit(tcrit=stoptime)
+        self.solver.set_options(tcrit=stoptime)
         if not self.initialized:
             raise Exception, 'Solver ode not initialized'
 
