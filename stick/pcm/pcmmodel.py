@@ -942,8 +942,8 @@ class PCMModel(object):
         newdataC = np.zeros(len(self.state.outer_gridx)+1+len(self.state.inner_gridx), float)
         newrout = self.state.outer_x_to_r(self.state.outer_gridx, R=R)
         for i in xrange(self.pos_s):
-            newdataC[self.pos_s+1:] = self.state.meltpoint \
-                                    * (1+self.state.epsilon) * newrout[::-1]
+            newdataC[self.pos_s+1:] = self.state.meltpoint * newrout[::-1] \
+                                    #* (1+self.state.epsilon) 
         #new interface is set
         newdataC[self.pos_s] = R
         #and we project the old outer solution to inner solution, which we 
@@ -1143,7 +1143,7 @@ class PCMModel(object):
                     self.__figaxes.axes.set_xlabel('Radius')
                     self.__figaxes.axes.set_ylabel('Temp')
                     self.__figaxes.plot(meshr, solr, 'r')
-                    self.__figaxes.set_title('PCM Temp vs radius at time %s' %str(time))
+                    self.__figaxes.set_title('PCM Temp vs radius at time %3.03f' % time)
                     pylab.draw()
                 if self.plotevery:
                     self.viewerplotcount += 1
@@ -1161,7 +1161,7 @@ class PCMModel(object):
                     self.__figaxes.axes.set_xlabel('Radius')
                     self.__figaxes.axes.set_ylabel('Temp')
                     self.__figaxes.plot(meshr1, solr1, 'r', meshr2, solr2, 'r')
-                    self.__figaxes.set_title('PCM Temp vs radius at time %s' %str(time))
+                    self.__figaxes.set_title('PCM Temp vs radius at time %3.03f' % time)
                     pylab.draw()
                 if self.plotevery:
                     self.viewerplotcount += 1
