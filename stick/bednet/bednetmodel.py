@@ -35,8 +35,7 @@ import matplotlib.pyplot as plt
 import sets
 import time
 import math
-from mpmath import jtheta
-import fipy.tools.dump as dump
+import fipy
 
 #-------------------------------------------------------------------------
 #
@@ -232,12 +231,12 @@ class Bednet(object):
             print 'prev boundary conc', model.boundary_conc_out, self.sol[self.tstep-1, 0]
             model.boundary_conc_out = self.sol[self.tstep, 0]
             print 'boundary conc yarn', model.boundary_conc_out
-        
-        dump.write({
-                    'time':self.tstep,
-                    'concentration': self.sol[self.tstep,0] },
-                    filename=utils.OUTPUTDIR + os.sep + 'bednet_sol_%08d.gz'%(self.tstep)   ,
-                    extension='.gz')    
+
+        fipy.dump.write({
+                        'time':self.tstep,
+                        'concentration': self.sol[self.tstep,0] },
+                        filename=utils.OUTPUTDIR + os.sep + 'bednet_sol_%08d.gz'%(self.tstep)   ,
+                        extension='.gz')
 
     def view_sol(self, times, sol):
         #maxv = np.max(self.sol)
@@ -253,7 +252,7 @@ class Bednet(object):
                 plt.title('Concentration at position %g mm' % pos)
                 plt.show()
             #else: break    
-        #dump.write({plt.plot}, filename=utils.OUTPUTDIR + os.sep + 'bednetconc%08.4f.png' % t)    
+        #fipy.dump.write({plt.plot},filename=utils.OUTPUTDIR + os.sep + 'bednetconc%08.4f.png' % t)
 
     def init_bednet(self):
         self.sol = np.empty((self.timesteps+1, len(self.x0)), float)
@@ -261,7 +260,7 @@ class Bednet(object):
         self.initial_boundary_conc()
         self.init_yarn()
 
-    def run(self, wait=False): 
+    def run(self, wait=False):
         self.init_bednet()
         for t in self.times[1:]:
             self.solve_timestep(t)

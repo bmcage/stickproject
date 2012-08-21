@@ -178,7 +178,7 @@ class Yarn1DModel(object):
             for type, model in enumerate(models):
                 self.porosity = (np.power(self.end_point,2) 
                              - self.nr_fibers *  np.power(model.radius(),2))\
-                            / np.power(self.end_point,2)     
+                            / np.power(self.end_point,2)
         
         #create cylindrical 1D grid over domain for using fipy to view.
         if self.plotevery:
@@ -278,7 +278,7 @@ class Yarn1DModel(object):
         stored
         """
         #first we calculate the mass in the void space:
-        mass = np.sum(conc * (np.power(self.grid_edge[1:], 2) - 
+        mass = np.sum(conc * (np.power(self.grid_edge[1:], 2) -
                                 np.power(self.grid_edge[:-1], 2)) ) * np.pi
         #print 'calc mass', mass,
         #now we add the mass in the fibers
