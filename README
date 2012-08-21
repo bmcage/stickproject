@@ -3,8 +3,9 @@ Requirements
 The following packages *MUST* be installed in order for STICK to work:
 
 * python 2.6+
-* numpy-scipy-matplotlib
-* scikits.odes
+* numpy - scipy - matplotlib
+* python-sparse (pysparse) - FiPy 3.0
+* scikits.odes (https://github.com/bmcage/odes)
 
 Installation
 ------------

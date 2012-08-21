@@ -30,7 +30,6 @@ import os.path
 import sys
 import const
 import numpy as np
-import scipy as sp
 
 HAVE_ODES = False
 try:
@@ -86,7 +85,7 @@ class Yarn1DModel(object):
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
         self.steps = int((self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t)
-        self.times = sp.linspace(0., self.time_period, num=self.steps+1)
+        self.times = np.linspace(0., self.time_period, num=self.steps+1)
         self.delta_t = self.times[1] - self.times[0]
         if self.verbose:
             print "Timestep used in yarn1d model:", self.delta_t
@@ -153,7 +152,7 @@ class Yarn1DModel(object):
         self.end_point = self.cfg.get('domain.yarnradius')
         self.nr_edge = self.cfg.get('domain.n_edge')
         #we now construct the full edge grid
-        self.grid_edge = sp.linspace(self.beginning_point, self.end_point, self.nr_edge)
+        self.grid_edge = np.linspace(self.beginning_point, self.end_point, self.nr_edge)
         #construct cell centers from this
         self.grid = (self.grid_edge[:-1] + self.grid_edge[1:])/2.
         #obtain cell sizes

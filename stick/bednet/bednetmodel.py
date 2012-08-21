@@ -29,7 +29,6 @@ import sys
 import const
 import numpy as np
 import scipy as sp
-from fipy import *
 from scipy import integrate
 from scipy.integrate import quad
 import matplotlib.pyplot as plt
@@ -66,7 +65,7 @@ class Bednet(object):
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
         self.timesteps = int((self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t)
-        self.times = sp.linspace(0, self.time_period, self.timesteps + 1)
+        self.times = np.linspace(0, self.time_period, self.timesteps + 1)
         #set correct delta_t
         self.delta_t = self.times[1]-self.times[0]
         if self.verbose:
@@ -89,7 +88,7 @@ class Bednet(object):
         self.diff_DEET_void = self.cfg.get('diffusion.diff_DEET_void')
         self.saturation_conc = self.cfg.get('saturation.saturation_conc')
         x0 = self.cfg.get('observer.x0')
-        self.x0 = sp.empty(len(x0)+1, float)
+        self.x0 = np.empty(len(x0)+1, float)
         self.x0[1:] = x0[:]
         
         #we set a distance for the yarn bc
@@ -145,9 +144,9 @@ class Bednet(object):
     def __loop_over_yarn(self, nryarns, dx):
         x0 = self.x0
         n = 1
-        termV = sp.zeros(len(x0),float)
-        expn1V = sp.empty(len(x0),float)
-        expn2V = sp.empty(len(x0),float)
+        termV = np.zeros(len(x0),float)
+        expn1V = np.empty(len(x0),float)
+        expn2V = np.empty(len(x0),float)
         sol = 0 
         while n <= nryarns: 
             for ttt in np.arange(self.tstep):
@@ -155,9 +154,9 @@ class Bednet(object):
                 factor = 4 * self.diff_DEET_void
                 for ttype in np.arange(self.nr_models):
                     # TODO: this should be dx/dy per yarn ttype!!
-                    RV = sp.power(x0[:],2) + sp.power(n*dx, 2)
-                    #integralV = sp.empty(len(x0),float)
-                    #integralH = sp.empty(len(x0),float)
+                    RV = np.power(x0[:],2) + np.power(n*dx, 2)
+                    #integralV = np.empty(len(x0),float)
+                    #integralH = np.empty(len(x0),float)
                     k=1
                     #for ind, xstart in enumerate(self.x0):
                     #print 'x0', x0, 'delta_t', self.delta_t, 'tt', tt
@@ -177,14 +176,14 @@ class Bednet(object):
                             #raw_input()    
                             #print 'self.source_mass[ttype,tt]', self.source_mass[ttype,tt], '(expn2V[ind]-expn1V[ind])', (expn2V[ind]-expn1V[ind])    
                             #raw_input()
-                            termV += self.source_mass[ttype,tt]*(expn1V-expn2V)/(factor*sp.pi)
+                            termV += self.source_mass[ttype,tt]*(expn1V-expn2V)/(factor*np.pi)
                             k += 1
 
                     #print 'termV', termV 
                         #raw_input()
                     solstep = (
-                        self.source_mass[ttype,0] /(factor*sp.pi*self.times[tt]) 
-                        * sp.exp(-RV/(factor*self.times[tt])) + termV 
+                        self.source_mass[ttype,0] /(factor*np.pi*self.times[tt]) 
+                        * np.exp(-RV/(factor*self.times[tt])) + termV 
                                 )
                     sol += solstep        
                 n+=1
@@ -202,7 +201,7 @@ class Bednet(object):
             #print 'rety',rety
             #raw_input()
             tmp = model.calc_mass(rety[-1])
-            #V = sp.pi * sp.power(model.end_point, 2)    
+            #V = np.pi * np.power(model.end_point, 2)    
             self.source_mass[ttype, self.tstep] = self.yarn_mass[ttype] - tmp
             #self.source_mass[ttype, self.tstep] /= V
             #print 'mass yarn', tmp, self.yarn_mass[ttype], self.source_mass[ttype, self.tstep]
@@ -233,8 +232,6 @@ class Bednet(object):
                         'concentration': self.sol[self.tstep,0] },
                         filename=utils.OUTPUTDIR + os.sep + 'bednet_sol_%08d.gz'%(self.tstep)   ,
                         extension='.gz')    
-    
-      
 
     def view_sol(self,times,sol):
         #maxv = np.max(self.sol)
@@ -253,7 +250,7 @@ class Bednet(object):
         dump.write({plt.plot},filename=utils.OUTPUTDIR + os.sep + 'bednetconc%08.4f.png' % t)    
 
     def init_bednet(self):
-        self.sol = sp.empty((self.timesteps+1, len(self.x0)), float)
+        self.sol = np.empty((self.timesteps+1, len(self.x0)), float)
         self.sol[0, :] = 0
         self.initial_boundary_conc()
         self.init_yarn()
