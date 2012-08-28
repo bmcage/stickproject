@@ -177,7 +177,9 @@ class Yarn1DModel(object):
         #calculate the porosity as n=(pi Ry^2-nr_fibers pi Rf^2) / pi Ry^2
         for ind, models in enumerate(self.fiber_models):
             for type, model in enumerate(models):
-                self.porosity = (sp.power(self.end_point,2) - self.nr_fibers *  sp.power(model.radius(),2))/ sp.power(self.end_point,2)     
+                self.porosity = (np.power(self.end_point,2) 
+                             - self.nr_fibers *  np.power(model.radius(),2))\
+                            / np.power(self.end_point,2)     
         
         #create cylindrical 1D grid over domain for using fipy to view.
         if self.plotevery:
@@ -189,7 +191,7 @@ class Yarn1DModel(object):
 
     def initial_yarn1d(self):
         """ initial concentration over the domain"""
-        self.init_conc = sp.ones(self.nr_edge-1, float)
+        self.init_conc = np.ones(self.nr_edge-1, float)
         for ind, r in enumerate(self.grid):
             self.init_conc[ind] = self.init_conc_func(r)
             
@@ -285,8 +287,8 @@ class Yarn1DModel(object):
         stored
         """
         #first we calculate the mass in the void space:
-        mass = sp.sum(conc * (sp.power(self.grid_edge[1:],2) - 
-                                sp.power(self.grid_edge[:-1],2)) ) *sp.pi
+        mass = np.sum(conc * (np.power(self.grid_edge[1:],2) - 
+                                np.power(self.grid_edge[:-1],2)) ) * np.pi
         #print 'calc mass', mass,
         #now we add the mass in the fibers
         for ind, pos in enumerate(self.grid):
@@ -319,7 +321,7 @@ class Yarn1DModel(object):
         for ind, pos in enumerate(self.grid):
             self.source[ind] = 0.
             #V is the area of the shell
-            V = sp.pi*(pos+self.delta_r)**2-pos**2
+            V = np.pi*(pos+self.delta_r)**2-pos**2
             for type, blend in enumerate(self.blend):
                 #nrf is number of fibers of blend in the shell at that grid position
                 # per radial
@@ -370,7 +372,7 @@ class Yarn1DModel(object):
         n_cells = len(self.init_conc)
         self.conc1 = np.empty((len(self.times), n_cells), float)
         self.ret_y = np.empty(n_cells, float)
-        self.__tmp_flux_edge = sp.empty(n_cells+1, float)
+        self.__tmp_flux_edge = np.empty(n_cells+1, float)
         self.tstep = 0
         self.conc1[0][:] = self.init_conc[:]
         self.step_old_sol = self.conc1[0]

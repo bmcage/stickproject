@@ -36,6 +36,7 @@ import sets
 import time
 import math
 from mpmath import jtheta
+import fipy.tools.dump as dump
 
 #-------------------------------------------------------------------------
 #
@@ -233,7 +234,7 @@ class Bednet(object):
                         filename=utils.OUTPUTDIR + os.sep + 'bednet_sol_%08d.gz'%(self.tstep)   ,
                         extension='.gz')    
 
-    def view_sol(self,times,sol):
+    def view_sol(self, times, sol):
         #maxv = np.max(self.sol)
         #minv = np.min(self.sol)
         #print 'max', maxv, minv
@@ -247,7 +248,7 @@ class Bednet(object):
                 plt.title('Concentration at position %g mm' % pos)
                 plt.show()
             #else: break    
-        dump.write({plt.plot},filename=utils.OUTPUTDIR + os.sep + 'bednetconc%08.4f.png' % t)    
+        #dump.write({plt.plot}, filename=utils.OUTPUTDIR + os.sep + 'bednetconc%08.4f.png' % t)    
 
     def init_bednet(self):
         self.sol = np.empty((self.timesteps+1, len(self.x0)), float)
@@ -255,8 +256,7 @@ class Bednet(object):
         self.initial_boundary_conc()
         self.init_yarn()
 
-    def run(self, wait=False):
-        raw_input()   
+    def run(self, wait=False): 
         self.init_bednet()
         for t in self.times[1:]:
             self.solve_timestep(t)
