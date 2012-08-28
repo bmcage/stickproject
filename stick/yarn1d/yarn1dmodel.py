@@ -384,7 +384,7 @@ class Yarn1DModel(object):
         """Solve the yarnmodel up to stoptime, continuing from the present
            state, return the time, concentration after step
         """
-        self.solver.set_options(tcrit=stoptime)
+        self.solver.set_options(tstop=stoptime)
         if not self.initialized:
             raise Exception, 'Solver ode not initialized'
 

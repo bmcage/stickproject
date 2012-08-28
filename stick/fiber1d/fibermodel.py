@@ -524,7 +524,7 @@ class FiberModel(object):
         if needreinit:
             self.solve_odes_reinit()
         else:
-            self.solver.set_options(tcrit=stoptime)
+            self.solver.set_options(tstop=stoptime)
         compute = True
         #even is step is large, we don't compute for a longer time than delta_t
         t = self.step_old_time

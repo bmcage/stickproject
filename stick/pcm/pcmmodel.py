@@ -803,7 +803,7 @@ class PCMModel(object):
                 else:
                     prev_time = self.times[tstep]
                     initval = self.all_sol_u[tstep][:self.solverunknowns]
-                self.solver.set_options(tcrit=time)
+                self.solver.set_options(tstop=time)
                 flag, t_retn, u_retn, t_out, u_last = self.solver.solve(
                                 [prev_time,time], 
                                 initval
@@ -845,7 +845,7 @@ class PCMModel(object):
                 else:
                     prev_time = self.times[tstep]
                     initval = self.all_sol_u[tstep][:self.solverunknowns]
-                self.solver.set_options(tcrit=time)
+                self.solver.set_options(tstop=time)
                 flag, t_retn, u_retn, t_out, u_last = self.solver.solve(
                                 [prev_time,time], 
                                 initval,
