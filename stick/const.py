@@ -48,12 +48,12 @@ URL_HOMEPAGE    = "http://gitorious.org/stickproject"
 USER_HOME = os.path.expanduser('~')
 #where results are stored: the DATA_DIR
 DATA_DIR  = USER_HOME + os.sep + 'stickproject'
+PATH_CONST = os.path.dirname( os.path.realpath( __file__ ) )
+print PATH_CONST
 #where input data is found, edit it so path to initfile/expfile is found
-ROOT_DIR = USER_HOME + os.sep + 'git' + os.sep + 'stickproject'\
-                                   + os.sep + 'data'
+ROOT_DIR = PATH_CONST + os.sep + '..' + os.sep + 'data'
 #ini dir, edit this path to point to where .ini files are found
-INI_DIR =  USER_HOME + os.sep + 'git' + os.sep + 'stickproject'\
-                                   + os.sep + 'inifiles'
+INI_DIR =  PATH_CONST + os.sep + '..' + os.sep + 'inifiles'
 
 # dirs that need to be created
 USER_DIRLIST = (DATA_DIR,)
