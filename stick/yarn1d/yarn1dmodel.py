@@ -210,8 +210,8 @@ class Yarn1DModel(object):
         time t
         """
         timenowyarn = self.step_old_time
-        print 'the value of time t', t
-        print 'the time for determine', timenowyarn
+        #print 'the value of time t', t
+        #print 'the time for determine', timenowyarn
         #raw_input('compare two time')
         if t >= timenowyarn:
 

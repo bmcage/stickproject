@@ -144,18 +144,24 @@ class Bednet(object):
 
     def __loop_over_yarn(self, nryarns, dx):
         x0 = self.x0
-        n = 1
+        n = 0
         termV = np.zeros(len(x0),float)
         expn1V = np.empty(len(x0),float)
         expn2V = np.empty(len(x0),float)
         sol = 0 
         while n <= nryarns: 
-            for ttt in np.arange(self.tstep):
+            RV = np.power(x0[:], 2) + np.power(n*dx, 2)
+            factor = 4 * self.diff_DEET_void
+            #determine first timestep to take into account
+            firsttimestep = int(np.max(RV*1e-6/(factor*self.delta_t)))
+            #determine max timestep to take into account, After 100 sec we assume
+            # no longer influence
+            maxtimestep = int(100 / self.delta_t)
+            firsttimestep = max(firsttimestep, self.tstep-maxtimestep)
+            for ttt in np.arange(int(firsttimestep), self.tstep):
                 tt = ttt+1
-                factor = 4 * self.diff_DEET_void
                 for ttype in np.arange(self.nr_models):
                     # TODO: this should be dx/dy per yarn ttype!!
-                    RV = np.power(x0[:],2) + np.power(n*dx, 2)
                     #integralV = np.empty(len(x0),float)
                     #integralH = np.empty(len(x0),float)
                     k=1
@@ -187,7 +193,7 @@ class Bednet(object):
                         * np.exp(-RV/(factor*self.times[tt])) + termV 
                                 )
                     sol += solstep        
-                n+=1
+            n += 1
         return sol
 
     def solve_timestep(self, t):
@@ -205,8 +211,11 @@ class Bednet(object):
             #V = np.pi * np.power(model.end_point, 2)    
             self.source_mass[ttype, self.tstep] = self.yarn_mass[ttype] - tmp
             #self.source_mass[ttype, self.tstep] /= V
-            #print 'mass yarn', tmp, self.yarn_mass[ttype], self.source_mass[ttype, self.tstep]
+            print 'mass yarn now', tmp, 'pref', self.yarn_mass[ttype], 'release', self.source_mass[ttype, self.tstep]
             self.yarn_mass[ttype] = tmp
+            if self.source_mass[ttype, self.tstep] < 0.:
+                raise NotImplementedError, 'source must be positive, negative not supported'
+        raw_input('Continue press ENTER')
 
         # 2. step two, solve the bednet model
         #    to obtain value near yarn, and at observer
@@ -229,10 +238,10 @@ class Bednet(object):
             print 'boundary conc yarn', model.boundary_conc_out
         
         dump.write({
-                        'time':self.tstep,
-                        'concentration': self.sol[self.tstep,0] },
-                        filename=utils.OUTPUTDIR + os.sep + 'bednet_sol_%08d.gz'%(self.tstep)   ,
-                        extension='.gz')    
+                    'time':self.tstep,
+                    'concentration': self.sol[self.tstep,0] },
+                    filename=utils.OUTPUTDIR + os.sep + 'bednet_sol_%08d.gz'%(self.tstep)   ,
+                    extension='.gz')    
 
     def view_sol(self, times, sol):
         #maxv = np.max(self.sol)
