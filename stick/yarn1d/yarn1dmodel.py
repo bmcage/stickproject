@@ -226,24 +226,15 @@ class Yarn1DModel(object):
         The diffusion coefficient is constant. The finite volume method is used to
         discretize the right side of equation. The mesh in this 1-D condition is 
         uniform.
-        """        
-##        self.nr_timesteps = np.empty((self.nr_models),int)
-##        self.timesteps = [0]*self.nr_models
-##        self.fiber_surface = [0] * self.nr_models
-        
+        """
         for ind, models in enumerate(self.fiber_models):
             for type, model in enumerate(models):
-                print 'the type of the fiber in running', type
                 model.run_init()
                 model.solve_init()
                 #rebind the out_conc method to a call to yarn1d
                 #model.yarndata = ind
                 model.set_userdata(self.get_data(ind))
                 model.out_conc = lambda t, data: self.out_conc(data, t)
-                init_concentration = model.init_conc[type](1)
-                self.fiber_mass[ind, type] = model.calc_mass(init_concentration)
-                print 'the mass in the fiber', self.fiber_mass[ind, type]
-                #print 'mass',model.calc_mass(init_concentration)
                 self.fiber_mass[ind, type] = model.calc_mass(model.initial_c1)
 
     def do_fiber_step(self, stoptime):
@@ -321,15 +312,21 @@ class Yarn1DModel(object):
         for ind, pos in enumerate(self.grid):
             self.source[ind] = 0.
             #V is the area of the shell
-            V = np.pi*(pos+self.delta_r)**2-pos**2
+            V = np.pi*((pos+self.delta_r[ind])**2-pos**2)
             for type, blend in enumerate(self.blend):
                 #nrf is number of fibers of blend in the shell at that grid position
                 # per radial
                 self.source[ind] += (self.source_mass[ind, type] 
                                         * self.nrf_shell[ind] * blend)
             #self.source[ind] /= timestep
-        self.source *= self.delta_rsquare / (2.*V*self.porosity)
-      
+            self.source[ind] /= V*self.porosity
+        ## TODO Tine, what formula is this? Comment above says just multiply...
+        ##self.source *= self.delta_rsquare / (2.*V*self.porosity)
+        ## I think:
+        ##    nrfibershell*blend* mass diff / Volume shell
+        ## so only remains to divide by volume shell. HOWEVER, this must be 
+        ## in for loop at level of cell, so pos. In essence, you have a 
+        ## factor self.delta_rsquare / 2   more that I don't see
 
     def f_conc1_ode(self, t, conc_r, diff_u_t):
         """
