@@ -120,7 +120,6 @@ class Yarn1DModel(object):
             if self.verbose:
                 print 'NOTE: Fiber has boundary out of type %s' %  bty
 
-
         #some memory
         self.step_old_time = None
         self.step_old_sol = None
@@ -214,7 +213,6 @@ class Yarn1DModel(object):
         #print 'the time for determine', timenowyarn
         #raw_input('compare two time')
         if t >= timenowyarn:
-
             #return data
             return self.step_old_sol[data]
         raise ValueError, 'out concentration should only be requested at a later time'
@@ -246,12 +244,14 @@ class Yarn1DModel(object):
         for ind, models in enumerate(self.fiber_models):
             for type, model in enumerate(models):
                 time, result = model.do_step(stoptime, needreinit=False)
-                #print 'result from the calculation', result
+                #print 'result from the calculation', ind, type, result
                 #raw_input('Enter for checking the result')
                 tmp = model.calc_mass(result)
                 #print 'fibermass', ind, type, self.fiber_mass[ind, type], 'tmp', tmp
                 self.source_mass[ind, type] = self.fiber_mass[ind, type] - tmp
                 self.fiber_mass[ind, type] = tmp
+##        print 'fiber step ', stoptime
+##        print 'mass', self.fiber_mass
 
     def _set_bound_flux(self, flux_edge, conc_r):
         """
@@ -272,7 +272,7 @@ class Yarn1DModel(object):
                     (self.boundary_conc_out - conc_r[-1]) / self.boundary_dist 
                     * self.grid_edge[-1])
 
-    def calc_mass(self,conc):
+    def calc_mass(self, conc):
         """
         calculate current amount of mass of volatile based on data currently
         stored
@@ -421,6 +421,8 @@ class Yarn1DModel(object):
             self.do_fiber_step(t)
             self.set_source(t-self.step_old_time)
             realtime, self.step_old_sol = self.do_ode_step(t)
+##            print 'new sol', self.step_old_sol
+##            raw_input('')
             self.tstep += 1
             self.step_old_time = t
 
@@ -438,14 +440,19 @@ class Yarn1DModel(object):
             self.viewerwritecount = 0
             for time, con in zip(times, conc):
                 self.solution_view.setValue(con)
-                if self.viewerplotcount == 0:
-                   self.viewer.plot()
-                   self.viewer.axes.set_title('time %s' %str(time))
+                if self.viewerplotcount == 0 or (self.writeevery and 
+                                            self.viewerwritecount == 0):
+                    self.viewer.axes.set_title('time %s' %str(time))
+                    if self.writeevery and self.viewerwritecount == 0:
+                        #plot and savefig
+                        self.viewer.plot(filename=utils.OUTPUTDIR + os.sep \
+                                                + 'yarnconc%08.4f.png' % time)
+                    else:
+                        #only plot
+                        self.viewer.plot()
                 self.viewerplotcount += 1
                 self.viewerplotcount = self.viewerplotcount % self.plotevery
                 if self.writeevery:
-                    if self.viewerwritecount == 0:
-                        self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'yarnconc%08.4f.png' % time)
                     self.viewerwritecount += 1
                     self.viewerwritecount = self.viewerwritecount % self.writeevery
 

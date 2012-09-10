@@ -427,7 +427,7 @@ class FiberModel(object):
                         * self.grid_edge[1:-1] \
                         * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
                         / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
-        diff_w_t[:] = (flux_edge[:-1]) / self.delta_r[:] / self.porosity_domain[:]
+        diff_w_t[:] = (flux_edge[:-1] - flux_edge[1:]) / self.delta_r[:] / self.porosity_domain[:]
     
     def f_conc1_odeu(self, t, conc_r):
         grid = self.grid
