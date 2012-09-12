@@ -278,8 +278,8 @@ class Yarn1DModel(object):
         stored
         """
         #first we calculate the mass in the void space:
-        mass = np.sum(conc * (np.power(self.grid_edge[1:],2) - 
-                                np.power(self.grid_edge[:-1],2)) ) * np.pi
+        mass = np.sum(conc * (np.power(self.grid_edge[1:], 2) - 
+                                np.power(self.grid_edge[:-1], 2)) ) * np.pi
         #print 'calc mass', mass,
         #now we add the mass in the fibers
         for ind, pos in enumerate(self.grid):
@@ -288,7 +288,7 @@ class Yarn1DModel(object):
                 #print 'fiber mass', self.fiber_mass
                 mass += (self.fiber_mass[ind, type] 
                             * self.nrf_shell[ind] * blend)
-                            
+        print 'yarn conc', conc
         print 'yarn totalmass',  mass, 'microgram'
         return mass
 

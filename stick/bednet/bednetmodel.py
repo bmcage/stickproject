@@ -168,23 +168,18 @@ class Bednet(object):
                     #for ind, xstart in enumerate(self.x0):
                     #print 'x0', x0, 'delta_t', self.delta_t, 'tt', tt
                     while k <= tt:
-                            z1V = -RV/(factor*(self.times[tt]-k*self.delta_t))
-                            z2V = -RV/(factor*(self.times[tt]-(k-1)*self.delta_t))
-                            #print 'z1V', z1V, 'z2V', z2V
-                            #raw_input()
-                            for i,z1 in enumerate(z1V):
-                                if k == tt:
-                                    expn1V[i] = 0.
-                                else:    
-                                    expn1V[i] = sp.special.expi(z1)
-                            for i,z2 in enumerate(z2V):  
-                                expn2V[i] = sp.special.expi(z2)
-                            #print 'expn1V', expn1V, 'expn2V', expn2V
-                            #raw_input()    
-                            #print 'self.source_mass[ttype,tt]', self.source_mass[ttype,tt], '(expn2V[ind]-expn1V[ind])', (expn2V[ind]-expn1V[ind])    
-                            #raw_input()
-                            termV += self.source_mass[ttype,tt]*(expn1V-expn2V)/(factor*np.pi)
-                            k += 1
+                        z2V = -RV/(factor*(self.times[tt]-(k-1)*self.delta_t))
+                        for i, z2 in enumerate(z2V):  
+                            expn2V[i] = sp.special.expi(z2)
+                            if k == tt:
+                                expn1V[i] = 0.
+                            else:
+                                expn1V[i] = sp.special.expi(\
+                                    z2 * (self.times[tt]-(k-1)*self.delta_t)\
+                                       /(self.times[tt]-k*self.delta_t))
+                        termV += self.source_mass[ttype,tt] \
+                                    * (expn1V-expn2V) / (factor*np.pi)
+                        k += 1
 
                     #print 'termV', termV 
                         #raw_input()
@@ -207,7 +202,7 @@ class Bednet(object):
             rt, rety = model.do_yarn_step(t)
             #print 'rety',rety
             #raw_input()
-            tmp = model.calc_mass(rety[-1])
+            tmp = model.calc_mass(rety)
             #V = np.pi * np.power(model.end_point, 2)    
             self.source_mass[ttype, self.tstep] = self.yarn_mass[ttype] - tmp
             #self.source_mass[ttype, self.tstep] /= V
@@ -229,11 +224,12 @@ class Bednet(object):
         print 'solV', solV
         solH = self.__loop_over_yarn(self.nhoryarns, self.dy)
         print 'solH', solH        
-        self.sol[self.tstep, :] = solV+solH 
+        self.sol[self.tstep, :] = solV + solH 
         print 'solution', self.sol[self.tstep,:]
         # 3. for next timestep, we need to set correct boundary condition
         #    on the yarn level
         for ind, model in enumerate(self.yarn_models):
+            print 'prev boundary conc', model.boundary_conc_out, self.sol[self.tstep-1, 0]
             model.boundary_conc_out = self.sol[self.tstep, 0]
             print 'boundary conc yarn', model.boundary_conc_out
         

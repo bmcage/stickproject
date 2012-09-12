@@ -322,8 +322,8 @@ class FiberModel(object):
         
         conc_r: concentration in self.grid
         """
-        return sp.sum(conc_r * (sp.power(self.grid_edge[1:],2) - 
-                                sp.power(self.grid_edge[:-1],2)) 
+        return sp.sum(conc_r * (sp.power(self.grid_edge[1:], 2) - 
+                                sp.power(self.grid_edge[:-1], 2)) 
                            * self.porosity_domain) * sp.pi 
 
         #print 'fibermass', mass
