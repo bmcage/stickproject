@@ -100,6 +100,7 @@ class DomainsplitTestModel(object):
         self.L = 1
         self.l = 0.4
         self.s = 0.5
+        self.volume_overlap = pi * (self.s**2 - self.l**2)
         self.diffusion_coeff = 1e-2
         self.tot_edges = 41
         self.tot_edges_sp1 = 41
@@ -134,20 +135,54 @@ class DomainsplitTestModel(object):
         self.delta_r = self.grid_edge[1:] - self.grid_edge[:-1]
         
         ##grid for split1 and split2
-        self.grid_edge_sp1 = sp.linspace(0., self.s, self.tot_edges_sp1)  
+        self.grid_edge_sp1 = sp.linspace(0., self.s, self.tot_edges_sp1)
+        #we add self.l here
+        for ind, grid in enumerate(self.grid_edge_sp1):
+            if grid > self.l: 
+                break
+        left = self.grid_edge_sp1[ind-1]
+        right = self.grid_edge_sp1[ind]
+        if self.l - left < right - self.l:
+            self.grid_edge_sp1[ind-1] = self.l
+        else:
+            assert ind != len(self.grid_edge_sp1) - 1
+            self.grid_edge_sp1[ind] = self.l
         #construct cell centers from this
         self.grid_sp1 = (self.grid_edge_sp1[:-1] + self.grid_edge_sp1[1:])/2.
         #obtain cell sizes
         self.delta_r_sp1 = self.grid_edge_sp1[1:] - self.grid_edge_sp1[:-1]
-        self.grid_edge_sp2 = sp.linspace(self.l, self.L, self.tot_edges_sp2)  
+        self.grid_edge_sp2 = sp.linspace(self.l, self.L, self.tot_edges_sp2)
+        #we add self.s here
+        for ind, grid in enumerate(self.grid_edge_sp2):
+            if grid > self.s: 
+                break
+        if ind == 1:
+            tmp = sp.linspace(self.l, self.L, self.tot_edges_sp2-1)
+            self.grid_edge_sp2[1] = self.s
+            self.grid_edge_sp2[2:] = tmp[1:]
+        else:
+            left = self.grid_edge_sp2[ind-1]
+            right = self.grid_edge_sp2[ind]
+            if self.s - left < right - self.s:
+                self.grid_edge_sp2[ind-1] = self.s
+            else:
+                self.grid_edge_sp2[ind] = self.s
         #construct cell centers from this
         self.grid_sp2 = (self.grid_edge_sp2[:-1] + self.grid_edge_sp2[1:])/2.
         #obtain cell sizes
         self.delta_r_sp2 = self.grid_edge_sp2[1:] - self.grid_edge_sp2[:-1]
+        print 'test grids'
+        print 'sp1', self.grid_edge_sp1
+        print 'sp2', self.grid_edge_sp2
 
         #create a fipy mesh for visualization and fipy computation
         self.mesh_fiber = CylindricalGrid1D(dx=tuple(self.delta_r))
         self.mesh_fiber.periodicBC = False
+        self.mesh_fiber_sp1 = CylindricalGrid1D(dx=tuple(self.delta_r_sp1))
+        self.mesh_fiber_sp1.periodicBC = False
+        self.mesh_fiber_sp2 = CylindricalGrid1D(dx=tuple(self.delta_r_sp2))
+        self.mesh_fiber_sp2.periodicBC = False
+        self.mesh_fiber_sp2 = self.mesh_fiber_sp2 + ((self.l,),)
 
     def initial_fiber(self):
         """ initial concentration over the domain"""
@@ -162,21 +197,58 @@ class DomainsplitTestModel(object):
         ## the init for the split domains
         self.initial_c1_sp2 = sp.zeros(self.tot_edges_sp2-1, float)
         self.initial_c1_sp1 = sp.zeros(self.tot_edges_sp1-1, float)
+        self.ind_l_sp1 = None
         for i, grid in enumerate(self.grid_sp1):
             if grid < self.l:
                 self.initial_c1_sp1[i] = 1.
+            else:
+                self.ind_l_sp1 = i
+                break
+        if self.ind_l_sp1 is None:
+            raise ValueError, 'grid domain 1 must have grid cell > l'
+        self.ind_s_sp2 = 1
+        for i, grid in enumerate(self.grid_sp2):
+            if grid < self.s:
+                pass
+            else:
+                self.ind_s_sp2 = i
+                break
         self.initial_w1_sp1 = self.initial_c1_sp1 * self.grid_sp1
         self.initial_w1_sp2 = self.initial_c1_sp2 * self.grid_sp2
+        if self.verbose:
+            m1 = self.calc_mass(self.initial_c1_sp1, split=1)
+            m2 = self.calc_mass(self.initial_c1_sp2, split=2)
+            print 'initial mass split = ', m1 , ' +' , m2, '=', m1+m2
 
-    def calc_mass(self, conc_r):
+    def calc_mass(self, conc_r, split=0):
         """calculate the mass of component present given value in cell center
         This is given by 2 \pi int_r1^r2 C(r)r dr
         
         conc_r: concentration in self.grid
         """
-        return sp.sum(conc_r * (sp.power(self.grid_edge[1:], 2) - 
-                                sp.power(self.grid_edge[:-1], 2)) 
+        if split == 1:
+            grid = self.grid_edge_sp1
+        elif split == 2:
+            grid = self.grid_edge_sp2
+        else:
+            grid = self.grid_edge
+        return sp.sum(conc_r * (sp.power(grid[1:], 2) - 
+                                sp.power(grid[:-1], 2)) 
                         ) * sp.pi 
+
+    def calc_mass_overlap_sp1(self, conc_r):
+        mass_overlap = sp.sum(conc_r[self.ind_l_sp1:] \
+                 * (sp.power(self.grid_edge_sp1[self.ind_l_sp1+1:], 2) - 
+                    sp.power(self.grid_edge_sp1[self.ind_l_sp1:-1], 2)) 
+                    ) * sp.pi
+        return mass_overlap
+
+    def calc_mass_overlap_sp2(self, conc_r):
+        mass_overlap = sp.sum(conc_r[:self.ind_s_sp2] \
+                 * (sp.power(self.grid_edge_sp1[1:self.ind_s_sp2+1], 2) - 
+                    sp.power(self.grid_edge_sp2[:self.ind_s_sp2], 2)) 
+                    ) * sp.pi
+        return mass_overlap
 
     def calc_volume(self):
         """calculate the volume over which the compound can move. We have
@@ -260,7 +332,10 @@ class DomainsplitTestModel(object):
                 * self.grid_edge_sp1[1:-1] \
                 * (w_rep[1:]/self.grid_sp1[1:] - w_rep[:-1]/self.grid_sp1[:-1])\
                 / ((self.delta_r_sp1[:-1] + self.delta_r_sp1[1:])/2.)
-        diff_w_t[:] = (flux_edge[:-1] - flux_edge[1:]) / self.delta_r_sp1[:] 
+        diff_w_t[:] = (flux_edge[:-1] - flux_edge[1:]) / self.delta_r_sp1[:]
+        #add the source term in the overlap part
+        diff_w_t[self.ind_l_sp1:] += self.grid_sp1[self.ind_l_sp1:] * \
+                        self.source_sp1
 
     def f_conc1_odes_sp2(self, t, w_rep, diff_w_t):
         grid = self.grid_sp2
@@ -275,7 +350,13 @@ class DomainsplitTestModel(object):
                 * self.grid_edge_sp2[1:-1] \
                 * (w_rep[1:]/self.grid_sp2[1:] - w_rep[:-1]/self.grid_sp2[:-1])\
                 / ((self.delta_r_sp2[:-1] + self.delta_r_sp2[1:])/2.)
-        diff_w_t[:] = (flux_edge[:-1] - flux_edge[1:]) / self.delta_r_sp2[:] 
+        diff_w_t[:] = (flux_edge[:-1] - flux_edge[1:]) / self.delta_r_sp2[:]
+        #add the source term in the overlap part
+        #print 'w_t bef', diff_w_t[:self.ind_s_sp2]
+        diff_w_t[:self.ind_s_sp2] += self.grid_sp2[:self.ind_s_sp2] * \
+                self.source_sp2 
+        #print 'w_t aft', diff_w_t[:self.ind_s_sp2]
+        #raw_input('')
 
     def solve_odes_init(self):
         """
@@ -285,6 +366,8 @@ class DomainsplitTestModel(object):
             raise Exception, 'Not possible to solve with given method, scikits.odes not available'
         self.initial_t = self.times[0]
         self.step_old_time = self.initial_t
+        self.step_old_time_sp1 = self.initial_t
+        self.step_old_time_sp2 = self.initial_t
         self.step_old_sol = self.initial_w1
         self.step_old_sol_sp1 = self.initial_w1_sp1
         self.step_old_sol_sp2 = self.initial_w1_sp2
@@ -324,19 +407,15 @@ class DomainsplitTestModel(object):
         self.solver.init_step(self.step_old_time, self.step_old_sol)
         self.solver_sp1 = sc_ode('cvode', self.f_conc1_odes_sp1,
                              max_steps=50000, lband=1, uband=1)
-        self.solver_sp1.init_step(self.step_old_time, self.step_old_sol_sp1)
+        self.solver_sp1.init_step(self.step_old_time_sp1, self.step_old_sol_sp1)
         self.solver_sp2 = sc_ode('cvode', self.f_conc1_odes_sp2,
                              max_steps=50000, lband=1, uband=1)
-        self.solver_sp2.init_step(self.step_old_time, self.step_old_sol_sp2)
+        self.solver_sp2.init_step(self.step_old_time_sp2, self.step_old_sol_sp2)
 
     def do_solve_step(self, stoptime):
         """
         Solve up to time t. This does:
            1. solve the global model up to t
-           2. solve split part 1 up to t
-           3. set correct flux/source term for part 2
-           4. solve split part 2 up to t
-           3. set correct flux/source term for part 1
         """
         compute = True
         #even is step is large, we don't compute for a longer time than delta_t
@@ -348,15 +427,59 @@ class DomainsplitTestModel(object):
                 compute = False
             #solve of global model
             time, conc = self.do_step_odes(t)
-            ## TODO Now the split problem, and compare it
-
+        self.plotting = False
         if self.plotevery:
             if self.viewerplotcount == 0:
                 self.solution_view.setValue(conc)
                 self.viewer.axes.set_title('time %s' %str(time))
+                self.plotting = True
                 self.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'conc%s.png' % str(int(10*time)))
             self.viewerplotcount += 1
             self.viewerplotcount = self.viewerplotcount % self.plotevery
+        return time, conc
+
+    def do_solve_step_sp1(self, stoptime):
+        """
+        Solve up to time t. This does:
+           2. solve split part 1 up to t
+        """
+        compute = True
+        #even is step is large, we don't compute for a longer time than delta_t
+        t = self.step_old_time_sp1
+        while compute:
+            t +=  self.delta_t
+            if  t >= stoptime - self.delta_t/100.:
+                t = stoptime
+                compute = False
+            #solve of global model
+            time, conc = self.do_step_odes_sp1(t)
+
+        if self.plotting:
+            self.solution_view_sp1.setValue(conc)
+            self.viewer_sp1.axes.set_title('time %s' %str(time))
+            self.viewer_sp1.plot(filename=utils.OUTPUTDIR + os.sep + 'conc_sp1_%s.png' % str(int(10*time)))
+        return time, conc
+
+    def do_solve_step_sp2(self, stoptime):
+        """
+        Solve up to time t. This does:
+           4. solve split part 2 up to t
+        """
+        compute = True
+        #even is step is large, we don't compute for a longer time than delta_t
+        t = self.step_old_time_sp2
+        while compute:
+            t +=  self.delta_t
+            if  t >= stoptime - self.delta_t/100.:
+                t = stoptime
+                compute = False
+            #solve of global model
+            time, conc = self.do_step_odes_sp2(t)
+
+        if self.plotting:
+            self.solution_view_sp2.setValue(conc)
+            self.viewer_sp2.axes.set_title('time %s' %str(time))
+            self.viewer_sp2.plot(filename=utils.OUTPUTDIR + os.sep + 'conc_sp2_%s.png' % str(int(10*time)))
         return time, conc
 
     def solve_odes(self, run_per_step = None, viewend = True):
@@ -402,6 +525,8 @@ class DomainsplitTestModel(object):
             self.solve_odes_reinit()
         else:
             self.solver.set_options(tstop=stoptime)
+            self.solver_sp1.set_options(tstop=stoptime)
+            self.solver_sp2.set_options(tstop=stoptime)
         compute = True
         #even is step is large, we don't compute for a longer time than delta_t
         t = self.step_old_time
@@ -418,6 +543,68 @@ class DomainsplitTestModel(object):
         self.step_old_sol = self.ret_y
         assert np.allclose(realtime, stoptime, atol=1e-6, rtol=1e-6)
         return realtime, self.ret_y / self.grid
+
+    def do_step_odes_sp1(self, stoptime):
+        """
+        Solve the fibermodel part 1 up to stoptime, continuing from the present
+        state, return time and r * concentration after step
+        It is needed that run_init and solve_init method have been called
+        before calling this method.
+        
+        A needreinit has to be set in the global model
+
+        Return: concentration over the grid
+        """
+        assert stoptime > self.step_old_time_sp1, "%f > %f" % (stoptime, self.step_old_time_sp1)
+        if not self.initialized:
+            raise Exception, 'Solver ode not initialized'
+        compute = True
+        #even is step is large, we don't compute for a longer time than delta_t
+        t = self.step_old_time_sp1
+        while compute:
+            t +=  self.delta_t
+            if  t >= stoptime - self.delta_t/100.:
+                t = stoptime
+                compute = False
+            flag, realtime = self.solver_sp1.step(t, self.ret_y_sp1)
+            if flag < 0:
+                raise Exception, 'could not find solution'
+        
+        self.step_old_time_sp1 = realtime
+        self.step_old_sol_sp1 = self.ret_y_sp1
+        assert np.allclose(realtime, stoptime, atol=1e-6, rtol=1e-6)
+        return realtime, self.ret_y_sp1 / self.grid_sp1
+
+    def do_step_odes_sp2(self, stoptime):
+        """
+        Solve the fibermodel part 2 up to stoptime, continuing from the present
+        state, return time and r * concentration after step
+        It is needed that run_init and solve_init method have been called
+        before calling this method.
+        
+        A needreinit has to be set in the global model
+
+        Return: concentration over the grid
+        """
+        assert stoptime > self.step_old_time_sp2, "%f > %f" % (stoptime, self.step_old_time_sp2)
+        if not self.initialized:
+            raise Exception, 'Solver ode not initialized'
+        compute = True
+        #even is step is large, we don't compute for a longer time than delta_t
+        t = self.step_old_time_sp2
+        while compute:
+            t +=  self.delta_t
+            if  t >= stoptime - self.delta_t/100.:
+                t = stoptime
+                compute = False
+            flag, realtime = self.solver_sp2.step(t, self.ret_y_sp2)
+            if flag < 0:
+                raise Exception, 'could not find solution'
+        
+        self.step_old_time_sp2 = realtime
+        self.step_old_sol_sp2 = self.ret_y_sp2
+        assert np.allclose(realtime, stoptime, atol=1e-6, rtol=1e-6)
+        return realtime, self.ret_y_sp2 / self.grid_sp2
 
     def solve(self):
         """
@@ -530,16 +717,71 @@ class DomainsplitTestModel(object):
         self.viewer.axes.set_title('time 0.0')
         self.viewer.plot()
         self.viewerplotcount = 1
+        self.solution_view_sp1 = CellVariable(name = "fiber concentration", 
+                mesh = self.mesh_fiber_sp1,
+                value = self.conc1_sp1[0][:])
+        self.viewer_sp1 =  Matplotlib1DViewer(vars = self.solution_view_sp1, 
+                            datamin=0., 
+                            datamax=1.2 * self.conc1[0].max())
+        self.viewer_sp1.axes.set_title('time 0.0')
+        self.viewer_sp1.plot()
+        self.solution_view_sp2 = CellVariable(name = "fiber concentration", 
+                mesh = self.mesh_fiber_sp2,
+                value = self.conc1_sp2[0][:])
+        self.viewer_sp2 =  Matplotlib1DViewer(vars = self.solution_view_sp2, 
+                            datamin=0., 
+                            datamax=1.2 * self.conc1[0].max())
+        self.viewer_sp2.axes.set_title('time 0.0')
+        self.viewer_sp2.plot()
         
+        """
+        Solve up to time t. This does:
+           1. solve global model up to time t
+           2. solve split part 1 up to t
+           3. set correct flux/source term for part 2
+           4. solve split part 2 up to t
+           5. set correct flux/source term for part 1
+        """
+        self.source_sp1 = 0
+        self.source_sp2 = 0
+        mass_overlap_sp1 = self.calc_mass_overlap_sp1(self.initial_c1_sp1)
+        mass_overlap_sp2 = self.calc_mass_overlap_sp2(self.initial_c1_sp2)
         for ind, t in enumerate(self.times[1:]):
-            #print 'solving t', t
+            #step 1.
             rt, conc = self.do_solve_step(t)
             self.conc1[ind+1][:] = conc[:]
             self.fiber_surface[ind+1] = conc[-1]
             self.flux_at_surface[ind+1] = 0.
+            #no we do same for the split function
+            #step 2. solve in domain 1
+            mass_overlap_sp1 = self.calc_mass_overlap_sp1(self.conc1_sp1[ind])
+            rt, conc_sp1 = self.do_solve_step_sp1(t)
+            self.conc1_sp1[ind+1][:] = conc_sp1[:]
+            #step 3. mass that went to domain 2
+            mass_overlap_sp1new = self.calc_mass_overlap_sp1(conc_sp1)
+            newmass = mass_overlap_sp1new - mass_overlap_sp1
+            mass_overlap_sp1 = mass_overlap_sp1new
+            # source term per area per second
+            self.source_sp2 = newmass / self.volume_overlap / self.delta_t
+            print'source sp2', self.source_sp2
+            #step 4. solve in domain 2
+            rt, conc_sp2 = self.do_solve_step_sp2(t)
+            self.conc1_sp2[ind+1][:] = conc_sp2[:]
+            #step 5. mass that was extracted from domain 1
+            mass_overlap_sp2new = self.calc_mass_overlap_sp2(conc_sp2)
+            newmass_sp2 = mass_overlap_sp2new - mass_overlap_sp2
+            mass_overlap_sp2 = mass_overlap_sp2new
+            # source term per area per second
+            self.source_sp1 = newmass_sp2 / self.volume_overlap / self.delta_t
+            print'source sp1', self.source_sp1
 
         if output:
             self.dump_solution()
+        if self.verbose:
+            print 'end mass = ', self.calc_mass(conc)
+            m1 = self.calc_mass(conc_sp1, split=1)
+            m2 = self.calc_mass(conc_sp2, split=2)
+            print 'initial mass split = ', m1 , ' +' , m2, '=', m1+m2
         if wait:
             raw_input("Finished domainsplit run")
 
