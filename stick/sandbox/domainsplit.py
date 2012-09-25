@@ -32,6 +32,7 @@ import scipy as sp
 from scipy.integrate import ode, trapz
 import matplotlib.pyplot as plt
 import time
+from math import pi
 
 HAVE_ODES = False
 try:
@@ -75,14 +76,15 @@ class DomainsplitTestModel(object):
     """
     def __init__(self):
         """ 
-        Domain is x in (0, L). Source S(x) in (0,l), l<L
+        Domain is x in (0, L). Source S(x) in (l,s), l<L
         Diffusion D = 1, L =1
         Split in (0,s), s = l + epsilon < L
         and (l, L), with adapted BC and source terms
         """
         self.solver = None
         self.verbose = True
-        self.time_period = 30.
+        self.plotting = False
+        self.time_period = 20
         self.delta_t = 0.1
         self.steps = int((self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t)
         self.times = sp.linspace(0, self.time_period, self.steps + 1)
@@ -135,18 +137,22 @@ class DomainsplitTestModel(object):
         self.delta_r = self.grid_edge[1:] - self.grid_edge[:-1]
         
         ##grid for split1 and split2
+        self.grid_edge_sp = []
         self.grid_edge_sp1 = sp.linspace(0., self.s, self.tot_edges_sp1)
         #we add self.l here
         for ind, grid in enumerate(self.grid_edge_sp1):
             if grid > self.l: 
                 break
+            self.grid_edge_sp.append(grid)
         left = self.grid_edge_sp1[ind-1]
         right = self.grid_edge_sp1[ind]
         if self.l - left < right - self.l:
             self.grid_edge_sp1[ind-1] = self.l
+            self.grid_edge_sp[-1] = self.l
         else:
             assert ind != len(self.grid_edge_sp1) - 1
             self.grid_edge_sp1[ind] = self.l
+            self.grid_edge_sp.append(self.l)
         #construct cell centers from this
         self.grid_sp1 = (self.grid_edge_sp1[:-1] + self.grid_edge_sp1[1:])/2.
         #obtain cell sizes
@@ -167,10 +173,18 @@ class DomainsplitTestModel(object):
                 self.grid_edge_sp2[ind-1] = self.s
             else:
                 self.grid_edge_sp2[ind] = self.s
+        for grid in self.grid_edge_sp2[1:]:
+            self.grid_edge_sp.append(grid)
+        self.grid_edge_sp = np.asarray(self.grid_edge_sp)
+        self.tot_edges_sp = len(self.grid_edge_sp)
         #construct cell centers from this
         self.grid_sp2 = (self.grid_edge_sp2[:-1] + self.grid_edge_sp2[1:])/2.
         #obtain cell sizes
         self.delta_r_sp2 = self.grid_edge_sp2[1:] - self.grid_edge_sp2[:-1]
+        #construct cell centers from this
+        self.grid_sp = (self.grid_edge_sp[:-1] + self.grid_edge_sp[1:])/2.
+        #obtain cell sizes
+        self.delta_r_sp = self.grid_edge_sp[1:] - self.grid_edge_sp[:-1]
         print 'test grids'
         print 'sp1', self.grid_edge_sp1
         print 'sp2', self.grid_edge_sp2
@@ -183,6 +197,8 @@ class DomainsplitTestModel(object):
         self.mesh_fiber_sp2 = CylindricalGrid1D(dx=tuple(self.delta_r_sp2))
         self.mesh_fiber_sp2.periodicBC = False
         self.mesh_fiber_sp2 = self.mesh_fiber_sp2 + ((self.l,),)
+        self.mesh_fiber_sp = CylindricalGrid1D(dx=tuple(self.delta_r_sp))
+        self.mesh_fiber_sp.periodicBC = False
 
     def initial_fiber(self):
         """ initial concentration over the domain"""
@@ -197,6 +213,8 @@ class DomainsplitTestModel(object):
         ## the init for the split domains
         self.initial_c1_sp2 = sp.zeros(self.tot_edges_sp2-1, float)
         self.initial_c1_sp1 = sp.zeros(self.tot_edges_sp1-1, float)
+        self.initial_c1_sp = sp.empty(self.tot_edges_sp-1, float)
+        self.__tmp_sp = sp.empty(self.tot_edges_sp-1, float)
         self.ind_l_sp1 = None
         for i, grid in enumerate(self.grid_sp1):
             if grid < self.l:
@@ -213,6 +231,8 @@ class DomainsplitTestModel(object):
             else:
                 self.ind_s_sp2 = i
                 break
+        self.initial_c1_sp[:self.ind_l_sp1] = self.initial_c1_sp1[:self.ind_l_sp1]
+        self.initial_c1_sp[self.ind_l_sp1:] = self.initial_c1_sp2[:]
         self.initial_w1_sp1 = self.initial_c1_sp1 * self.grid_sp1
         self.initial_w1_sp2 = self.initial_c1_sp2 * self.grid_sp2
         if self.verbose:
@@ -245,7 +265,7 @@ class DomainsplitTestModel(object):
 
     def calc_mass_overlap_sp2(self, conc_r):
         mass_overlap = sp.sum(conc_r[:self.ind_s_sp2] \
-                 * (sp.power(self.grid_edge_sp1[1:self.ind_s_sp2+1], 2) - 
+                 * (sp.power(self.grid_edge_sp2[1:self.ind_s_sp2+1], 2) - 
                     sp.power(self.grid_edge_sp2[:self.ind_s_sp2], 2)) 
                     ) * sp.pi
         return mass_overlap
@@ -277,7 +297,7 @@ class DomainsplitTestModel(object):
         """
         Method that takes BC into account to set flux on edge
         Data is written to flux_edge, w_rep contains solution in the cell centers
-        This is the flux of w over radius! So times 2 pi R for full flux w, or
+        (This is the flux of w over radius! So times 2 pi R for full flux w, or)
         for C times 2 pi.
         """
         # no flux
@@ -702,13 +722,25 @@ class DomainsplitTestModel(object):
     def run_init(self):
         self.create_mesh()
         self.initial_fiber()
-        
+    
+    def plot_sp(self, time, conc_sp1, conc_sp2):
+        """
+        Combines plot of splitted parts to create a single plot
+        """
+        if self.plotting:
+            self.__tmp_sp[:self.ind_l_sp1] = conc_sp1[:self.ind_l_sp1]
+            self.__tmp_sp[self.ind_l_sp1:] = conc_sp2[:]
+            self.solution_view_sp.setValue(self.__tmp_sp)
+            self.viewer_sp.axes.set_title('time %s' %str(time))
+            self.viewer_sp.plot(filename=utils.OUTPUTDIR + os.sep + 
+                                        'conc_sp_%s.png' % str(int(10*time)))
+
     def run(self, wait=False, output=False):
         self.run_init()
         if not self.initialized:
             self.solve_init()
         
-        self.solution_view = CellVariable(name = "fiber concentration", 
+        self.solution_view = CellVariable(name = "fiber conc single", 
                 mesh = self.mesh_fiber,
                 value = self.conc1[0][:])
         self.viewer =  Matplotlib1DViewer(vars = self.solution_view, 
@@ -717,7 +749,7 @@ class DomainsplitTestModel(object):
         self.viewer.axes.set_title('time 0.0')
         self.viewer.plot()
         self.viewerplotcount = 1
-        self.solution_view_sp1 = CellVariable(name = "fiber concentration", 
+        self.solution_view_sp1 = CellVariable(name = "fiber conc part 1", 
                 mesh = self.mesh_fiber_sp1,
                 value = self.conc1_sp1[0][:])
         self.viewer_sp1 =  Matplotlib1DViewer(vars = self.solution_view_sp1, 
@@ -725,7 +757,7 @@ class DomainsplitTestModel(object):
                             datamax=1.2 * self.conc1[0].max())
         self.viewer_sp1.axes.set_title('time 0.0')
         self.viewer_sp1.plot()
-        self.solution_view_sp2 = CellVariable(name = "fiber concentration", 
+        self.solution_view_sp2 = CellVariable(name = "fiber conc part 2", 
                 mesh = self.mesh_fiber_sp2,
                 value = self.conc1_sp2[0][:])
         self.viewer_sp2 =  Matplotlib1DViewer(vars = self.solution_view_sp2, 
@@ -733,6 +765,13 @@ class DomainsplitTestModel(object):
                             datamax=1.2 * self.conc1[0].max())
         self.viewer_sp2.axes.set_title('time 0.0')
         self.viewer_sp2.plot()
+        self.solution_view_sp = CellVariable(name = "fiber conc split", 
+                mesh = self.mesh_fiber_sp,
+                value = self.initial_c1_sp)
+        self.viewer_sp =  Matplotlib1DViewer(vars = self.solution_view_sp, 
+                            datamin=0., 
+                            datamax=1.2 * self.conc1[0].max())
+        self.plot_sp(0., self.conc1_sp1[0], self.conc1_sp2[0])
         
         """
         Solve up to time t. This does:
@@ -746,6 +785,8 @@ class DomainsplitTestModel(object):
         self.source_sp2 = 0
         mass_overlap_sp1 = self.calc_mass_overlap_sp1(self.initial_c1_sp1)
         mass_overlap_sp2 = self.calc_mass_overlap_sp2(self.initial_c1_sp2)
+        newmass_sp1 = 0.
+        newmass_sp2 = 0.
         for ind, t in enumerate(self.times[1:]):
             #step 1.
             rt, conc = self.do_solve_step(t)
@@ -759,29 +800,29 @@ class DomainsplitTestModel(object):
             self.conc1_sp1[ind+1][:] = conc_sp1[:]
             #step 3. mass that went to domain 2
             mass_overlap_sp1new = self.calc_mass_overlap_sp1(conc_sp1)
-            newmass = mass_overlap_sp1new - mass_overlap_sp1
+            newmass = mass_overlap_sp1new - mass_overlap_sp2
             mass_overlap_sp1 = mass_overlap_sp1new
             # source term per area per second
             self.source_sp2 = newmass / self.volume_overlap / self.delta_t
-            print'source sp2', self.source_sp2
             #step 4. solve in domain 2
             rt, conc_sp2 = self.do_solve_step_sp2(t)
             self.conc1_sp2[ind+1][:] = conc_sp2[:]
             #step 5. mass that was extracted from domain 1
             mass_overlap_sp2new = self.calc_mass_overlap_sp2(conc_sp2)
-            newmass_sp2 = mass_overlap_sp2new - mass_overlap_sp2
+            newmass_sp2 = mass_overlap_sp2new - mass_overlap_sp1
             mass_overlap_sp2 = mass_overlap_sp2new
             # source term per area per second
-            self.source_sp1 = newmass_sp2 / self.volume_overlap / self.delta_t
-            print'source sp1', self.source_sp1
+            self.source_sp1 = (newmass_sp2) / self.volume_overlap / self.delta_t
+            self.plot_sp(rt, self.conc1_sp1[ind+1], self.conc1_sp2[ind+1])
 
         if output:
             self.dump_solution()
         if self.verbose:
             print 'end mass = ', self.calc_mass(conc)
             m1 = self.calc_mass(conc_sp1, split=1)
+            mover = self.calc_mass_overlap_sp1(conc_sp1)
             m2 = self.calc_mass(conc_sp2, split=2)
-            print 'initial mass split = ', m1 , ' +' , m2, '=', m1+m2
+            print 'end mass split = ', m1-mover , ' +' , m2, '=', m1-mover+m2
         if wait:
             raw_input("Finished domainsplit run")
 
@@ -792,6 +833,9 @@ class DomainsplitTestModel(object):
             del self.solver
         self.solver = None
 
+""" function to start this sandbox test
+Typical calling sequence
+"""
 if __name__ == '__main__':
     dsm = DomainsplitTestModel()
-    dsm.run()
+    dsm.run(wait=True)
