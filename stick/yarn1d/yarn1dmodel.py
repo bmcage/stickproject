@@ -74,6 +74,7 @@ class Yarn1DModel(object):
     Only diffusion processes in a single fiber and yarn are considered. 
     ODE of scipy solve the diffusion process in the layers of DEET and permithrine
     which are on the fiber
+    An overlap region outside of the yarn can be added for multiscale simulations
     Fipy solve the transient diffusion problem in the whole domain
     """
     def __init__(self, config):
@@ -150,8 +151,24 @@ class Yarn1DModel(object):
         self.beginning_point = 0 #center of the yarn, r=0, with r the distance from center yarn.
         self.end_point = self.cfg.get('domain.yarnradius')
         self.nr_edge = self.cfg.get('domain.n_edge')
+        self.nr_cell = self.nr_edge - 1
+        self.use_extend = self.cfg.get("domain.useextension")
+        if self.use_extend:
+            self.end_extend = self.cfg.get('domain.extensionfraction') \
+                                * self.end_point
+            self.nr_edge_extend = max(2, 
+                    int(self.nr_edge*self.cfg.get('domain.extensionfraction')))
+        else:
+            self.end_extend = self.end_point
+            self.nr_edge_extend = 1
         #we now construct the full edge grid
-        self.grid_edge = np.linspace(self.beginning_point, self.end_point, self.nr_edge)
+        self.nr_edge_tot = self.nr_edge + self.nr_edge_extend - 1
+        self.nr_cell_tot = self.nr_edge_tot - 1
+        self.grid_edge = np.empty(self.nr_edge_tot, float)
+        self.grid_edge[:self.nr_edge] = np.linspace(self.beginning_point, 
+                                    self.end_point, self.nr_edge)
+        self.grid_edge[self.nr_edge:] = np.linspace(self.end_point,
+                                    self.end_extend, self.nr_edge_extend)[1:]
         #construct cell centers from this
         self.grid = (self.grid_edge[:-1] + self.grid_edge[1:])/2.
         #obtain cell sizes
@@ -161,7 +178,8 @@ class Yarn1DModel(object):
         
         #nrf is number of fibers in the shell at that grid position
         # per radial
-        self.nrf_shell = (self.delta_rsquare/(self.end_point**2) * self.nr_fibers)
+        self.nrf_shell = (self.delta_rsquare[:self.nr_cell]\
+                                / (self.end_point**2) * self.nr_fibers)
         
         #create fiber models as needed: one per fibertype and per cell in the yarn model
         self.fiber_models = [0] * (self.nr_edge - 1)
@@ -190,18 +208,15 @@ class Yarn1DModel(object):
 
     def initial_yarn1d(self):
         """ initial concentration over the domain"""
-        self.init_conc = np.ones(self.nr_edge-1, float)
-        for ind, r in enumerate(self.grid):
+        self.init_conc = np.zeros(self.nr_cell_tot, float)
+        #zero to the outside
+        for ind, r in enumerate(self.grid[:self.nr_cell]):
             self.init_conc[ind] = self.init_conc_func(r)
+        self.init_conc[self.nr_cell:] = self.cfg.get('domain.extensionfraction')
             
     def get_data(self, cellnr):
         index = cellnr
         return index
-        ##print 'the length of the self.step_old_sol', len(self.step_old_sol)
-        ##raw_input('check the value of length of sel.step_old_sol')
-        ##data_out = self.step_old_sol[cellnr]
-        #return self.step_old_sol[cellnr]
-        ##data_out = self.step_old_sol()
 
     def out_conc(self, data, t):
         """
@@ -209,9 +224,6 @@ class Yarn1DModel(object):
         time t
         """
         timenowyarn = self.step_old_time
-        #print 'the value of time t', t
-        #print 'the time for determine', timenowyarn
-        #raw_input('compare two time')
         if t >= timenowyarn:
             #return data
             return self.step_old_sol[data]
@@ -230,7 +242,6 @@ class Yarn1DModel(object):
                 model.run_init()
                 model.solve_init()
                 #rebind the out_conc method to a call to yarn1d
-                #model.yarndata = ind
                 model.set_userdata(self.get_data(ind))
                 model.out_conc = lambda t, data: self.out_conc(data, t)
                 self.fiber_mass[ind, type] = model.calc_mass(model.initial_c1)
@@ -244,14 +255,9 @@ class Yarn1DModel(object):
         for ind, models in enumerate(self.fiber_models):
             for type, model in enumerate(models):
                 time, result = model.do_step(stoptime, needreinit=False)
-                #print 'result from the calculation', ind, type, result
-                #raw_input('Enter for checking the result')
                 tmp = model.calc_mass(result)
-                #print 'fibermass', ind, type, self.fiber_mass[ind, type], 'tmp', tmp
                 self.source_mass[ind, type] = self.fiber_mass[ind, type] - tmp
                 self.fiber_mass[ind, type] = tmp
-##        print 'fiber step ', stoptime
-##        print 'mass', self.fiber_mass
 
     def _set_bound_flux(self, flux_edge, conc_r):
         """
@@ -260,17 +266,18 @@ class Yarn1DModel(object):
         Data is written to flux_edge, conc_r contains solution in the cell centers
         """
         flux_edge[0] = 0.
-        
         if self.bound_type == conf.TRANSFER:
             # tranfer flux, in x: flux_x  = tf * C, so radially per radial a flux
             #  flux_radial = 2 Pi * radius * flux_x / 2 * Pi
-            flux_edge[-1] = self.boundary_transf_right * conc_r[-1] * self.grid_edge[-1]
+            flux_edge[self.nr_edge-1] = self.boundary_transf_right \
+                    * conc_r[self.nr_cell-1] * self.grid_edge[self.nr_edge-1]
         elif self.bound_type == conf.DIFF_FLUX:
             # diffusive flux with the outside
             # flux radial = - D_out * (conc_out - yarn_edge_conc)/dist_conc_out * radius
-            flux_edge[-1] = (self.boundary_D_out * 
-                    (self.boundary_conc_out - conc_r[-1]) / self.boundary_dist 
-                    * self.grid_edge[-1])
+            flux_edge[self.nr_edge-1] = (self.boundary_D_out * 
+                    (self.boundary_conc_out - conc_r[self.nr_cell-1]) 
+                    / self.boundary_dist 
+                    * self.grid_edge[self.nr_edge-1])
 
     def calc_mass(self, conc):
         """
@@ -278,11 +285,11 @@ class Yarn1DModel(object):
         stored
         """
         #first we calculate the mass in the void space:
-        mass = np.sum(conc * (np.power(self.grid_edge[1:], 2) -
-                                np.power(self.grid_edge[:-1], 2)) ) * np.pi
+        mass = np.sum(conc * (np.power(self.grid_edge[1:self.nr_edge], 2) -
+                                np.power(self.grid_edge[:self.nr_edge-1], 2)) ) * np.pi
         #print 'calc mass', mass,
         #now we add the mass in the fibers
-        for ind, pos in enumerate(self.grid):
+        for ind, pos in enumerate(self.grid[:self.nr_cell]):
             for type, blend in enumerate(self.blend):
                 #nrf is number of fibers of blend in the shell at that grid position
                 #print 'fiber mass', self.fiber_mass
@@ -309,7 +316,7 @@ class Yarn1DModel(object):
         and divide by volume V to obtain Source-concentration, since concentration is mass/volume. 
         Afterwards we multiply this Source with \Delta r_i^2 / 2nV
         """
-        for ind, pos in enumerate(self.grid):
+        for ind, pos in enumerate(self.grid[:self.nr_cell]):
             self.source[ind] = 0.
             #V is the area of the shell
             V = np.pi*((pos+self.delta_r[ind])**2-pos**2)
@@ -343,7 +350,6 @@ class Yarn1DModel(object):
         
           d_t C = 1 / (r \delta r) * (flux_right - flux_left + Source (\delta r^2 /2) )
         """
-        ##print 't, concr', t, conc_r
         grid = self.grid
         n_cellcenters = len(grid)
         #Initialize the flux rate on the edges
@@ -374,7 +380,8 @@ class Yarn1DModel(object):
         self.conc1[0][:] = self.init_conc[:]
         self.step_old_sol = self.conc1[0]
         
-        self.solver = sc_ode('cvode', self.f_conc1_ode,min_step_size = 1e-8, rtol=1e+2, atol=1e+2 , 
+        self.solver = sc_ode('cvode', self.f_conc1_ode,
+                             min_step_size=1e-8, rtol=1e-2, atol=1e-2, 
                              max_steps=50000, lband=1, uband=1)
         self.solver.init_step(self.step_old_time, self.init_conc)
         self.initialized = True
@@ -434,12 +441,14 @@ class Yarn1DModel(object):
         conc[i][:] contains solution at time times[i]
         """
         if self.plotevery:
-            self.solution_view = CellVariable(name = "Yarn radial concentration", mesh = self.mesh_yarn, value = conc[0][:])
-            self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.20*conc.max())
+            self.solution_view = CellVariable(name="Yarn radial concentration",
+                        mesh=self.mesh_yarn, value=conc[0][:self.nr_cell])
+            self.viewer =  Matplotlib1DViewer(vars=self.solution_view,
+                                datamin=0., datamax=conc.max()+0.20*conc.max())
             self.viewerplotcount = 0
             self.viewerwritecount = 0
             for time, con in zip(times, conc):
-                self.solution_view.setValue(con)
+                self.solution_view.setValue(con[:self.nr_cell])
                 if self.viewerplotcount == 0 or (self.writeevery and 
                                             self.viewerwritecount == 0):
                     self.viewer.axes.set_title('time %s' %str(time))

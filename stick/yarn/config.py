@@ -130,6 +130,10 @@ class YarnConfigManager(ConfigManager):
             "preferred edge length of each mesh for fiber")
         self.register("domain.yarnradius", 1.,
             "radius of yarn domain in mm")
+        self.register("domain.useextension", False,
+            "extend the yarn domain with an extension outside the yarn")
+        self.register("domain.extensionfraction", 1.,
+            "extend the domain with this fraction*yarnradius")
         self.register("domain.fiberlayout_method", 'random',
             "Method for the fiber layout, one of " 
             + ",".join(FIBERLAYOUTS.keys()))
@@ -151,10 +155,14 @@ class YarnConfigManager(ConfigManager):
         self.register("fiber.prob_area", '[lambda r: r ** 2]')
 
         #initial section
-        self.register("initial.init_conc1d", 'lambda x: 0.', 
-            "Initial concentration of tracked compound in the yarn in terms of radius in 1D")
-        self.register("initial.init_conc2d", 'lambda x, y: 0', 
-            "Initial concentration of tracked compound in the yarn in terms of radius in 2D")
+        self.register("initial.init_conc1d", 'lambda r: 0.', 
+            "Initial concentration of tracked compound in the yarn in terms of"
+            " radius in 1D")
+        self.register("initial.init_conc2d", 'lambda r, theta: 0.', 
+            "Initial concentration of tracked compound in the yarn in terms of"
+            " radius, angle in 2D")
+        self.register('initial.init_extension', 0., 
+            'Initial concentration of tracked compound in the extension region')
         
         self.register("diffusion.diffusion_coeff", 25.,
             "Diffusion coefficient of tracked compound in the yarn in mm2/s")
