@@ -78,14 +78,12 @@ class Bednet(object):
         self.dy  = self.cfg.get('domain.dy')
         self.nvertyarns = self.cfg.get('domain.nr_vert_yarns')
         self.nhoryarns = self.cfg.get('domain.nr_hor_yarns')
-        self.size_sample = self.cfg.get('sample.size_sample')
         #self.thickness_sample = self.cfg.get('sample.thickness_sample')
         self.boundary_up = self.cfg.get('boundary.boundary_up')
         self.boundary_bottom = self.cfg.get('boundary.boundary_bottom')
         self.boundary_left = self.cfg.get('boundary.boundary_left')
         self.boundary_right = self.cfg.get('boundary.boundary_right')
         self.diff_coef = self.cfg.get('diffusion.diff_coef')
-        self.diff_DEET_void = self.cfg.get('diffusion.diff_DEET_void')
         self.saturation_conc = self.cfg.get('saturation.saturation_conc')
         x0 = self.cfg.get('observer.x0')
         self.x0 = np.empty(len(x0)+1, float)
@@ -103,6 +101,7 @@ class Bednet(object):
             print 'time', self.time_period
             self.cfg_yarn[-1].set("time.time_period", self.time_period)
             self.cfg_yarn[-1].set("boundary.dist_conc_out", float(self.x0[0]))
+            self.cfg_yarn[-1].set("boundary.D_out", self.diff_coef)
             
         #create yarn models
         self.yarn_models = []
@@ -150,7 +149,7 @@ class Bednet(object):
         sol = 0 
         while n <= nryarns: 
             RV = np.power(x0[:], 2) + np.power(n*dx, 2)
-            factor = 4 * self.diff_DEET_void
+            factor = 4 * self.diff_coef
             #determine first timestep to take into account
             firsttimestep = int(np.max(RV*1e-6/(factor*self.delta_t)))
             #determine max timestep to take into account, After 100 sec we assume

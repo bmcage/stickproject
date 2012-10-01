@@ -148,14 +148,13 @@ class Yarn1DModel(object):
         
         grid: the space position of each central point for every cell element (r-coordinate);
         """
-        self.beginning_point = 0 #center of the yarn, r=0, with r the distance from center yarn.
         self.end_point = self.cfg.get('domain.yarnradius')
         self.nr_edge = self.cfg.get('domain.n_edge')
         self.nr_cell = self.nr_edge - 1
         self.use_extend = self.cfg.get("domain.useextension")
         if self.use_extend:
-            self.end_extend = self.cfg.get('domain.extensionfraction') \
-                                * self.end_point
+            self.end_extend = self.end_point + \
+                self.cfg.get('domain.extensionfraction') * self.end_point
             self.nr_edge_extend = max(2, 
                     int(self.nr_edge*self.cfg.get('domain.extensionfraction')))
         else:
@@ -165,7 +164,7 @@ class Yarn1DModel(object):
         self.nr_edge_tot = self.nr_edge + self.nr_edge_extend - 1
         self.nr_cell_tot = self.nr_edge_tot - 1
         self.grid_edge = np.empty(self.nr_edge_tot, float)
-        self.grid_edge[:self.nr_edge] = np.linspace(self.beginning_point, 
+        self.grid_edge[:self.nr_edge] = np.linspace(0., 
                                     self.end_point, self.nr_edge)
         self.grid_edge[self.nr_edge:] = np.linspace(self.end_point,
                                     self.end_extend, self.nr_edge_extend)[1:]
@@ -185,35 +184,38 @@ class Yarn1DModel(object):
         self.fiber_models = [0] * (self.nr_edge - 1)
         self.fiber_mass = np.empty((self.nr_edge - 1, self.nr_models), float)
         self.source_mass = np.empty((self.nr_edge - 1, self.nr_models), float)
-        self.source = np.empty(self.nr_edge - 1, float)
+        self.source = np.zeros(self.nr_edge_tot - 1, float)
         for ind in range(self.nr_edge-1):
             self.fiber_models[ind] = []
             for cfg in self.cfg_fiber:
                 self.fiber_models[ind].append(FiberModel(cfg))
         
         #calculate the porosity as n=(pi Ry^2-nr_fibers pi Rf^2) / pi Ry^2
-        for ind, models in enumerate(self.fiber_models):
-            for type, model in enumerate(models):
-                self.porosity = (np.power(self.end_point,2) 
-                             - self.nr_fibers *  np.power(model.radius(),2))\
-                            / np.power(self.end_point,2)
+        #porosity in the yarn
+        self.porosity = np.ones(self.nr_cell_tot, float)
+        self.volfracfib = []  # volume fraction of the fiber types
+        for blend, model in zip(self.blend, self.fiber_models[0]):
+            self.volfracfib.append(
+                    blend * self.nr_fibers *  np.power(model.radius(),2)
+                            / np.power(self.end_point,2) )
+        self.porosity[:self.nr_cell] = 1- np.sum(self.volfracfib)
         
         #create cylindrical 1D grid over domain for using fipy to view.
         if self.plotevery:
-            self.mesh_yarn = CylindricalGrid1D(dr=tuple(self.delta_r))
+            self.mesh_yarn = CylindricalGrid1D(dr=tuple(self.delta_r[:self.nr_cell]))
             self.mesh_yarn.periodicBC = False
-            self.mesh_yarn = self.mesh_yarn + (self.beginning_point,)
+            self.mesh_yarn = self.mesh_yarn
 
         print 'mesh', self.grid_edge, ', delta_r', self.delta_r
 
     def initial_yarn1d(self):
         """ initial concentration over the domain"""
-        self.init_conc = np.zeros(self.nr_cell_tot, float)
+        self.init_conc = np.empty(self.nr_cell_tot, float)
         #zero to the outside
         for ind, r in enumerate(self.grid[:self.nr_cell]):
             self.init_conc[ind] = self.init_conc_func(r)
-        self.init_conc[self.nr_cell:] = self.cfg.get('domain.extensionfraction')
-            
+        self.init_conc[self.nr_cell:] = self.cfg.get('boundary.conc_out')
+
     def get_data(self, cellnr):
         index = cellnr
         return index
@@ -266,18 +268,33 @@ class Yarn1DModel(object):
         Data is written to flux_edge, conc_r contains solution in the cell centers
         """
         flux_edge[0] = 0.
+        #avergage porosity on edge:
+        if self.use_extend:
+            porright = (self.porosity[self.nr_cell-1] + self.porosity[self.nr_cell]) /2
+        else:
+            porright = (self.porosity[self.nr_cell-1] + 1.) /2
         if self.bound_type == conf.TRANSFER:
             # tranfer flux, in x: flux_x  = tf * C, so radially per radial a flux
             #  flux_radial = 2 Pi * radius * flux_x / 2 * Pi
-            flux_edge[self.nr_edge-1] = self.boundary_transf_right \
+            flux_edge[self.nr_edge-1] = self.boundary_transf_right * porright \
                     * conc_r[self.nr_cell-1] * self.grid_edge[self.nr_edge-1]
         elif self.bound_type == conf.DIFF_FLUX:
             # diffusive flux with the outside
             # flux radial = - D_out * (conc_out - yarn_edge_conc)/dist_conc_out * radius
-            flux_edge[self.nr_edge-1] = (self.boundary_D_out * 
-                    (self.boundary_conc_out - conc_r[self.nr_cell-1]) 
-                    / self.boundary_dist 
+            if self.use_extend:
+                conright = conc_r[self.nr_cell]
+                bcdist = (self.delta_r[self.nr_cell-1]+self.delta_r[self.nr_cell])/2.
+            else:
+                conright = self.boundary_conc_out
+                bcdist = self.boundary_dist
+            print 'fluxdiff', conright - conc_r[self.nr_cell-1], self.boundary_conc_out,  conc_r[self.nr_cell-1]
+            flux_edge[self.nr_edge-1] = (self.boundary_D_out * porright * 
+                    (conright - conc_r[self.nr_cell-1]) 
+                    / bcdist 
                     * self.grid_edge[self.nr_edge-1])
+        if self.use_extend:
+            #zero flux at right boundary
+            flux_edge[-1] = 0.
 
     def calc_mass(self, conc):
         """
@@ -326,7 +343,7 @@ class Yarn1DModel(object):
                 self.source[ind] += (self.source_mass[ind, type] 
                                         * self.nrf_shell[ind] * blend)
             #self.source[ind] /= timestep
-            self.source[ind] /= V*self.porosity
+            self.source[ind] /= V*self.porosity[ind]
         ## TODO Tine, what formula is this? Comment above says just multiply...
         ##self.source *= self.delta_rsquare / (2.*V*self.porosity)
         ## I think:
@@ -354,14 +371,27 @@ class Yarn1DModel(object):
         n_cellcenters = len(grid)
         #Initialize the flux rate on the edges
         flux_edge = self.__tmp_flux_edge
+        #set flux on edge 0, self.nr_edge-1 and -1
         self._set_bound_flux(flux_edge, conc_r)
 
         #calculate flux rate in each edge of the domain
-        flux_edge[1:-1] = (2 * (self.diff_coef/self.tortuosity) *
-                           self.grid_edge[1:-1]*(conc_r[1:]-conc_r[:-1])
-                           /(self.delta_r[:-1]+self.delta_r[1:]))
+        flux_edge[1:self.nr_edge-1] = (2 * (self.diff_coef/self.tortuosity) *
+            self.grid_edge[1:self.nr_edge-1] *
+            (conc_r[1:self.nr_cell]-conc_r[:self.nr_cell-1])
+            /(self.delta_r[:self.nr_cell-1]+self.delta_r[1:self.nr_cell])
+            * (self.porosity[:self.nr_cell-1] + self.porosity[1:self.nr_cell])/2
+            )
+        if self.use_extend:
+            # diffusion in the outside region
+            flux_edge[self.nr_edge:-1] = (2 * self.boundary_D_out *
+            self.grid_edge[self.nr_edge:-1] *
+            (conc_r[self.nr_cell+1:]-conc_r[self.nr_cell:-1])
+            /(self.delta_r[self.nr_cell:-1]+self.delta_r[self.nr_cell+1:])
+            * (self.porosity[self.nr_cell:-1] + self.porosity[self.nr_cell+1:])/2
+            )
+        
         diff_u_t[:] = ( ((flux_edge[1:]-flux_edge[:-1]) + self.source[:])
-                        / self.delta_r[:] 
+                        / self.delta_r[:] / self.porosity[:]
                       )
         
         diff_u_t[:] = diff_u_t[:] / self.grid[:]

@@ -121,6 +121,7 @@ class YarnConfigManager(ConfigManager):
             "Solution method to use, one of " + ",".join(METHOD.keys()))
         self.register("general.submethod", 'fipy', 
             "Solution submethod to use")
+
         #domain section
         self.register("domain.distribute_fiber", 'integral',
             "distribute fiber to the yarn layout")
@@ -164,6 +165,7 @@ class YarnConfigManager(ConfigManager):
         self.register('initial.init_extension', 0., 
             'Initial concentration of tracked compound in the extension region')
         
+        #diffusion
         self.register("diffusion.diffusion_coeff", 25.,
             "Diffusion coefficient of tracked compound in the yarn in mm2/s")
         
