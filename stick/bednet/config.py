@@ -122,7 +122,6 @@ class BednetConfigManager(ConfigManager):
         self.register("saturation.saturation_conc", 5.0)
         
         self.register("initial.init_conc", 0.0)
-        self.register("initial.init_void", 0.0)
         
         self.register("boundary.boundary_up", 0.0)
         self.register("boundary.boundary_bottom", 0.0)

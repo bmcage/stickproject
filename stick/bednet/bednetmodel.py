@@ -70,7 +70,7 @@ class Bednet(object):
         self.delta_t = self.times[1]-self.times[0]
         if self.verbose:
             print "Timestep used in bednet model:", self.delta_t
-
+        self.initconc = self.cfg.get('initial.init_conc')
         #self.n = self.cfg.get('domain.nr_vert_yarns')
         #self.m = self.cfg.get('domain.nr_hor_yarns')   
         self.domain_size = self.cfg.get('domain.domain_size')
@@ -90,7 +90,7 @@ class Bednet(object):
         self.x0[1:] = x0[:]
         
         #we set a distance for the yarn bc
-        self.x0[0] = 0.1
+        EXTFRAC = 1.
         self.cfg_yarn = []
         for filename in self.cfg.get('sample.yarn_config'):
             if not os.path.isabs(filename):
@@ -102,7 +102,20 @@ class Bednet(object):
             self.cfg_yarn[-1].set("time.time_period", self.time_period)
             self.cfg_yarn[-1].set("boundary.dist_conc_out", float(self.x0[0]))
             self.cfg_yarn[-1].set("boundary.D_out", self.diff_coef)
+            self.cfg_yarn[-1].set("boundary.conc_out", self.initconc)
+            self.cfg_yarn[-1].set("domain.useextension", True)
+            ##TODO How much overlap region? Take one yarn radius for now
+            self.cfg_yarn[-1].set("domain.extensionfraction", EXTFRAC)
+        radyarn = self.cfg_yarn[-1].get("domain.yarnradius")
+        for conf in self.cfg_yarn:
+            assert radyarn == self.cfg_yarn[-1].get("domain.yarnradius")
             
+        # we need concentration at half of the extra zone
+        self.x0[0] = radyarn + EXTFRAC*radyarn/2
+        self.overlapsize = EXTFRAC*radyarn
+        self.overlaparea = np.pi * (np.power(radyarn+self.overlapsize,2)
+                                    - np.power(radyarn,2))
+        
         #create yarn models
         self.yarn_models = []
         for cfg in self.cfg_yarn:
@@ -115,18 +128,11 @@ class Bednet(object):
         #plot the result every few seconds so outcome becomes visible during calculations
         self.plotevery = self.cfg.get("plot.plotevery")
 
-    def initial_void_conc(self):
-        """ initial concentration over the domain"""
-        self.init_void = self.cfg.get('initial.init_void')
-        if self.plotevery:
-            self.viewerplotcount = 1
-        
     def init_yarn(self):
         self.yarn_mass = [0] * len(self.yarn_models)
         self.tstep = 0
         for ind, model in enumerate(self.yarn_models):
             model.do_yarn_init()
-            model.boundary_conc_out = self.initconc
             if model.bound_type != 0 : 
                 print ' ***********************************************'
                 print ' ******  WARNING: Boundary condition not diffusion flux,'\
@@ -135,10 +141,6 @@ class Bednet(object):
             self.yarn_mass[ind] = model.calc_mass(model.init_conc)
             # no mass released at start time
             self.source_mass[ind, self.tstep] = 0
-    
-    def initial_boundary_conc(self):
-        self.initconc = self.cfg.get('initial.init_conc')
-        self.initvoidconc = self.cfg.get('initial.init_void')
 
     def __loop_over_yarn(self, nryarns, dx):
         x0 = self.x0
@@ -204,11 +206,15 @@ class Bednet(object):
             #V = np.pi * np.power(model.end_point, 2)    
             self.source_mass[ttype, self.tstep] = self.yarn_mass[ttype] - tmp
             #self.source_mass[ttype, self.tstep] /= V
-            print 'mass yarn now', tmp, 'pref', self.yarn_mass[ttype], 'release', self.source_mass[ttype, self.tstep]
+            print 'mass yarn now', tmp, 'prev', self.yarn_mass[ttype], 'release', self.source_mass[ttype, self.tstep]
             self.yarn_mass[ttype] = tmp
             if self.source_mass[ttype, self.tstep] < 0.:
-                raise NotImplementedError, 'source must be positive, negative not supported'
-        raw_input('Continue press ENTER')
+                if abs(self.source_mass[ttype, self.tstep]) < 1e-7:
+                    self.source_mass[ttype, self.tstep] = 0.
+                    print 'WARNING: small negative release, set to 0'
+                else:
+                    raise NotImplementedError, 'source must be positive, negative not supported'
+        ##raw_input('Continue press ENTER')
 
         # 2. step two, solve the bednet model
         #    to obtain value near yarn, and at observer
@@ -227,9 +233,18 @@ class Bednet(object):
         # 3. for next timestep, we need to set correct boundary condition
         #    on the yarn level
         for ind, model in enumerate(self.yarn_models):
-            print 'prev boundary conc', model.boundary_conc_out, self.sol[self.tstep-1, 0]
-            model.boundary_conc_out = self.sol[self.tstep, 0]
-            print 'boundary conc yarn', model.boundary_conc_out
+            #the source mass is what was present in the overlap
+            massoverlapold = self.source_mass[ttype, self.tstep]
+            #the new mass there we approximate
+            massoverlapnew = self.sol[self.tstep, 0] * self.overlaparea
+            massremoved = massoverlapold - massoverlapnew
+            print 'prev mass overlap', massoverlapold, 'new', massoverlapnew, 'removed:', massremoved
+            #based on removed, we set a source term in the overlap zone of 
+            # of the yarn
+            model.source_overlap = -massremoved / self.tstep / self.overlaparea
+            #print 'prev boundary conc', model.boundary_conc_out, self.sol[self.tstep-1, 0]
+            #model.boundary_conc_out = self.sol[self.tstep, 0]
+            #print 'boundary conc yarn', model.boundary_conc_out
 
         fipy.dump.write({
                         'time':self.tstep,
@@ -256,7 +271,6 @@ class Bednet(object):
     def init_bednet(self):
         self.sol = np.empty((self.timesteps+1, len(self.x0)), float)
         self.sol[0, :] = 0
-        self.initial_boundary_conc()
         self.init_yarn()
 
     def run(self, wait=False):

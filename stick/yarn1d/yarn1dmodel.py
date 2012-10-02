@@ -138,6 +138,9 @@ class Yarn1DModel(object):
         
         self.plotevery = self.cfg.get("plot.plotevery")
         self.writeevery = self.cfg.get("plot.writeevery")
+        
+        #allow a multiscale model to work with a source in overlap zone
+        self.source_overlap = 0.
 
         self.initialized = False
 
@@ -287,7 +290,7 @@ class Yarn1DModel(object):
             else:
                 conright = self.boundary_conc_out
                 bcdist = self.boundary_dist
-            print 'fluxdiff', conright - conc_r[self.nr_cell-1], self.boundary_conc_out,  conc_r[self.nr_cell-1]
+            ##print 'fluxdiff', conright - conc_r[self.nr_cell-1], self.boundary_conc_out,  conc_r[self.nr_cell-1]
             flux_edge[self.nr_edge-1] = (self.boundary_D_out * porright * 
                     (conright - conc_r[self.nr_cell-1]) 
                     / bcdist 
@@ -302,16 +305,21 @@ class Yarn1DModel(object):
         stored
         """
         #first we calculate the mass in the void space:
-        mass = np.sum(conc * (np.power(self.grid_edge[1:self.nr_edge], 2) -
-                                np.power(self.grid_edge[:self.nr_edge-1], 2)) ) * np.pi
+        mass = np.sum(conc[:self.nr_cell] * 
+                      (np.power(self.grid_edge[1:self.nr_edge], 2) -
+                        np.power(self.grid_edge[:self.nr_edge-1], 2)) *
+                      self.porosity[:self.nr_cell]
+                     ) * np.pi
         #print 'calc mass', mass,
         #now we add the mass in the fibers
         for ind, pos in enumerate(self.grid[:self.nr_cell]):
             for type, blend in enumerate(self.blend):
                 #nrf is number of fibers of blend in the shell at that grid position
                 #print 'fiber mass', self.fiber_mass
-                mass += (self.fiber_mass[ind, type] 
+                massfib = (self.fiber_mass[ind, type] 
                             * self.nrf_shell[ind] * blend)
+                ##print 'mass fibers per shell', massfib
+                mass += massfib
         print 'yarn conc', conc
         print 'yarn totalmass',  mass, 'microgram'
         return mass
@@ -343,7 +351,7 @@ class Yarn1DModel(object):
                 self.source[ind] += (self.source_mass[ind, type] 
                                         * self.nrf_shell[ind] * blend)
             #self.source[ind] /= timestep
-            self.source[ind] /= V*self.porosity[ind]
+            self.source[ind] /= V*self.porosity[ind] * timestep
         ## TODO Tine, what formula is this? Comment above says just multiply...
         ##self.source *= self.delta_rsquare / (2.*V*self.porosity)
         ## I think:
@@ -351,6 +359,7 @@ class Yarn1DModel(object):
         ## so only remains to divide by volume shell. HOWEVER, this must be 
         ## in for loop at level of cell, so pos. In essence, you have a 
         ## factor self.delta_rsquare / 2   more that I don't see
+        ## Also: source must be per second, so divided by the timestep
 
     def f_conc1_ode(self, t, conc_r, diff_u_t):
         """
@@ -390,10 +399,12 @@ class Yarn1DModel(object):
             * (self.porosity[self.nr_cell:-1] + self.porosity[self.nr_cell+1:])/2
             )
         
-        diff_u_t[:] = ( ((flux_edge[1:]-flux_edge[:-1]) + self.source[:])
-                        / self.delta_r[:] / self.porosity[:]
+        diff_u_t[:] = ((flux_edge[1:]-flux_edge[:-1])
+                            / self.delta_r[:]/ self.porosity[:]
+                         + self.source[:]
                       )
-        
+        if self.use_extend:
+            diff_u_t[self.nr_cell:] += self.source_overlap
         diff_u_t[:] = diff_u_t[:] / self.grid[:]
 
     def solve_ode_init(self):
