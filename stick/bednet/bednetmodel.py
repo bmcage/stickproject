@@ -280,7 +280,7 @@ class Bednet(object):
             plt.plot(self.times, np.ones(len(self.times)) * self.treshold, 'b--')
             plt.show()
             plt.savefig(utils.OUTPUTDIR + os.sep 
-                        + 'AIconc_%03.1f_mm.png' % pos)
+                        + 'AIconc_%03.1f_mm' % pos + const.FIGFILEEXT)
                 
         #fipy.dump.write({plt.plot},filename=utils.OUTPUTDIR + os.sep + 'bednetconc%08.4f.png' % t)
 

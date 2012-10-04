@@ -120,7 +120,8 @@ class BednetConfigManager(ConfigManager):
         self.register("diffusion.tortuosity_fab", 2.)
         
         #data about the active component
-        self.register("active_component.saturation_conc", 5.0)
+        self.register("active_component.saturation_conc", 5.589e-5,
+            "Saturation concentration for the active component in microgram/mm^3")
         self.register("active_component.treshold_effect", 2e-6,
             "Treshold the active component should reach in the environment"
             " in microgram/mm^3")
@@ -133,7 +134,8 @@ class BednetConfigManager(ConfigManager):
         self.register("boundary.boundary_right", 0.0)
         
         self.register("plot.plotevery", 10,
-            "When plotting over time, indicate how many steps dt to skip before plotting again")
+            "When plotting over time, indicate how many steps dt to skip "
+            "before plotting again")
         
         self.register("time.time_period", 5000.)
         self.register("time.dt", 100.0)

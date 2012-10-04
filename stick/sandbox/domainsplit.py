@@ -834,7 +834,8 @@ class DomainsplitTestModel(object):
         self.solver = None
 
 """ function to start this sandbox test
-Typical calling sequence
+Typical calling sequence 
+PYTHONPATH=/home/benny/git/odes/build/lib.linux-x86_64-2.7/:/home/benny/git/stickproject/stick python domainsplit.py
 """
 if __name__ == '__main__':
     dsm = DomainsplitTestModel()

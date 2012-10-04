@@ -60,7 +60,22 @@ def main():
         print "ERROR: first argument must be the program to run."
         print " possibilities: " + ' '.join(PROGS)
         sys.exit()
-    
+    remove = None
+    for ind, val in enumerate(ARGS):
+        if val == '--backend':
+            backend = ARGS[ind+1]
+            if backend in ['ps', 'PS', 'eps']:
+                import matplotlib
+                print 'pyplot backend', matplotlib.get_backend()
+                matplotlib.use('PS') # 'cairo.pdf', 'cairo.png'
+                import const
+                const.FIGFILEEXT = '.eps'
+                print 'changed to backend', matplotlib.get_backend()
+            remove = ind
+            break
+    if remove:
+        del ARGS[remove+1]
+        del ARGS[remove]
     modname = PROGS[ARGS[1]]
     _topmodule = __import__(modname)
     #run the program, shift ARGS by one

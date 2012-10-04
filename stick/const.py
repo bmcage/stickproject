@@ -40,6 +40,9 @@ import platform
 #-------------------------------------------------------------------------
 URL_HOMEPAGE    = "http://gitorious.org/stickproject"
 
+global FIGFILEEXT
+FIGFILEEXT = '.png'
+
 #-------------------------------------------------------------------------
 #
 # paths
