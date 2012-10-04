@@ -250,8 +250,9 @@ class Bednet(object):
             #print 'boundary conc yarn', model.boundary_conc_out
 
         fipy.dump.write({
-                        'time':self.tstep,
-                        'concentration': self.sol[self.tstep,0] },
+                        'time': self.tstep,
+                        'xpos': self.x0,
+                        'concentration': self.sol[self.tstep, :] },
                         filename=utils.OUTPUTDIR + os.sep + 'bednet_sol_%08d.gz'%(self.tstep)   ,
                         extension='.gz')
 
