@@ -119,7 +119,11 @@ class BednetConfigManager(ConfigManager):
             "Diffusion in air of the active component, in mm^2/s")
         self.register("diffusion.tortuosity_fab", 2.)
         
-        self.register("saturation.saturation_conc", 5.0)
+        #data about the active component
+        self.register("active_component.saturation_conc", 5.0)
+        self.register("active_component.treshold_effect", 2e-6,
+            "Treshold the active component should reach in the environment"
+            " in microgram/mm^3")
         
         self.register("initial.init_conc", 0.0)
         

@@ -32,6 +32,7 @@ import scipy as sp
 from scipy import integrate
 from scipy.integrate import quad
 import matplotlib.pyplot as plt
+import pylab
 import sets
 import time
 import math
@@ -84,7 +85,8 @@ class Bednet(object):
         self.boundary_left = self.cfg.get('boundary.boundary_left')
         self.boundary_right = self.cfg.get('boundary.boundary_right')
         self.diff_coef = self.cfg.get('diffusion.diff_coef')
-        self.saturation_conc = self.cfg.get('saturation.saturation_conc')
+        self.saturation_conc = self.cfg.get('active_component.saturation_conc')
+        self.treshold = self.cfg.get('active_component.treshold_effect')
         x0 = self.cfg.get('observer.x0')
         self.x0 = np.empty(len(x0)+1, float)
         self.x0[1:] = x0[:]
@@ -144,19 +146,20 @@ class Bednet(object):
 
     def __loop_over_yarn(self, nryarns, dx):
         x0 = self.x0
+        x02 = np.power(x0[:], 2)
+        factor = 4 * self.diff_coef
         n = 0
         termV = np.zeros(len(x0),float)
         expn1V = np.empty(len(x0),float)
         expn2V = np.empty(len(x0),float)
         sol = 0 
+        #determine max timestep to take into account in the summation
+        # After 100 sec we assume no longer influence
+        maxtimestep = int(100 / self.delta_t)
         while n <= nryarns: 
-            RV = np.power(x0[:], 2) + np.power(n*dx, 2)
-            factor = 4 * self.diff_coef
+            RV = x02 + n*n*dx*dx
             #determine first timestep to take into account
             firsttimestep = int(np.max(RV*1e-6/(factor*self.delta_t)))
-            #determine max timestep to take into account, After 100 sec we assume
-            # no longer influence
-            maxtimestep = int(100 / self.delta_t)
             firsttimestep = max(firsttimestep, self.tstep-maxtimestep)
             for ttt in np.arange(int(firsttimestep), self.tstep):
                 tt = ttt+1
@@ -259,13 +262,26 @@ class Bednet(object):
         #self.plottimes = np.arange(self.times[0],self.times[-1]+1,self.plotevery)
         plt.ion()
         for ind, pos in enumerate(self.x0[1:]):
-            #if t in self.plottimes:
-                plt.figure(ind)
-                plt.plot(self.times, self.sol[:, ind+1])
-                #plt.ylim(0, maxv*1.1)
-                plt.title('Concentration at position %g mm' % pos)
-                plt.show()
-            #else: break    
+            plt.rc("font", family="serif")
+            plt.rc("font", size=10)
+            width = 4.5  #width in inches
+            height = 1.4 #height in inches
+            plt.rc("figure.subplot", left=(50/72.27)/width)
+            plt.rc("figure.subplot", right=(width-10/72.27)/width)
+            plt.rc("figure.subplot", bottom=(14/72.27)/height)
+            plt.rc("figure.subplot", top=(height-7/72.27)/height)
+            plt.figure(ind)
+            plt.gca().set_xlabel('Time [s]')
+            plt.gca().set_ylabel('Concentration [$\mu$g/mm$^3$]')
+            #plt.gca().yaxis.set_major_formatter(pylab.FormatStrFormatter('%e'))
+            plt.title('Concentration at position %g mm' % pos)
+            plt.plot(self.times, self.sol[:, ind+1])
+            #plt.ylim(0, maxv*1.1)
+            plt.plot(self.times, np.ones(len(self.times)) * self.treshold, 'b--')
+            plt.show()
+            plt.savefig(utils.OUTPUTDIR + os.sep 
+                        + 'AIconc_%03.1f_mm.png' % pos)
+                
         #fipy.dump.write({plt.plot},filename=utils.OUTPUTDIR + os.sep + 'bednetconc%08.4f.png' % t)
 
     def init_bednet(self):
