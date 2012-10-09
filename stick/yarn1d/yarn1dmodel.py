@@ -28,7 +28,6 @@ Module holding a 1D cylindrical diffusion model for a yarn.
 from __future__ import division
 import os.path
 import sys
-import const
 import numpy as np
 
 HAVE_ODES = False
@@ -49,10 +48,11 @@ from copy import copy
 # Local Imports
 #
 #-------------------------------------------------------------------------
-import lib.utils.utils as utils
-import yarn.config as conf
-from fiber.config import FiberConfigManager
-from fiber1d.fibermodel import FiberModel
+import stick.const as const
+import stick.lib.utils.utils as utils
+import stick.yarn.config as conf
+from stick.fiber.config import FiberConfigManager
+from stick.fiber1d.fibermodel import FiberModel
 
 #-------------------------------------------------------------------------
 #

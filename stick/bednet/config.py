@@ -30,8 +30,9 @@ This package implements config defaults for DiffusionIT
 #---------------------------------------------------------------
 from __future__ import division
 import os
-import const
-from lib.config import ConfigManager
+
+import stick.const as const
+from stick.lib.config import ConfigManager
 
 #---------------------------------------------------------------
 #
@@ -40,8 +41,8 @@ from lib.config import ConfigManager
 #---------------------------------------------------------------
 INIFILE_DEFAULT = const.INI_DIR + os.sep + 'fabric' + os.sep + 'defaultfabric.ini'
 
-LONGOPTS = ["inifile", 'outputdir']
-SHORTOPTS = "i:o" 
+LONGOPTS = ["inifile", 'outputdir', 'analytic']
+SHORTOPTS = "i:o:a" 
 
 #---------------------------------------------------------------
 #

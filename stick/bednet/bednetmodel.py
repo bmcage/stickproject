@@ -26,7 +26,6 @@
 from __future__ import division
 import os.path
 import sys
-import const
 import numpy as np
 import scipy as sp
 from scipy import integrate
@@ -43,11 +42,11 @@ import fipy
 # Local Imports
 #
 #-------------------------------------------------------------------------
-import lib.utils.utils as utils
-import lib.utils.gridutils as GridUtils
-import bednet.config as conf
-from yarn.config import YarnConfigManager
-from yarn1d.yarn1dmodel import Yarn1DModel
+import stick.const as const
+import stick.lib.utils.utils as utils
+import stick.lib.utils.gridutils as GridUtils
+from stick.yarn.config import YarnConfigManager
+from stick.yarn1d.yarn1dmodel import Yarn1DModel
 
 #-------------------------------------------------------------------------
 #

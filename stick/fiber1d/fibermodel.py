@@ -27,7 +27,6 @@ Module holding a generic diffusion model for a yarn.
 from __future__ import division
 import os.path
 import sys
-import const
 import numpy as np
 import scipy as sp
 from scipy.integrate import ode, trapz
@@ -46,9 +45,10 @@ except:
 # Local Imports
 #
 #-------------------------------------------------------------------------
-import lib.utils.utils as utils
-import lib.utils.gridutils as GridUtils
-from fiber.config import (METHOD, FLUX, TRANSFER, EVAP, EVAPYARN,
+import stick.const as const
+import stick.lib.utils.utils as utils
+import stick.lib.utils.gridutils as GridUtils
+from stick.fiber.config import (METHOD, FLUX, TRANSFER, EVAP, EVAPYARN,
                     BOUND_TYPE, FIBER_FORM,
                     CIRCLE, ELLIPSE)
 

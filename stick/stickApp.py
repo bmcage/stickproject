@@ -42,11 +42,11 @@ import sys
 ARGS = sys.argv
 # module with the program, main() will be executed
 PROGS = {
-    'fiber1d': 'fiber1d.fiberprog',
-    'yarn1d': 'yarn1d.yarn1dprog',
-    'yarn2d': 'yarn2d.yarn2dprog',
-    'bednet': 'bednet.bednetprog',
-    'pcm': 'pcm.pcmprog',
+    'fiber1d': 'stick.fiber1d.fiberprog',
+    'yarn1d': 'stick.yarn1d.yarn1dprog',
+    'yarn2d': 'stick.yarn2d.yarn2dprog',
+    'bednet': 'stick.bednet.bednetprog',
+    'pcm': 'stick.pcm.pcmprog',
     }
 
 #-------------------------------------------------------------------------
@@ -77,6 +77,9 @@ def main():
         del ARGS[remove+1]
         del ARGS[remove]
     modname = PROGS[ARGS[1]]
+    print ARGS[1], modname
+    print __file__
+    print sys.path
     _topmodule = __import__(modname)
     #run the program, shift ARGS by one
     _realmodule = sys.modules[modname]

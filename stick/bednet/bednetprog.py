@@ -35,9 +35,9 @@ import time
 # local modules
 #
 #-------------------------------------------------------------------------
-from lib.utils.utils import set_outputdir
-import const
-import bednet.config as conf
+from stick.lib.utils.utils import set_outputdir
+import stick.const as const
+import stick.bednet.config as conf
 
 #-------------------------------------------------------------------------
 #
@@ -69,12 +69,15 @@ def main(argv=None):
 
     inifile = conf.INIFILE_DEFAULT
     outputdir = const.DATA_DIR
+    analytic = False
     for opt_ix in range(len(options)):
         option, value = options[opt_ix]
         if option in ( '-i', '--inifile'):
             inifile = value
         elif option in ('-o', '--outputdir'):
             outputdir = value
+        elif option in ('-a', '--analytic'):
+            analytic = True
     
     #Parse ini file to obtain parameters.
     cfg = conf.BednetConfigManager.get_instance(inifile)
@@ -94,8 +97,11 @@ def main(argv=None):
     shutil.copy(inifile, outputdir)
     
     #create the correct model, and run it
-    from bednet.bednetmodel import Bednet
-    model = Bednet(cfg)
+    if analytic:
+        from stick.bednet.bednetmodel import Bednet
+        model = Bednet(cfg)
+    else:
+        from stick.bednet.room1dmodel import Room1DModel
     
     #pass further execution to the model
     model.run(wait=True)

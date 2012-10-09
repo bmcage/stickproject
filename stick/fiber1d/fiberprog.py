@@ -33,9 +33,9 @@ import getopt
 # local modules
 #
 #-------------------------------------------------------------------------
-from lib.utils.utils import set_outputdir
-import const
-import fiber.config as conf
+from stick.lib.utils.utils import set_outputdir
+import stick.const as const
+import stick.fiber.config as conf
 
 #-------------------------------------------------------------------------
 #
@@ -95,7 +95,7 @@ def main(argv=None):
     shutil.copy(inifile, outputdir)
     
     #create the correct model, and run it
-    from fiber1d.fibermodel import FiberModel
+    from stick.fiber1d.fibermodel import FiberModel
     model = FiberModel(cfg)
     
     if writeini:

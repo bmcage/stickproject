@@ -51,8 +51,8 @@ CV_ROOT_RETURN = 2
 # Local Imports
 #
 #-------------------------------------------------------------------------
-import lib.utils.utils as utils
-from lib.utils.utilsbm import deriv133, inter3, inter2
+import stick.lib.utils.utils as utils
+from stick.lib.utils.utilsbm import deriv133, inter3, inter2
 
 #-------------------------------------------------------------------------
 #

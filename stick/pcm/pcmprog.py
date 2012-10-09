@@ -33,9 +33,9 @@ import getopt
 # local modules
 #
 #-------------------------------------------------------------------------
-from lib.utils.utils import set_outputdir
-import const
-import pcm.config as conf
+from stick.lib.utils.utils import set_outputdir
+import stick.const as const
+import stick.pcm.config as conf
 
 #-------------------------------------------------------------------------
 #
@@ -95,7 +95,7 @@ def main(argv=None):
     shutil.copy(inifile, outputdir)
     
     #create the correct model, and run it
-    from pcm.pcmmodel import PCMModel
+    from stick.pcm.pcmmodel import PCMModel
     model = PCMModel(cfg)
     
     if writeini:

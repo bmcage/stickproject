@@ -34,9 +34,9 @@ import time
 # local modules
 #
 #-------------------------------------------------------------------------
-from lib.utils.utils import set_outputdir
-import const
-import yarn.config as conf
+from stick.lib.utils.utils import set_outputdir
+import stick.const as const
+import stick.yarn.config as conf
 
 #-------------------------------------------------------------------------
 #
@@ -93,7 +93,7 @@ def main(argv=None):
     shutil.copy(inifile, outputdir)
     
     #create the correct model, and run it
-    from yarn1d.yarn1dmodel import Yarn1DModel
+    from stick.yarn1d.yarn1dmodel import Yarn1DModel
     model = Yarn1DModel(cfg)
     
     #pass further execution to the model
