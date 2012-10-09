@@ -55,35 +55,43 @@ PROGS = {
 #
 #-------------------------------------------------------------------------
 
-def main():
-    if len(ARGS) < 2 or not ARGS[1] in PROGS:
-        print "ERROR: first argument must be the program to run."
-        print " possibilities: " + ' '.join(PROGS)
-        sys.exit()
-    remove = None
-    for ind, val in enumerate(ARGS):
-        if val == '--backend':
-            backend = ARGS[ind+1]
-            if backend in ['ps', 'PS', 'eps']:
-                import matplotlib
-                print 'pyplot backend', matplotlib.get_backend()
-                matplotlib.use('PS') # 'cairo.pdf', 'cairo.png'
-                import const
-                const.FIGFILEEXT = '.eps'
-                print 'changed to backend', matplotlib.get_backend()
-            remove = ind
-            break
-    if remove:
-        del ARGS[remove+1]
-        del ARGS[remove]
-    modname = PROGS[ARGS[1]]
-    print ARGS[1], modname
-    print __file__
-    print sys.path
+def main(prog=None, arg=None):
+    if prog is None:
+        if len(ARGS) < 2 or not ARGS[1] in PROGS:
+            print "ERROR: first argument must be the program to run."
+            print " possibilities: " + ' '.join(PROGS)
+            sys.exit()
+        remove = None
+        for ind, val in enumerate(ARGS):
+            if val == '--backend':
+                backend = ARGS[ind+1]
+                if backend in ['ps', 'PS', 'eps']:
+                    import matplotlib
+                    print 'pyplot backend', matplotlib.get_backend()
+                    matplotlib.use('PS') # 'cairo.pdf', 'cairo.png'
+                    import const
+                    const.FIGFILEEXT = '.eps'
+                    print 'changed to backend', matplotlib.get_backend()
+                remove = ind
+                break
+        if remove:
+            del ARGS[remove+1]
+            del ARGS[remove]
+        modname = PROGS[ARGS[1]]
+    else:
+        try:
+            modname = PROGS[prog]
+        except:
+            print "ERROR: prog must be the program to run."
+            print " possibilities: " + ' '.join(PROGS)
+            sys.exit()
     _topmodule = __import__(modname)
-    #run the program, shift ARGS by one
     _realmodule = sys.modules[modname]
-    _realmodule.main(ARGS[1:])
+    if prog is None:
+        #run the program, shift ARGS by two (program and progtype
+        _realmodule.main(ARGS[2:])
+    else:
+        _realmodule.main(arg)
 
 if __name__ == "__main__":
     main()
