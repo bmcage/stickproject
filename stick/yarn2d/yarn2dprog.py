@@ -58,7 +58,7 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv
     try:
-        if argv[0].endswith(".py"):
+        if argv and argv[0].endswith(".py"):
             argv = argv[1:]
         options, leftargs = getopt.getopt(argv,
                                           conf.SHORTOPTS, conf.LONGOPTS)

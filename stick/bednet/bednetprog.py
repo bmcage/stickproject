@@ -56,7 +56,7 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv
     try:
-        if argv[0].endswith(".py"):
+        if argv and argv[0].endswith(".py"):
             argv = argv[1:]
         options, leftargs = getopt.getopt(argv,
                                           conf.SHORTOPTS, conf.LONGOPTS)
@@ -104,6 +104,7 @@ def main(argv=None):
         model = Bednet(cfg)
     else:
         from stick.bednet.room1dmodel import Room1DModel
+        model = Room1DModel(cfg)
     
     #pass further execution to the model
     model.run(wait=True)
