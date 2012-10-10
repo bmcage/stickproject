@@ -96,29 +96,31 @@ class BednetConfigManager(ConfigManager):
         self.register("observer.x0", [1,],
             "positions where to compute concentration in mm distance from bednet")
         
-        self.register("domain.nr_vert_yarns",50)
-        self.register("domain.nr_hor_yarns",100)
-        self.register("domain.domain_size", [5.0e-2, 1.5e-1],
-            'size fabric in m')
-        self.register("domain.dx", 2.5, 'size hole in mm')
-        self.register("domain.dy", 2.5, 'size hole in mm')
+        self.register("domain.nr_vert_yarns", 50,
+            "When modeling a limited bednet, number of vertical yarns to consider")
+        self.register("domain.nr_hor_yarns", 100,
+            "When modeling a limited bednet, number of horizontal yarns to consider")
+        ## Remmoving domain_size, we should have or size or nr_yarns, not both!
+        #self.register("domain.domain_size", [5.0e-2, 1.5e-1],
+        #    'size fabric in m')
+        self.register("domain.dx", 2.5, 'horizontal size hole in mm, measured'
+            ' from middle of yarn to middle of yarn.')
+        self.register("domain.dy", 2.5, 'vertical size hole in mm, measured'
+            ' from middle of yarn to middle of yarn.')
+        self.register("domain.room_L", 5., "When modeling a room, length of "
+            "room in m. Net will be at L/2")
+        self.register("domain.room_W", 3., "When modeling a room, width of "
+            "room in m.")
+        self.register("domain.room_H", 2.1, "When modeling a room, heigth of "
+            "room in m.")
+        self.register("domain.n_edge", 40, "When modeling a room, number of "
+            "edges to take into account to divide the domain")
 
         self.register("sample.yarn_config", ['../yarn/defaultyarn.ini'])
 
-        #size_hole section describing the square holes in the net
-        self.register("size_hole.net_width", 1.0e-3,
-            "the width of the hole of the bed net (mm)")
-        self.register("size_hole.net_length", 2.0e-3,
-            "the length of the hole of the bed net (mm)")
-        self.register("size_hole.length_yarn", 2.0,
-            "the length of the yarn of a bed net")
-        self.register("size_hole.domain_effect", 0.02,
-            "the domain of repelling the mosquito")
-        self.register("size_hole.dis_effect", 4)
-
+        #info about the diffusion outside fabric
         self.register("diffusion.diff_coef", 5.0e-8,
             "Diffusion in air of the active component, in mm^2/s")
-        self.register("diffusion.tortuosity_fab", 2.)
         
         #data about the active component
         self.register("active_component.saturation_conc", 5.589e-5,
@@ -127,16 +129,14 @@ class BednetConfigManager(ConfigManager):
             "Treshold the active component should reach in the environment"
             " in microgram/mm^3")
         
+        #initial concentration outside bednet
         self.register("initial.init_conc", 0.0)
         
-        self.register("boundary.boundary_up", 0.0)
-        self.register("boundary.boundary_bottom", 0.0)
-        self.register("boundary.boundary_left", 0.0)
-        self.register("boundary.boundary_right", 0.0)
-        
+        #plotting output
         self.register("plot.plotevery", 10,
             "When plotting over time, indicate how many steps dt to skip "
             "before plotting again")
         
+        #time info: how long to run and timestep
         self.register("time.time_period", 5000.)
         self.register("time.dt", 100.0)

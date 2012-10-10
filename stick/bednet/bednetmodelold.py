@@ -71,18 +71,11 @@ class Bednet(object):
         if self.verbose:
             print "Timestep used in bednet model:", self.delta_t
 
-        #self.n = self.cfg.get('domain.nr_vert_yarns')
-        #self.m = self.cfg.get('domain.nr_hor_yarns')   
-        self.domain_size = self.cfg.get('domain.domain_size')
         self.dx = self.cfg.get('domain.dx')
         self.dy  = self.cfg.get('domain.dy')
         self.nvertyarns = self.cfg.get('domain.nr_vert_yarns')
         self.nhoryarns = self.cfg.get('domain.nr_hor_yarns')
-        #self.thickness_sample = self.cfg.get('sample.thickness_sample')
-        self.boundary_up = self.cfg.get('boundary.boundary_up')
-        self.boundary_bottom = self.cfg.get('boundary.boundary_bottom')
-        self.boundary_left = self.cfg.get('boundary.boundary_left')
-        self.boundary_right = self.cfg.get('boundary.boundary_right')
+
         self.diff_coef = self.cfg.get('diffusion.diff_coef')
         self.saturation_conc = self.cfg.get('saturation.saturation_conc')
         x0 = self.cfg.get('observer.x0')

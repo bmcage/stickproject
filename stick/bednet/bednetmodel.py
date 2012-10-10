@@ -71,18 +71,11 @@ class Bednet(object):
         if self.verbose:
             print "Timestep used in bednet model:", self.delta_t
         self.initconc = self.cfg.get('initial.init_conc')
-        #self.n = self.cfg.get('domain.nr_vert_yarns')
-        #self.m = self.cfg.get('domain.nr_hor_yarns')   
-        self.domain_size = self.cfg.get('domain.domain_size')
+
         self.dx = self.cfg.get('domain.dx')
         self.dy  = self.cfg.get('domain.dy')
         self.nvertyarns = self.cfg.get('domain.nr_vert_yarns')
         self.nhoryarns = self.cfg.get('domain.nr_hor_yarns')
-        #self.thickness_sample = self.cfg.get('sample.thickness_sample')
-        self.boundary_up = self.cfg.get('boundary.boundary_up')
-        self.boundary_bottom = self.cfg.get('boundary.boundary_bottom')
-        self.boundary_left = self.cfg.get('boundary.boundary_left')
-        self.boundary_right = self.cfg.get('boundary.boundary_right')
         self.diff_coef = self.cfg.get('diffusion.diff_coef')
         self.saturation_conc = self.cfg.get('active_component.saturation_conc')
         self.treshold = self.cfg.get('active_component.treshold_effect')
@@ -236,7 +229,7 @@ class Bednet(object):
         #    on the yarn level
         for ind, model in enumerate(self.yarn_models):
             #the source mass is what was present in the overlap
-            massoverlapold = self.source_mass[ttype, self.tstep]
+            massoverlapold = model.calc_mass_overlap(model.step_old_sol)
             #the new mass there we approximate
             massoverlapnew = self.sol[self.tstep, 0] * self.overlaparea
             massremoved = massoverlapold - massoverlapnew

@@ -155,11 +155,13 @@ class Yarn1DModel(object):
         self.nr_edge = self.cfg.get('domain.n_edge')
         self.nr_cell = self.nr_edge - 1
         self.use_extend = self.cfg.get("domain.useextension")
+        self.areaextend = 0.
         if self.use_extend:
             self.end_extend = self.end_point + \
                 self.cfg.get('domain.extensionfraction') * self.end_point
             self.nr_edge_extend = max(2, 
                     int(self.nr_edge*self.cfg.get('domain.extensionfraction')))
+            self.areaextend = math.pi * (self.end_extend**2 - self.end_point**2)
         else:
             self.end_extend = self.end_point
             self.nr_edge_extend = 1
@@ -322,6 +324,19 @@ class Yarn1DModel(object):
                 mass += massfib
         print 'yarn conc', conc
         print 'yarn totalmass',  mass, 'microgram'
+        return mass
+
+    def calc_mass_overlap(self, conc):
+        """
+        calculate current amount of mass of volatile in the overlap region
+        based on data currently stored
+        """
+        #we calculate the mass in the void space:
+        mass = np.sum(conc[self.nr_cell:] * 
+                      (np.power(self.grid_edge[self.nr_edge:], 2) -
+                        np.power(self.grid_edge[self.nr_edge-1:-1], 2)) *
+                      self.porosity[self.nr_cell:]
+                     ) * np.pi
         return mass
 
     def set_source(self, timestep):
