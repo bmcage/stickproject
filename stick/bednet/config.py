@@ -103,9 +103,9 @@ class BednetConfigManager(ConfigManager):
         ## Remmoving domain_size, we should have or size or nr_yarns, not both!
         #self.register("domain.domain_size", [5.0e-2, 1.5e-1],
         #    'size fabric in m')
-        self.register("domain.dx", 2.5, 'horizontal size hole in mm, measured'
+        self.register("domain.dx", 4., 'horizontal size hole in mm, measured'
             ' from middle of yarn to middle of yarn.')
-        self.register("domain.dy", 2.5, 'vertical size hole in mm, measured'
+        self.register("domain.dy", 4., 'vertical size hole in mm, measured'
             ' from middle of yarn to middle of yarn.')
         self.register("domain.room_L", 5., "When modeling a room, length of "
             "room in m. Net will be at L/2")
