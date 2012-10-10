@@ -37,7 +37,6 @@ try:
 except:
     print 'Could not load scikits.odes, odes solver not available'
 
-
 import matplotlib.pyplot as plt
 import sets
 import time
@@ -161,7 +160,7 @@ class Yarn1DModel(object):
                 self.cfg.get('domain.extensionfraction') * self.end_point
             self.nr_edge_extend = max(2, 
                     int(self.nr_edge*self.cfg.get('domain.extensionfraction')))
-            self.areaextend = math.pi * (self.end_extend**2 - self.end_point**2)
+            self.areaextend = np.pi * (self.end_extend**2 - self.end_point**2)
         else:
             self.end_extend = self.end_point
             self.nr_edge_extend = 1
@@ -322,8 +321,8 @@ class Yarn1DModel(object):
                             * self.nrf_shell[ind] * blend)
                 ##print 'mass fibers per shell', massfib
                 mass += massfib
-        print 'yarn conc', conc
-        print 'yarn totalmass',  mass, 'microgram'
+        ##print 'yarn conc', conc
+        ##print 'yarn totalmass',  mass, 'microgram'
         return mass
 
     def calc_mass_overlap(self, conc):
