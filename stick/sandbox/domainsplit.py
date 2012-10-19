@@ -308,7 +308,6 @@ class DomainsplitTestModel(object):
         #and correct, flux needed is r times the x coord flux
         flux_edge[-1] = flux_edge[-1] * self.grid_edge_sp1[-1]
 
-    
     def _set_bound_flux_sp2(self, flux_edge, w_rep, t):
         """
         Method that takes BC into account to set flux on edge

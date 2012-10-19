@@ -93,8 +93,8 @@ class Room1DModel(object):
         self.room_L = self.cfg.get("domain.room_L") * 1000
         self.room_W = self.cfg.get("domain.room_W") * 1000
         self.room_H = self.cfg.get("domain.room_H") * 1000
-        self.nvertyarns = self.room_H/self.dy
-        self.nhoryarns = self.room_W/self.dx
+        self.nvertyarns = self.room_W/self.dx
+        self.nhoryarns = self.room_H/self.dy
         self.diff_coef = self.cfg.get('diffusion.diff_coef')
         self.saturation_conc = self.cfg.get('active_component.saturation_conc')
         self.treshold = self.cfg.get('active_component.treshold_effect')
@@ -191,6 +191,38 @@ class Room1DModel(object):
                     self.plotdata.append((ind-1, interpol_start))
                     break
 
+    def upscale_yarnmass(self, mass):
+        """
+        Upscale the mass in one yarn, to the mass in the entire bednet,
+        returns the mass
+        """
+        return (self.nhoryarns * self.room_W + self.nvertyarns * self.room_H) \
+                * mass
+
+    def calc_mass(self):
+        """
+        Calculate the mass in the room and the bednet of Active Component
+        at this specific state the model is in.
+        """
+        #First, the mass in the yarns
+        yarnmass = [None] * len(self.yarn_models)
+        yarnmassoverlap = [None] * len(self.yarn_models)
+        for ttype, model in enumerate(self.yarn_models):
+            yarnmass[ttype] = model.calc_mass(model.step_old_sol)
+            yarnmassoverlap[ttype] = model.calc_mass_overlap(model.step_old_sol)
+        #Next, the upscaled mass in the yarns
+        totyarnmass = [None] * len(self.yarn_models)
+        totyarnmassoverlap = [None] * len(self.yarn_models)
+        for ttype, (massy, massyo) in enumerate(zip(yarnmass, yarnmassoverlap)):
+            totyarnmass[ttype] = self.upscale_yarnmass(massy)
+            totyarnmassoverlap[ttype] = self.upscale_yarnmass(massyo)
+
+        #Next, the mass in the room, divided in overlapzone and rest.
+        roomoverlapmass = self.delta_x[0] * self.room_H * self.room_W * self.step_old_sol[0]
+        roommass = np.sum(self.delta_x[1:] * self.room_H * self.room_W * self.step_old_sol[1:])
+        return (yarnmass, yarnmassoverlap, totyarnmass, totyarnmassoverlap,
+                roommass, roomoverlapmass)
+
     def initial_room(self):
         """ initial concentration in the room domain
         """
@@ -199,6 +231,7 @@ class Room1DModel(object):
         
     def init_yarn(self):
         self.yarn_mass = [0] * len(self.yarn_models)
+        self.yarn_mass_overlap = [0] * len(self.yarn_models)
         self.tstep = 0
         for ind, model in enumerate(self.yarn_models):
             model.do_yarn_init()
@@ -208,6 +241,7 @@ class Room1DModel(object):
                       '\n        so yarn does not consider the fabric !!'
                 print ' ***********************************************'
             self.yarn_mass[ind] = model.calc_mass(model.init_conc)
+            self.yarn_mass_overlap[ind] = model.calc_mass_overlap(model.init_conc)
             # no mass released at start time
             self.source_mass[ind, self.tstep] = 0.
 
@@ -262,7 +296,7 @@ class Room1DModel(object):
         self.step_old_sol = self.sol[0]
         
         self.solver = sc_ode('cvode', self.f_conc_ode,
-                             min_step_size=1e-8, rtol=1e-2, atol=1e-2, 
+                             min_step_size=1e-8, rtol=1e-6, atol=1e-6, 
                              max_steps=50000, lband=1, uband=1)
         self.solver.init_step(self.step_old_time, self.init_conc)
         self.initialized = True
@@ -284,17 +318,26 @@ class Room1DModel(object):
     def solve_timestep(self, t):
         print "solve up to time", t, "s"
         self.tstep += 1
-        print 'tstep', self.tstep
+        ##print 'tstep', self.tstep
         # 1. step one, solve the yarn model, calculate the mass coming out of one yarn and calculate 
         # the corresponding concentration by dividing by the volume of a yarn pi Ry^2
         for ttype, model in enumerate(self.yarn_models):
             rt, rety = model.do_yarn_step(t)
             tmp = model.calc_mass(rety)
+            tmp_overlap = model.calc_mass_overlap(rety)
             # mass that goes into overlap is the mass that disappeared.
             self.source_mass[ttype, self.tstep] = self.yarn_mass[ttype] - tmp
+            ##print 'first calc source mass', self.source_mass[ttype, self.tstep],
+            self.source_mass[ttype, self.tstep] = -(
+                        (self.yarn_mass_overlap[ttype] + 
+                         model.source_overlap*self.delta_t * model.areaextend
+                        ) - tmp_overlap)
+            ##print 'second', self.source_mass[ttype, self.tstep], tmp_overlap, model.source_overlap*self.delta_t * model.areaextend
             #self.source_mass[ttype, self.tstep] /= V
             ##print 'mass yarn now', tmp, 'prev', self.yarn_mass[ttype], 'release', self.source_mass[ttype, self.tstep]
+            ##print 'test', model.calc_mass_overlap(model.step_old_sol)
             self.yarn_mass[ttype] = tmp
+            self.yarn_mass_overlap[ttype] = tmp_overlap
             if self.source_mass[ttype, self.tstep] < 0.:
                 if abs(self.source_mass[ttype, self.tstep]) < 1e-7:
                     self.source_mass[ttype, self.tstep] = 0.
@@ -308,23 +351,26 @@ class Room1DModel(object):
         #    We know that self.source_mass[ttype] has been released in the 
         #    overlap region since last step
         massoverlapold = self.step_old_sol[0] * self.overlapvolume
+        ##print 'test', self.step_old_sol[0], massoverlapold
         # 2.a upscale source_mass (mass in ring zone area) to a source per second per mm^3
         # concentration is a consequence of all previous releases, so sum 
         # over all times, and compute contribution of that moment.
         concreleased = (self.nhoryarns * self.room_W + self.nvertyarns * self.room_H) \
                 * np.sum(self.source_mass[:,self.tstep]) / self.overlapvolume
         self.source_room_from_yarn = concreleased / self.delta_t
+        ##print 'source from yarn', self.source_room_from_yarn, 'from', self.source_mass[0,self.tstep]
         
         # 2.b solve the room model
         self.step_old_time, self.step_old_sol = self.do_ode_step(t)
         self.sol[self.tstep, :] = self.step_old_sol[:]
         massoverlapnew = self.step_old_sol[0] * self.overlapvolume
+        ##print 'sol room', self.step_old_sol
         
         ##print 'solution', self.sol[self.tstep,:]
         # 3. for next timestep, we need to set correct boundary condition
         #    on the yarn level, so downscale the mass to keep mass balance
-        massdiff = massoverlapnew - massoverlapold
-        massperyarn = (massdiff
+        ##massdiff = massoverlapnew - massoverlapold
+        massperyarn = (massoverlapnew #- (massoverlapold + concreleased * self.overlapvolume)
             / (self.nhoryarns * self.room_W + self.nvertyarns * self.room_H)
             / len(self.cfg_yarn)
             )
@@ -337,10 +383,14 @@ class Room1DModel(object):
             ##print 'prev mass overlap', massyarnoverlapold, 'new', massyarnoverlapnew, 'diff:', massyarndiff
             #based on removed, we set a source term in the overlap zone of 
             # of the yarn
-            model.source_overlap = massyarndiff / self.tstep / model.areaextend
+            model.source_overlap = massyarndiff / self.delta_t / model.areaextend
+
+        #store masses
+        self.__store_masses(self.tstep)
 
         fipy.dump.write({
-                        'time': self.tstep,
+                        'time': t,
+                        'step': self.delta_t,
                         'concentration': self.sol[self.tstep, :] },
                         filename=utils.OUTPUTDIR + os.sep + 'room1d_sol_%08d.gz'%(self.tstep),
                         extension='.gz')
@@ -378,6 +428,48 @@ class Room1DModel(object):
                 
         #fipy.dump.write({plt.plot},filename=utils.OUTPUTDIR + os.sep + 'bednetconc%08.4f.png' % t)
 
+    def view_sol_mass(self):
+        """
+        Plot the evolution of the mass at current state of the solution
+        """
+        fignr = len(self.plotdata)
+        plt.ion()
+        for ind, ymass in enumerate(self.yarnmass):
+            plt.rc("font", family="serif")
+            plt.rc("font", size=10)
+            width = 4.5  #width in inches
+            height = 1.4 #height in inches
+            plt.rc("figure.subplot", left=(50/72.27)/width)
+            plt.rc("figure.subplot", right=(width-10/72.27)/width)
+            plt.rc("figure.subplot", bottom=(14/72.27)/height)
+            plt.rc("figure.subplot", top=(height-7/72.27)/height)
+            plt.figure(fignr)
+            plt.gca().set_xlabel('Time [s]')
+            plt.gca().set_ylabel('Mass [$\mu$g]')
+            plt.title('Mass AC in yarn type %d' % ind)
+            plt.plot(self.times, ymass)
+            fignr += 1
+
+        plt.figure(fignr)
+        plt.gca().set_xlabel('Time [s]')
+        plt.gca().set_ylabel('Mass [$\mu$g]')
+        plt.title('Mass AC in the bednet')
+        plt.plot(self.times, self.totyarnmass)
+        fignr += 1
+        plt.figure(fignr)
+        plt.gca().set_xlabel('Time [s]')
+        plt.gca().set_ylabel('Mass [$\mu$g]')
+        plt.title('Mass AC in the room')
+        plt.plot(self.times, self.totroommass)
+        fignr += 1
+        #plot to check mass conservation
+        plt.figure(fignr)
+        plt.gca().set_xlabel('Time [s]')
+        plt.gca().set_ylabel('Mass [$\mu$g]')
+        plt.title('Total Mass AC')
+        plt.plot(self.times, self.totroommass+self.totyarnmass)
+        fignr += 1
+
     def init_room(self):
         #first we create the room mesh
         self.create_mesh()
@@ -385,6 +477,23 @@ class Room1DModel(object):
         self.init_yarn()
         if not self.initialized:
             self.solve_ode_init()
+        #storage for mass values
+        self.yarnmass = [None] * len(self.yarn_models)
+        for ind in range(len(self.yarn_models)):
+            self.yarnmass[ind] = np.empty(len(self.times), float)
+        self.totyarnmass = np.empty(len(self.times), float)
+        self.totroommass = np.empty(len(self.times), float)
+        #compute the initial masses
+        self.__store_masses(0)
+
+    def __store_masses(self, ind):
+        (yarnmass, yarnmassoverlap, totyarnmass, totyarnmassoverlap,
+                roommass, roomoverlapmass) = self.calc_mass()
+        #compute initial values
+        for mind, val in enumerate(yarnmass):
+            self.yarnmass[mind][ind] = yarnmass[mind]
+        self.totyarnmass[ind] = np.sum(totyarnmass)
+        self.totroommass[ind] = roommass + roomoverlapmass
 
     def run(self, wait=False):
         self.init_room()
@@ -392,6 +501,7 @@ class Room1DModel(object):
             self.solve_timestep(t)
           
         self.view_sol(self.times, self.sol)
+        self.view_sol_mass()
 
         if wait:
             raw_input("Finished bednet run")

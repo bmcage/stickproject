@@ -274,9 +274,10 @@ class Yarn1DModel(object):
         flux_edge[0] = 0.
         #avergage porosity on edge:
         if self.use_extend:
-            porright = (self.porosity[self.nr_cell-1] + self.porosity[self.nr_cell]) /2
+            porright = (self.porosity[self.nr_cell-1] + self.porosity[self.nr_cell]) / 2
         else:
-            porright = (self.porosity[self.nr_cell-1] + 1.) /2
+            porright = (self.porosity[self.nr_cell-1] + 1.) / 2
+        diffright = (self.diff_coef/self.tortuosity + self.boundary_D_out)/ 2
         if self.bound_type == conf.TRANSFER:
             # tranfer flux, in x: flux_x  = tf * C, so radially per radial a flux
             #  flux_radial = 2 Pi * radius * flux_x / 2 * Pi
@@ -292,7 +293,7 @@ class Yarn1DModel(object):
                 conright = self.boundary_conc_out
                 bcdist = self.boundary_dist
             ##print 'fluxdiff', conright - conc_r[self.nr_cell-1], self.boundary_conc_out,  conc_r[self.nr_cell-1]
-            flux_edge[self.nr_edge-1] = (self.boundary_D_out * porright * 
+            flux_edge[self.nr_edge-1] = -(diffright * porright * 
                     (conright - conc_r[self.nr_cell-1]) 
                     / bcdist 
                     * self.grid_edge[self.nr_edge-1])
@@ -317,7 +318,7 @@ class Yarn1DModel(object):
             for type, blend in enumerate(self.blend):
                 #nrf is number of fibers of blend in the shell at that grid position
                 #print 'fiber mass', self.fiber_mass
-                massfib = (self.fiber_mass[ind, type] 
+                massfib = (self.fiber_mass[ind, type]
                             * self.nrf_shell[ind] * blend)
                 ##print 'mass fibers per shell', massfib
                 mass += massfib
@@ -336,6 +337,7 @@ class Yarn1DModel(object):
                         np.power(self.grid_edge[self.nr_edge-1:-1], 2)) *
                       self.porosity[self.nr_cell:]
                      ) * np.pi
+        ##print 'yarn mass overlap', conc[self.nr_cell:], mass
         return mass
 
     def set_source(self, timestep):
@@ -344,18 +346,20 @@ class Yarn1DModel(object):
         Per radial we have the global equation 
            \partial_t (n r C) = \partial_r (D/tau) r \partial_r (n C) + r Source
         where Source is amount per time per volume released/absorbed
+        So Source = masssourceyarns / (V \Delta t)
         This equation is integrated over a shell and devided by n (the porosity), and we determine 
-            d_t w, with w = rC, where the sourceterm is \int_{r_i}^{r_{i+1}} r Source/n
+           n d_t w, with w = rC, where the sourceterm is \int_{r_i}^{r_{i+1}} r Source
         and is the term here calculated and stored in self.source
         As we assume Source constant over a shell by averaging out the mass over the area of a shell (nV), we have
-            sourceterm = Source/(nV) * \Delta r_i^2 / 2
+            Source = masssourceyarns/(V \Delta t) * \Delta r_i^2 / 2
         self.source_mass contains per shell how much mass was released in 
         previous step by a fiber. Suppose this mass is M. 
         We determine how many fibers there are radially, multiply this with M
-        and divide by volume V to obtain Source-concentration, since concentration is mass/volume. 
-        Afterwards we multiply this Source with \Delta r_i^2 / 2nV
+        and divide by volume V \delta t to obtain Source-concentration, since concentration is mass/volume time. 
+        Afterwards we multiply this Source with \Delta r_i^2 / (2 n \Delta r)
+        coming from the integration (int n d_t w gives the term n \Delta r).
         """
-        for ind, pos in enumerate(self.grid[:self.nr_cell]):
+        for ind, pos in enumerate(self.grid_edge[:self.nr_cell]):
             self.source[ind] = 0.
             #V is the area of the shell
             V = np.pi*((pos+self.delta_r[ind])**2-pos**2)
@@ -365,7 +369,8 @@ class Yarn1DModel(object):
                 self.source[ind] += (self.source_mass[ind, type] 
                                         * self.nrf_shell[ind] * blend)
             #self.source[ind] /= timestep
-            self.source[ind] /= V*self.porosity[ind] * timestep
+            self.source[ind] /= V * timestep
+        ##print 'source', self.source
         ## TODO Tine, what formula is this? Comment above says just multiply...
         ##self.source *= self.delta_rsquare / (2.*V*self.porosity)
         ## I think:
@@ -379,9 +384,9 @@ class Yarn1DModel(object):
         """
         Solving the radial yarn 1D diffusion equation: 
         
-          \partial_t (rC) =  \partial_r (D/tau r \partial_r C + Source * r
+          \partial_t (rC) =  \partial_r (D/tau r \partial_r C) + Source * r
         
-        with Source the amount per time unit added at r. 
+        with Source the conc amount per time unit added at r. 
         Solution is obtained by integration over a cell, so
         
            \delta r d_t (r C) = flux_right - flux_left + Source (\delta r^2 /2)
@@ -398,7 +403,7 @@ class Yarn1DModel(object):
         self._set_bound_flux(flux_edge, conc_r)
 
         #calculate flux rate in each edge of the domain
-        flux_edge[1:self.nr_edge-1] = (2 * (self.diff_coef/self.tortuosity) *
+        flux_edge[1:self.nr_edge-1] = -(2 * (self.diff_coef/self.tortuosity) *
             self.grid_edge[1:self.nr_edge-1] *
             (conc_r[1:self.nr_cell]-conc_r[:self.nr_cell-1])
             /(self.delta_r[:self.nr_cell-1]+self.delta_r[1:self.nr_cell])
@@ -406,20 +411,30 @@ class Yarn1DModel(object):
             )
         if self.use_extend:
             # diffusion in the outside region
-            flux_edge[self.nr_edge:-1] = (2 * self.boundary_D_out *
+            flux_edge[self.nr_edge:-1] = -(2 * self.boundary_D_out *
             self.grid_edge[self.nr_edge:-1] *
             (conc_r[self.nr_cell+1:]-conc_r[self.nr_cell:-1])
             /(self.delta_r[self.nr_cell:-1]+self.delta_r[self.nr_cell+1:])
             * (self.porosity[self.nr_cell:-1] + self.porosity[self.nr_cell+1:])/2
             )
+            ##print 'conc overlap', conc_r[self.nr_cell-1:]
+            ##print 'flux overlap', flux_edge[self.nr_edge-1:]
         
-        diff_u_t[:] = ((flux_edge[1:]-flux_edge[:-1])
+        diff_u_t[:] = ((flux_edge[:-1]-flux_edge[1:])
                             / self.delta_r[:]/ self.porosity[:]
-                         + self.source[:]
+                    + self.source[:] / self.porosity[:] * self.delta_rsquare / 2
+                      / self.delta_r
                       )
-        if self.use_extend:
-            diff_u_t[self.nr_cell:] += self.source_overlap
-        diff_u_t[:] = diff_u_t[:] / self.grid[:]
+##        print 'source part', self.source[:] / self.porosity[:] * self.delta_rsquare / 2\
+##                      / self.delta_r / self.grid[:]
+##        print 'flux edges', flux_edge
+        if self.use_extend and self.source_overlap:
+            #porosity assumed 1 in extend!
+            diff_u_t[self.nr_cell:] += (self.source_overlap
+                            * self.delta_rsquare[self.nr_cell:] / 2
+                            / self.delta_r[self.nr_cell:])
+        diff_u_t[:] = diff_u_t[:] / self.grid[:]  # still division by r to move from w to C
+        ##print 'u_t overlap', diff_u_t[self.nr_cell-1:]
 
     def solve_ode_init(self):
         """
@@ -436,7 +451,7 @@ class Yarn1DModel(object):
         self.step_old_sol = self.conc1[0]
         
         self.solver = sc_ode('cvode', self.f_conc1_ode,
-                             min_step_size=1e-8, rtol=1e-2, atol=1e-2, 
+                             min_step_size=1e-8, rtol=1e-6, atol=1e-6, 
                              max_steps=50000, lband=1, uband=1)
         self.solver.init_step(self.step_old_time, self.init_conc)
         self.initialized = True
@@ -475,6 +490,10 @@ class Yarn1DModel(object):
         compute = True
         #even is step is large, we don't compute for a longer time than delta_t
         t = self.step_old_time
+##        cm1 = self.calc_mass(self.step_old_sol)
+##        cm2 = self.calc_mass_overlap(self.step_old_sol)
+##        print 'mass in yarn domain', cm1, cm2, cm1 + cm2, 'src', \
+##                self.source_overlap * self.areaextend * 0.1
         while compute:
             t +=  self.delta_t
             if  t >= stoptime - self.delta_t/100.:
@@ -483,6 +502,9 @@ class Yarn1DModel(object):
             self.do_fiber_step(t)
             self.set_source(t-self.step_old_time)
             realtime, self.step_old_sol = self.do_ode_step(t)
+            cm1 = self.calc_mass(self.step_old_sol)
+            cm2 = self.calc_mass_overlap(self.step_old_sol)
+##            print 'mass in yarn domain', cm1, cm2, cm1 + cm2
 ##            print 'new sol', self.step_old_sol
 ##            raw_input('')
             self.tstep += 1
@@ -529,6 +551,10 @@ class Yarn1DModel(object):
             for mass in masses:
                 print mass, ' - ',
             print ' '
+        mc1 = self.calc_mass(self.step_old_sol)
+        mc2 = self.calc_mass_overlap(self.step_old_sol)
+        print 'Total mass in yarn', mc1, ', mass in overlap zone:', mc2, \
+                'Sum', mc1 + mc2
 
         for t in self.times[1:]:
             #print 'solving t', t
@@ -541,6 +567,10 @@ class Yarn1DModel(object):
             for mass in masses:
                 print mass, ' - ',
             print ' '
+        mc1 = self.calc_mass(self.step_old_sol)
+        mc2 = self.calc_mass_overlap(self.step_old_sol)
+        print 'Total mass in yarn', mc1, ', mass in overlap zone:', mc2, \
+                'Sum', mc1 + mc2
 
         self.view_sol(self.times, self.conc1)
 
