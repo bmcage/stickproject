@@ -220,8 +220,9 @@ class Room1DModel(object):
             totyarnmassoverlap[ttype] = self.upscale_yarnmass(massyo)
 
         #Next, the mass in the room, divided in overlapzone and rest.
-        roomoverlapmass = self.delta_x[0] * self.room_H * self.room_W * self.step_old_sol[0]
-        roommass = np.sum(self.delta_x[1:] * self.room_H * self.room_W * self.step_old_sol[1:])
+        # factor 2 because we only model half of the room
+        roomoverlapmass = 2* self.delta_x[0] * self.room_H * self.room_W * self.step_old_sol[0]
+        roommass = 2*np.sum(self.delta_x[1:] * self.room_H * self.room_W * self.step_old_sol[1:])
         return (yarnmass, yarnmassoverlap, totyarnmass, totyarnmassoverlap,
                 roommass, roomoverlapmass)
 
@@ -357,8 +358,9 @@ class Room1DModel(object):
         # 2.a upscale source_mass (mass in ring zone area) to a source per second per mm^3
         # concentration is a consequence of all previous releases, so sum 
         # over all times, and compute contribution of that moment.
+        # A factor 2 as we model only half of room, and source_mass is entire yarn!
         concreleased = (self.nhoryarns * self.room_W + self.nvertyarns * self.room_H) \
-                * np.sum(self.source_mass[:,self.tstep]) / self.overlapvolume
+                * np.sum(self.source_mass[:,self.tstep]) / (2*self.overlapvolume)
         self.source_room_from_yarn = concreleased / self.delta_t
         ##print 'source from yarn', self.source_room_from_yarn, 'from', self.source_mass[0,self.tstep]
         
@@ -379,8 +381,9 @@ class Room1DModel(object):
         for ind, model in enumerate(self.yarn_models):
             #the source mass is what was present in the overlap
             massyarnoverlapold = model.calc_mass_overlap(model.step_old_sol)
-            #the new mass there we approximate from concentration
-            massyarnoverlapnew = massperyarn
+            #the new mass there we approximate from concentration, factor 2
+            # as we model only half of room, so same mass from the other side
+            massyarnoverlapnew = 2*massperyarn
             massyarndiff = massyarnoverlapnew - massyarnoverlapold
             ##print 'prev mass overlap', massyarnoverlapold, 'new', massyarnoverlapnew, 'diff:', massyarndiff
             #based on removed, we set a source term in the overlap zone of 
