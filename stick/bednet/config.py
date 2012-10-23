@@ -136,7 +136,9 @@ class BednetConfigManager(ConfigManager):
         self.register("plot.plotevery", 10,
             "When plotting over time, indicate how many steps dt to skip "
             "before plotting again")
+        self.register("plot.writeevery", 100,
+            "When writing data out over time, indicate how many steps dt to skip")
         
         #time info: how long to run and timestep
         self.register("time.time_period", 5000.)
-        self.register("time.dt", 100.0)
+        self.register("time.dt", 0.1)

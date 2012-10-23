@@ -143,6 +143,8 @@ class Room1DModel(object):
         
         #plot the result every few seconds so outcome becomes visible during calculations
         self.plotevery = self.cfg.get("plot.plotevery")
+        self.viewerwritecount = 0
+        self.writeevery = self.cfg.get("plot.writeevery")
         
         #now some output on density
         self.volbednet = 0.
@@ -387,13 +389,17 @@ class Room1DModel(object):
 
         #store masses
         self.__store_masses(self.tstep)
-
-        fipy.dump.write({
+        
+        if self.writeevery:
+            if self.viewerwritecount == 0:
+                fipy.dump.write({
                         'time': t,
                         'step': self.delta_t,
                         'concentration': self.sol[self.tstep, :] },
                         filename=utils.OUTPUTDIR + os.sep + 'room1d_sol_%08d.gz'%(self.tstep),
                         extension='.gz')
+            self.viewerwritecount += 1
+            self.viewerwritecount = self.viewerwritecount % self.writeevery
 
     def view_sol(self, times, sol):
         #maxv = np.max(self.sol)
