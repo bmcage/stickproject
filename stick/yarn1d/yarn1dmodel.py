@@ -128,8 +128,6 @@ class Yarn1DModel(object):
         self.tortuosity= self.cfg.get('yarn.tortuosity')
         #use the area function for calculating porosity
         self.prob_area = eval(self.cfg.get('fiber.prob_area'))
-        print 'the area function in yarn1d', self.prob_area, len(self.prob_area)
-        raw_input('enter')
         # boundary data
         self.bound_type = conf.BOUND_TYPE[self.cfg.get('boundary.type_right')]
         self.boundary_conc_out = self.cfg.get('boundary.conc_out')
@@ -206,8 +204,6 @@ class Yarn1DModel(object):
 
             for i_porosity in range(len(self.prob_area)):
                 function_area = self.prob_area[i_porosity]
-                #print 'value from the function', function_area(np.arange(0,1,0.1))
-                print 'value of self.grid_edge', self.grid_edge[:self.nr_edge]
                 value_from_areafunction += function_area(self.grid_edge[:self.nr_edge])
             self.porosity[:self.nr_edge] = 1. - value_from_areafunction[:self.nr_edge - 1]
               
