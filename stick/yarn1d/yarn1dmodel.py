@@ -126,7 +126,8 @@ class Yarn1DModel(object):
         
         #Initialize the tortuosity
         self.tortuosity= self.cfg.get('yarn.tortuosity')
-                
+        #use the area function for calculating porosity
+        self.prob_area = eval(self.cfg.get('fiber.prob_area'))
         # boundary data
         self.bound_type = conf.BOUND_TYPE[self.cfg.get('boundary.type_right')]
         self.boundary_conc_out = self.cfg.get('boundary.conc_out')
@@ -154,6 +155,7 @@ class Yarn1DModel(object):
         self.nr_edge = self.cfg.get('domain.n_edge')
         self.nr_cell = self.nr_edge - 1
         self.use_extend = self.cfg.get("domain.useextension")
+        self.fiberlayout_method = self.cfg.get('domain.fiberlayout_method')
         self.areaextend = 0.
         if self.use_extend:
             self.end_extend = self.end_point + \
@@ -183,7 +185,6 @@ class Yarn1DModel(object):
         # per radial
         self.nrf_shell = (self.delta_rsquare[:self.nr_cell]\
                                 / (self.end_point**2) * self.nr_fibers)
-        
         #create fiber models as needed: one per fibertype and per cell in the yarn model
         self.fiber_models = [0] * (self.nr_edge - 1)
         self.fiber_mass = np.empty((self.nr_edge - 1, self.nr_models), float)
@@ -198,11 +199,19 @@ class Yarn1DModel(object):
         #porosity in the yarn
         self.porosity = np.ones(self.nr_cell_tot, float)
         self.volfracfib = []  # volume fraction of the fiber types
-        for blend, model in zip(self.blend, self.fiber_models[0]):
-            self.volfracfib.append(
-                    blend * self.nr_fibers *  np.power(model.radius(),2)
-                            / np.power(self.end_point,2) )
-        self.porosity[:self.nr_cell] = 1- np.sum(self.volfracfib)
+        if self.fiberlayout == 'virtlocoverlap':
+            value_from_areafunction = []
+            for i_porosity in range(len(self.prob_area)):
+                value_from_areafrunction += self.prob_area[i_porosity](self.grid
+                        _edge[:self.nr_edge])
+            self.porosity[:self.nr_edge] = np.arrary(value_from_areafunction)
+              
+        else:        
+            for blend, model in zip(self.blend, self.fiber_models[0]):
+                self.volfracfib.append(
+                        blend * self.nr_fibers *  np.power(model.radius(),2)
+                                / np.power(self.end_point,2) )
+            self.porosity[:self.nr_cell] = 1- np.sum(self.volfracfib)
         
         #create cylindrical 1D grid over domain for using fipy to view.
         if self.plotevery:
