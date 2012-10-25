@@ -128,6 +128,8 @@ class Yarn1DModel(object):
         self.tortuosity= self.cfg.get('yarn.tortuosity')
         #use the area function for calculating porosity
         self.prob_area = eval(self.cfg.get('fiber.prob_area'))
+        print 'the area function in yarn1d', self.prob_area, len(self.prob_area)
+        raw_input('enter')
         # boundary data
         self.bound_type = conf.BOUND_TYPE[self.cfg.get('boundary.type_right')]
         self.boundary_conc_out = self.cfg.get('boundary.conc_out')
@@ -199,12 +201,15 @@ class Yarn1DModel(object):
         #porosity in the yarn
         self.porosity = np.ones(self.nr_cell_tot, float)
         self.volfracfib = []  # volume fraction of the fiber types
-        if self.fiberlayout == 'virtlocoverlap':
-            value_from_areafunction = []
+        if self.fiberlayout_method == 'virtlocoverlap':
+            value_from_areafunction = np.zeros(self.nr_edge, float)
+
             for i_porosity in range(len(self.prob_area)):
-                value_from_areafrunction += self.prob_area[i_porosity](self.grid
-                        _edge[:self.nr_edge])
-            self.porosity[:self.nr_edge] = np.arrary(value_from_areafunction)
+                function_area = self.prob_area[i_porosity]
+                #print 'value from the function', function_area(np.arange(0,1,0.1))
+                print 'value of self.grid_edge', self.grid_edge[:self.nr_edge]
+                value_from_areafunction += function_area(self.grid_edge[:self.nr_edge])
+            self.porosity[:self.nr_edge] = 1. - value_from_areafunction[:self.nr_edge - 1]
               
         else:        
             for blend, model in zip(self.blend, self.fiber_models[0]):
