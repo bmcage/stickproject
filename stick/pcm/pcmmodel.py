@@ -27,7 +27,7 @@ Module holding a generic diffusion model for a yarn.
 from __future__ import division
 import os.path
 import sys
-import const
+from .. import const
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
