@@ -15,8 +15,8 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 """
-The roomfabric module provides a packages that creates a 3D room with a fabric
-Full textile modelling is done in the fabric, the room has basic convection-
-diffusion. 
+The room module provides a packages that creates a 3D room with a fabric
+Components air/vapour/temp are tracked in the room. Textile modelling is done
+in the fabric.The room has basic convection-diffusion. 
 An overlap zone is created to handle the different domains
 """
