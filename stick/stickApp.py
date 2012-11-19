@@ -47,6 +47,7 @@ PROGS = {
     'yarn2d': 'stick.yarn2d.yarn2dprog',
     'bednet': 'stick.bednet.bednetprog',
     'pcm': 'stick.pcm.pcmprog',
+    'room': 'stick.room.roomprog',
     }
 
 #-------------------------------------------------------------------------

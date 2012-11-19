@@ -127,11 +127,11 @@ class RoomConfigManager(ConfigManager):
             "If fabric form has height, it's height in mm. Should be consistent "
             'with the data in the fabric config file !!' )
         
-        self.register("initial.init_concvap", 1., 
+        self.register("initial.init_concvap", 'lambda x,y,z: 1.0', 
             'Initial vapour concentration in kg/m^3.')
-        self.register("initial.init_concair", 1., 
+        self.register("initial.init_concair", 'lambda x,y,z: 1.0', 
             'Initial vapour concentration in kg/m^3.')
-        self.register("initial.init_temp", 20., 
+        self.register("initial.init_temp", 'lambda x,y,z: 20.0', 
             'Initial temperature in degrees celcius')
     
         self.register("roomcoeff.diff_coef", 25.,

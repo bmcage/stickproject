@@ -101,7 +101,7 @@ def main(argv=None):
     model = RoomModel(cfg)
     
     #pass further execution to the model
-    model.run(wait=True)
+    model.run()
 
 if __name__ == "__main__":
     main()
