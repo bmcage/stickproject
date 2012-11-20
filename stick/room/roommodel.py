@@ -115,16 +115,133 @@ class RoomModel(object):
         el_length = self.cfg.get('discretization.el_length')
         el_width = self.cfg.get('discretization.el_width')
         el_height = self.cfg.get('discretization.el_height')
+        flength = self.cfg.get('fabric.length')
+        fwidth = self.cfg.get('fabric.width')
+        fheight = self.cfg.get('fabric.height')
         
         dx = length / el_length # mesh size in x direction 
         dy = width / el_width # mesh size in x direction 
         dz = height / el_height # mesh size in x direction 
 
+        self.meshsize = height/5
+        meshgeo = """cl1 = %(ms)g;
+Point(1) = {-%(L)g, %(W)g, 0, cl1};
+Point(2) = {-%(L)g, -%(W)g, 0, cl1};
+Point(3) = {%(L)g, -%(W)g, 0, cl1};
+Point(4) = {%(L)g, %(W)g, 0, cl1};
+Point(5) = {%(L)g, %(W)g, 0, cl1};
+Point(6) = {-%(l)g, -%(w)g, 0, cl1};
+Point(7) = {-%(l)g, %(w)g, 0, cl1};
+Point(8) = {%(l)g, %(w)g, 0, cl1};
+Point(9) = {%(l)g, -%(w)g, 0, cl1};
+Point(10) = {%(l)g, -%(w)g, %(h)g, cl1};
+Point(11) = {%(l)g, %(w)g, %(h)g, cl1};
+Point(12) = {%(l)g, %(w)g, %(h)g, cl1};
+Point(13) = {-%(l)g, %(w)g, %(h)g, cl1};
+Point(14) = {-%(l)g, -%(w)g, %(h)g, cl1};
+Point(15) = {%(L)g, %(W)g, %(H)g, cl1};
+Point(16) = {%(L)g, -%(W)g, %(H)g, cl1};
+Point(17) = {-%(L)g, -%(W)g, %(H)g, cl1};
+Point(18) = {-%(L)g, %(W)g, %(H)g, cl1};
+Point(19) = {%(l)g, %(w)g, %(overlaph)g, cl1};
+Point(20) = {%(l)g, -%(w)g, %(overlaph)g, cl1};
+Point(21) = {-%(l)g, -%(w)g, %(overlaph)g, cl1};
+Point(22) = {-%(l)g, %(w)g, %(overlaph)g, cl1};
+Line(1) = {4, 1};
+Line(2) = {1, 2};
+Line(3) = {2, 3};
+Line(4) = {3, 4};
+Line(5) = {9, 8};
+Line(6) = {8, 7};
+Line(7) = {7, 6};
+Line(8) = {6, 9};
+Line(9) = {8, 11};
+Line(10) = {9, 10};
+Line(11) = {7, 13};
+Line(12) = {6, 14};
+Line(13) = {4, 15};
+Line(14) = {3, 16};
+Line(15) = {2, 17};
+Line(16) = {1, 18};
+Line(17) = {11, 10};
+Line(18) = {10, 14};
+Line(19) = {14, 13};
+Line(20) = {13, 11};
+Line(21) = {15, 16};
+Line(22) = {16, 17};
+Line(23) = {17, 18};
+Line(24) = {18, 15};
+Line(49) = {10, 20};
+Line(50) = {11, 19};
+Line(51) = {14, 21};
+Line(52) = {13, 22};
+Line(53) = {22, 21};
+Line(54) = {21, 20};
+Line(55) = {20, 19};
+Line(56) = {19, 22};
+Line Loop(26) = {9, -20, -11, -6};
+Plane Surface(26) = {26};
+Line Loop(28) = {17, -10, 5, 9};
+Plane Surface(28) = {28};
+Line Loop(30) = {17, 18, 19, 20};
+Plane Surface(30) = {30};
+Line Loop(32) = {19, -11, 7, 12};
+Plane Surface(32) = {32};
+Line Loop(35) = {4, 1, 2, 3, -5, -8, -7, -6};
+Plane Surface(35) = {35};
+Line Loop(37) = {13, 21, -14, 4};
+Plane Surface(37) = {37};
+Line Loop(39) = {24, 21, 22, 23};
+Plane Surface(39) = {39};
+Line Loop(41) = {3, 14, 22, -15};
+Plane Surface(41) = {41};
+Line Loop(43) = {23, -16, 2, 15};
+Plane Surface(43) = {43};
+Line Loop(45) = {1, 16, 24, -13};
+Plane Surface(45) = {45};
+Line Loop(47) = {10, 18, -12, 8};
+Plane Surface(47) = {47};
+Line Loop(58) = {17, 49, 55, -50};
+Plane Surface(58) = {58};
+Line Loop(60) = {49, -54, -51, -18};
+Plane Surface(60) = {60};
+Line Loop(62) = {51, -53, -52, -19};
+Plane Surface(62) = {62};
+Line Loop(64) = {54, 55, 56, 53};
+Plane Surface(64) = {64};
+Line Loop(66) = {50, 56, -52, 20};
+Plane Surface(66) = {66};
+Surface Loop(68) = {60, 58, 64, 66, 62, 30};
+Volume(68) = {68};
+Surface Loop(70) = {41, 35, 37, 45, 43, 39, 28, 47, 32, 26, 60, 58, 64, 66, 62};
+Volume(70) = {70};
+""" % { 
+        'ms':   self.meshsize,
+        'L': length/2,
+        'W': width/2,
+        'H': height,
+        'l': flength/2,
+        'w': fwidth/2,
+        'h': fheight,
+        'overlaph': fheight + 1,
+        }
+
         if self.fabric_model:
             raise NotImplementedModel
         else:
-            self.mesh = Grid3D(dx=dx, nx=el_length, dy=dy, ny=el_width, dz=dz, 
-                   nz=el_height)
+            filegeo = open('test.geo', 'wb')
+            filegeo.write(meshgeo)
+            filegeo.close()
+            #new refine the file a couple of times
+            refine = 0
+            from subprocess import Popen, check_call
+            check_call(['gmsh', '-3', 'test.geo', '-o', 'test.msh' ])
+            for ind in range(refine):
+                print 'refining', ind, 'time'
+                check_call(['gmsh', '-refine', 'test.msh', '-o', 'test.msh'])
+            self.mesh = Gmsh3D('test.msh')
+##            self.mesh = Grid3D(dx=dx, nx=el_length, dy=dy, ny=el_width, dz=dz, 
+##                   nz=el_height)
 
     def initial_room(self):
         self.initial_t = self.times[0]
