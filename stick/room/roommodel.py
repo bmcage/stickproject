@@ -124,106 +124,118 @@ class RoomModel(object):
         dz = height / el_height # mesh size in x direction 
 
         self.meshsize = height/5
+        self.meshsizesmall = fheight
         meshgeo = """cl1 = %(ms)g;
-Point(1) = {-%(L)g, %(W)g, 0, cl1};
-Point(2) = {-%(L)g, -%(W)g, 0, cl1};
-Point(3) = {%(L)g, -%(W)g, 0, cl1};
-Point(4) = {%(L)g, %(W)g, 0, cl1};
-Point(5) = {%(L)g, %(W)g, 0, cl1};
-Point(6) = {-%(l)g, -%(w)g, 0, cl1};
-Point(7) = {-%(l)g, %(w)g, 0, cl1};
-Point(8) = {%(l)g, %(w)g, 0, cl1};
-Point(9) = {%(l)g, -%(w)g, 0, cl1};
-Point(10) = {%(l)g, -%(w)g, %(h)g, cl1};
-Point(11) = {%(l)g, %(w)g, %(h)g, cl1};
-Point(12) = {%(l)g, %(w)g, %(h)g, cl1};
-Point(13) = {-%(l)g, %(w)g, %(h)g, cl1};
-Point(14) = {-%(l)g, -%(w)g, %(h)g, cl1};
-Point(15) = {%(L)g, %(W)g, %(H)g, cl1};
-Point(16) = {%(L)g, -%(W)g, %(H)g, cl1};
-Point(17) = {-%(L)g, -%(W)g, %(H)g, cl1};
-Point(18) = {-%(L)g, %(W)g, %(H)g, cl1};
-Point(19) = {%(l)g, %(w)g, %(overlaph)g, cl1};
+cl2 = %(ms_small)g;
+Point(1) = {%(L)g, %(W)g, 0, cl1};
+Point(2) = {%(L)g, -%(W)g, 0, cl1};
+Point(3) = {-%(L)g, -%(W)g, 0, cl1};
+Point(4) = {-%(L)g, %(W)g, 0, cl1};
+Point(5) = {-%(L)g, %(W)g, %(H)g, cl1};
+Point(6) = {-%(L)g, -%(W)g, %(H)g, cl1};
+Point(7) = {%(L)g, -%(W)g, %(H)g, cl1};
+Point(8) = {%(L)g, %(W)g, %(H)g, cl1};
+Point(9) = {%(l)g, %(w)g, 0, cl1};
+Point(10) = {%(l)g, -%(w)g, 0, cl1};
+Point(11) = {-%(l)g, -%(w)g, 0, cl1};
+Point(12) = {-%(l)g, %(w)g, 0, cl1};
+Point(13) = {%(l)g, %(w)g, %(h)g, cl2};
+Point(14) = {%(l)g, -%(w)g, %(h)g, cl2};
+Point(15) = {-%(l)g, -%(w)g, %(h)g, cl2};
+Point(16) = {-%(l)g, %(w)g, %(h)g, cl2};
+Point(17) = {%(l)g, %(w)g, %(overlaph)g, cl1};
+Point(18) = {-%(l)g, %(w)g, %(overlaph)g, cl1};
+Point(19) = {-%(l)g, -%(w)g, %(overlaph)g, cl1};
 Point(20) = {%(l)g, -%(w)g, %(overlaph)g, cl1};
-Point(21) = {-%(l)g, -%(w)g, %(overlaph)g, cl1};
-Point(22) = {-%(l)g, %(w)g, %(overlaph)g, cl1};
-Line(1) = {4, 1};
-Line(2) = {1, 2};
-Line(3) = {2, 3};
-Line(4) = {3, 4};
-Line(5) = {9, 8};
-Line(6) = {8, 7};
-Line(7) = {7, 6};
-Line(8) = {6, 9};
-Line(9) = {8, 11};
-Line(10) = {9, 10};
-Line(11) = {7, 13};
-Line(12) = {6, 14};
-Line(13) = {4, 15};
-Line(14) = {3, 16};
-Line(15) = {2, 17};
-Line(16) = {1, 18};
-Line(17) = {11, 10};
-Line(18) = {10, 14};
-Line(19) = {14, 13};
-Line(20) = {13, 11};
-Line(21) = {15, 16};
-Line(22) = {16, 17};
-Line(23) = {17, 18};
-Line(24) = {18, 15};
-Line(49) = {10, 20};
-Line(50) = {11, 19};
-Line(51) = {14, 21};
-Line(52) = {13, 22};
-Line(53) = {22, 21};
-Line(54) = {21, 20};
-Line(55) = {20, 19};
-Line(56) = {19, 22};
-Line Loop(26) = {9, -20, -11, -6};
-Plane Surface(26) = {26};
-Line Loop(28) = {17, -10, 5, 9};
-Plane Surface(28) = {28};
-Line Loop(30) = {17, 18, 19, 20};
-Plane Surface(30) = {30};
-Line Loop(32) = {19, -11, 7, 12};
-Plane Surface(32) = {32};
-Line Loop(35) = {4, 1, 2, 3, -5, -8, -7, -6};
+Line(1) = {3, 6};
+Line(2) = {6, 5};
+Line(3) = {5, 8};
+Line(4) = {8, 7};
+Line(5) = {7, 6};
+Line(6) = {2, 7};
+Line(7) = {1, 8};
+Line(8) = {4, 5};
+Line(9) = {3, 2};
+Line(10) = {2, 1};
+Line(11) = {1, 4};
+Line(12) = {4, 3};
+Line(13) = {11, 15};
+Line(14) = {15, 19};
+Line(15) = {12, 12};
+Line(16) = {12, 16};
+Line(17) = {16, 18};
+Line(18) = {9, 13};
+Line(19) = {13, 17};
+Line(20) = {10, 14};
+Line(21) = {14, 20};
+Line(22) = {10, 11};
+Line(23) = {11, 12};
+Line(24) = {12, 9};
+Line(25) = {9, 10};
+Line(26) = {14, 15};
+Line(27) = {15, 16};
+Line(28) = {16, 13};
+Line(29) = {13, 14};
+Line(30) = {20, 19};
+Line(31) = {19, 18};
+Line(32) = {18, 17};
+Line(33) = {17, 20};
+Line(54) = {4, 12};
+Line(55) = {11, 3};
+Line(56) = {10, 2};
+Line(57) = {9, 1};
+Line Loop(35) = {30, -14, -26, 21};
 Plane Surface(35) = {35};
-Line Loop(37) = {13, 21, -14, 4};
+Line Loop(37) = {14, 31, -17, -27};
 Plane Surface(37) = {37};
-Line Loop(39) = {24, 21, 22, 23};
+Line Loop(39) = {17, 32, -19, -28};
 Plane Surface(39) = {39};
-Line Loop(41) = {3, 14, 22, -15};
+Line Loop(41) = {19, 33, -21, -29};
 Plane Surface(41) = {41};
-Line Loop(43) = {23, -16, 2, 15};
+Line Loop(43) = {30, 31, 32, 33};
 Plane Surface(43) = {43};
-Line Loop(45) = {1, 16, 24, -13};
+Line Loop(45) = {28, 29, 26, 27};
 Plane Surface(45) = {45};
-Line Loop(47) = {10, 18, -12, 8};
+Line Loop(47) = {27, -16, -23, 13};
 Plane Surface(47) = {47};
-Line Loop(58) = {17, 49, 55, -50};
-Plane Surface(58) = {58};
-Line Loop(60) = {49, -54, -51, -18};
-Plane Surface(60) = {60};
-Line Loop(62) = {51, -53, -52, -19};
-Plane Surface(62) = {62};
-Line Loop(64) = {54, 55, 56, 53};
-Plane Surface(64) = {64};
-Line Loop(66) = {50, 56, -52, 20};
-Plane Surface(66) = {66};
-Surface Loop(68) = {60, 58, 64, 66, 62, 30};
-Volume(68) = {68};
-Surface Loop(70) = {41, 35, 37, 45, 43, 39, 28, 47, 32, 26, 60, 58, 64, 66, 62};
-Volume(70) = {70};
+Line Loop(49) = {24, 18, -28, -16};
+Plane Surface(49) = {49};
+Line Loop(51) = {29, -20, -25, 18};
+Plane Surface(51) = {51};
+Line Loop(53) = {26, -13, -22, 20};
+Plane Surface(53) = {53};
+Line Loop(59) = {54, 24, 57, 11};
+Plane Surface(59) = {59};
+Line Loop(61) = {57, -10, -56, -25};
+Plane Surface(61) = {61};
+Line Loop(63) = {56, -9, -55, -22};
+Plane Surface(63) = {63};
+Line Loop(65) = {55, -12, 54, -23};
+Plane Surface(65) = {65};
+Line Loop(67) = {11, 8, 3, -7};
+Plane Surface(67) = {67};
+Line Loop(69) = {4, -6, 10, 7};
+Plane Surface(69) = {69};
+Line Loop(71) = {2, -8, 12, 1};
+Plane Surface(71) = {71};
+Line Loop(73) = {5, -1, 9, 6};
+Plane Surface(73) = {73};
+Line Loop(75) = {5, 2, 3, 4};
+Plane Surface(75) = {75};
+Surface Loop(77) = {43, 35, 37, 39, 41, 45};
+Volume(77) = {77};
+Surface Loop(79) = {75, 73, 71, 67, 59, 65, 63, 61, 69, 51, 53, 47, 49, 43, 35, 37, 39, 41};
+Volume(79) = {79};
 """ % { 
         'ms':   self.meshsize,
+        'ms_small': self.meshsizesmall,
         'L': length/2,
         'W': width/2,
         'H': height,
         'l': flength/2,
         'w': fwidth/2,
         'h': fheight,
-        'overlaph': fheight + 1,
+        'overlaph': fheight + fheight,
         }
 
         if self.fabric_model:
@@ -239,9 +251,29 @@ Volume(70) = {70};
             for ind in range(refine):
                 print 'refining', ind, 'time'
                 check_call(['gmsh', '-refine', 'test.msh', '-o', 'test.msh'])
-            self.mesh = Gmsh3D('test.msh')
+            self.mesh = Gmsh3D('stick/room/test.msh')
 ##            self.mesh = Grid3D(dx=dx, nx=el_length, dy=dy, ny=el_width, dz=dz, 
 ##                   nz=el_height)
+
+        #get the position of the boundary faces
+        xfc, yfc, zfc = self.mesh.faceCenters
+        print xfc, yfc, zfc
+        # define different sizes for the boundary conditions
+        self.facesLeft = (xfc < -length/2 + 1e-8)
+        print self.facesLeft
+        print sys.exit()
+        self.facesRight = (xfc > length/2 - 1e-8)
+        self.facesTop = (zfc > height - 1e-8)
+        self.facesBottom = (xfc < 1e-8)
+        self.facesFront = (yfc < -width/2 + 1e-8)
+        self.facesBack = (yfc > width/2 - 1e-8)
+
+        self.facesBound = (self.facesLeft | self.facesRight | 
+                        self.facesTop | self.facesBottom |
+                        self.facesBack | self.facesFront)
+        self.facesTextile = (xfc > -flength/2 - 1e-8) & (xfc < flength/2 + 1e-8) \
+                & (yfc > -fwidth/2 - 1e-8) & (yfc < fwidth/2 + 1e-8) \
+                & (zfc < fheight + 1e-8)
 
     def initial_room(self):
         self.initial_t = self.times[0]
@@ -288,7 +320,7 @@ Volume(70) = {70};
 
         self.viewer = None
         self.viewer = Viewer(vars = self.concTmp, title = 'Temperature Distribution', 
-                            datamin = 0., datamax = 30.)
+                            datamin = 15., datamax = 45.)
         self.viewer.plot()
         #raw_input("take the example of the initial condition")
         self.viewerplotcount = 1
@@ -309,16 +341,10 @@ Volume(70) = {70};
         self.eqVap = TransientTerm() == DiffusionTerm(coeff=self.Da)
         self.eqAir = TransientTerm() == DiffusionTerm(coeff=self.Da)
         self.eqTmp = TransientTerm(coeff=self.ca) == DiffusionTerm(coeff=self.Ka)
-                            
-        #get the position of the boundary faces
-        xfc, yfc, zfc = self.mesh.faceCenters
 
         #Dirichlet boundary conditions
-        facesBound = (self.mesh.facesLeft | self.mesh.facesRight | 
-                        self.mesh.facesTop | self.mesh.facesBottom |
-                        self.mesh.facesBack | self.mesh.facesFront)
-        
-        self.concTmp.constrain(self.valueDirTmp, facesBound)
+        self.concTmp.constrain(self.valueDirTmp, self.facesBound)
+        self.concTmp.constrain(40., self.facesTextile)
         
         #all other boundaries are automatically Neumann BC
         
