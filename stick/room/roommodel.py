@@ -26,6 +26,7 @@ Module holding a generic diffusion model for a room used for textile exp.
 #-------------------------------------------------------------------------
 from __future__ import division
 import os.path
+import shutil
 import sys
 import numpy as np
 import scipy as sp
@@ -132,7 +133,7 @@ class RoomModel(object):
                 raise Exception('File mesh file does not exist: %s' % filenamemsh)
         else:
             self.meshsize = height/5
-            self.meshsizesmall = fheight
+            self.meshsizesmall = self.meshsize
             meshgeo = """cl1 = %(ms)g;
 cl2 = %(ms_small)g;
 Point(1) = {%(L)g, %(W)g, 0, cl1};
@@ -378,6 +379,10 @@ Volume(79) = {79};
             
             if self.viewer is not None and self.viewerplotcount == 0:
                     self.viewer.plot()
+                    outvtk =  utils.OUTPUTDIR + os.sep + \
+                                        'roomTemp%08.3f.vtk' % t
+                    invtk = self.viewer.vtkcellfname
+                    shutil.copy(invtk, outvtk)
             self.viewerplotcount += 1
             self.viewerplotcount = self.viewerplotcount % self.plotevery
 
