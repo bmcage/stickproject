@@ -106,8 +106,13 @@ class RoomConfigManager(ConfigManager):
             "If domain type has length, it's length in mm")
         self.register("domain.width", 200.,
             "If domain type has width, it's width in mm")
-        self.register("domain.length.height", 100.,
+        self.register("domain.height", 100.,
             "If domain type has height, it's height in mm")
+        self.register("domain.load_msh", False,
+            "If True, msh_file is loaded instead of constructing the domain again."
+            " The msh_file should be consistent with domain and fabric values !!!")
+        self.register("domain.msh_file", 'room.geo',
+            "The msh file to load")
 
         self.register("fabric.fabric_config", '../fiberfabric/defaultfiberfabric',
             "The ini file describing the fabric used in this room")

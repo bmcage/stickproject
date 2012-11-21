@@ -39,6 +39,7 @@ import time
 #-------------------------------------------------------------------------
 import stick.const as const
 import stick.room.config as conf
+import stick.lib.utils.utils as utils
 
 #-------------------------------------------------------------------------
 #
@@ -108,7 +109,6 @@ class RoomModel(object):
         """
         Create a mesh for use in the model
         """
-        from fipy.meshes import Grid3D
         length = self.cfg.get('domain.length')
         width = self.cfg.get('domain.width')
         height = self.cfg.get('domain.height')
@@ -122,10 +122,18 @@ class RoomModel(object):
         dx = length / el_length # mesh size in x direction 
         dy = width / el_width # mesh size in x direction 
         dz = height / el_height # mesh size in x direction 
-
-        self.meshsize = height/5
-        self.meshsizesmall = fheight
-        meshgeo = """cl1 = %(ms)g;
+            
+        load_msh = self.cfg.get('domain.load_msh')
+        if load_msh:
+            filenamemsh = os.path.normpath(os.path.join(
+                                os.path.dirname(self.cfg.filename), 
+                                self.cfg.get('domain.msh_file')))
+            if not os.path.isfile(filenamemsh):
+                raise Exception('File mesh file does not exist: %s' % filenamemsh)
+        else:
+            self.meshsize = height/5
+            self.meshsizesmall = fheight
+            meshgeo = """cl1 = %(ms)g;
 cl2 = %(ms_small)g;
 Point(1) = {%(L)g, %(W)g, 0, cl1};
 Point(2) = {%(L)g, -%(W)g, 0, cl1};
@@ -237,43 +245,50 @@ Volume(79) = {79};
         'h': fheight,
         'overlaph': fheight + fheight,
         }
-
-        if self.fabric_model:
-            raise NotImplementedModel
-        else:
-            filegeo = open('test.geo', 'wb')
+            filenamegeo = utils.OUTPUTDIR + os.sep + 'room.geo'
+            filenamemsh = utils.OUTPUTDIR + os.sep + 'room.msh'
+            filegeo = open(filenamegeo, 'wb')
             filegeo.write(meshgeo)
             filegeo.close()
             #new refine the file a couple of times
             refine = 0
             from subprocess import Popen, check_call
-            check_call(['gmsh', '-3', 'test.geo', '-o', 'test.msh' ])
+            check_call(['gmsh', '-3', filenamegeo, '-o', filenamemsh ])
             for ind in range(refine):
                 print 'refining', ind, 'time'
-                check_call(['gmsh', '-refine', 'test.msh', '-o', 'test.msh'])
-            self.mesh = Gmsh3D('stick/room/test.msh')
+                check_call(['gmsh', '-refine', filenamemsh, '-o', filenamemsh])
+
+        # construct the fipy mesh with the filenamemsh
+        self.mesh = Gmsh3D(filenamemsh)
 ##            self.mesh = Grid3D(dx=dx, nx=el_length, dy=dy, ny=el_width, dz=dz, 
 ##                   nz=el_height)
 
         #get the position of the boundary faces
         xfc, yfc, zfc = self.mesh.faceCenters
-        print xfc, yfc, zfc
         # define different sizes for the boundary conditions
-        self.facesLeft = (xfc < -length/2 + 1e-8)
-        print self.facesLeft
-        print sys.exit()
-        self.facesRight = (xfc > length/2 - 1e-8)
-        self.facesTop = (zfc > height - 1e-8)
-        self.facesBottom = (xfc < 1e-8)
-        self.facesFront = (yfc < -width/2 + 1e-8)
-        self.facesBack = (yfc > width/2 - 1e-8)
+        self.facesLeft = (xfc < -length/2 + 1e-6)
+        self.facesRight = (xfc > length/2 - 1e-6)
+        self.facesTop = (zfc > height - 1e-6)
+        self.facesBottom = (zfc < 1e-6)
+        self.facesFront = (yfc < -width/2 + 1e-6)
+        self.facesBack = (yfc > width/2 - 1e-6)
 
         self.facesBound = (self.facesLeft | self.facesRight | 
                         self.facesTop | self.facesBottom |
                         self.facesBack | self.facesFront)
-        self.facesTextile = (xfc > -flength/2 - 1e-8) & (xfc < flength/2 + 1e-8) \
-                & (yfc > -fwidth/2 - 1e-8) & (yfc < fwidth/2 + 1e-8) \
-                & (zfc < fheight + 1e-8)
+        self.facesTextile = (xfc > -flength/2 - 1e-6) & (xfc < flength/2 + 1e-6) \
+                & (yfc > -fwidth/2 - 1e-6) & (yfc < fwidth/2 + 1e-6) \
+                & (zfc < fheight + 1e-6) & (zfc > fheight - 1e-6)
+##        print 'test Left', list(xfc[self.facesLeft])
+##        print 'test Right', list(xfc[self.facesRight])
+##        print 'test Top', list(zfc[self.facesTop])
+##        print 'test Front', list(yfc[self.facesFront])
+##        print 'test Back', list(yfc[self.facesBack])
+##        print 'test face Text', list(zfc[self.facesTextile])
+##        print list(xfc[self.facesTextile])
+##        print list(yfc[self.facesTextile])
+##        #print 'bound', xfc[self.facesBound]
+##        sys.exit()
 
     def initial_room(self):
         self.initial_t = self.times[0]
