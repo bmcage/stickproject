@@ -76,7 +76,7 @@ def main(argv=None):
             inifile = value
         elif option in ('-o', '--outputdir'):
             outputdir = value
-        elf option in ('--write-ini'):
+        elif option in ('--write-ini'):
             writeini = True
     
     #Parse ini file to obtain parameters.
