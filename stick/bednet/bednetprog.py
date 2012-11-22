@@ -72,6 +72,7 @@ def main(argv=None):
     inifile = conf.INIFILE_DEFAULT
     outputdir = const.DATA_DIR
     analytic = False
+    writeini = False
     for opt_ix in range(len(options)):
         option, value = options[opt_ix]
         if option in ( '-i', '--inifile'):
@@ -80,6 +81,8 @@ def main(argv=None):
             outputdir = value
         elif option in ('-a', '--analytic'):
             analytic = True
+        elif option in ('--write-ini',):
+            writeini = True
     
     #Parse ini file to obtain parameters.
     cfg = conf.BednetConfigManager.get_instance(inifile)
