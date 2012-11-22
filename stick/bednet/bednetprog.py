@@ -105,7 +105,11 @@ def main(argv=None):
     else:
         from stick.bednet.room1dmodel import Room1DModel
         model = Room1DModel(cfg)
-    
+
+    if writeini:
+        print "Writing out ini file cleaned.ini to outputdir %s" % outputdir
+        cfg.save(outputdir + os.sep + 'cleaned.ini')
+        sys.exit()
     #pass further execution to the model
     model.run(wait=True)
 

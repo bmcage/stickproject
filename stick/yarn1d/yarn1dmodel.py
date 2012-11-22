@@ -200,13 +200,21 @@ class Yarn1DModel(object):
         self.porosity = np.ones(self.nr_cell_tot, float)
         self.volfracfib = []  # volume fraction of the fiber types
         if self.fiberlayout_method == 'virtlocoverlap':
-            value_from_areafunction = np.zeros(self.nr_edge, float)
+            value_from_areafunction = np.zeros(self.nr_cell, float)
 
             for i_porosity in range(len(self.prob_area)):
                 function_area = self.prob_area[i_porosity]
-                value_from_areafunction += function_area(self.grid_edge[:self.nr_edge])
-            self.porosity[:self.nr_edge] = 1. - value_from_areafunction[:self.nr_edge - 1]
-              
+                value_from_areafunction += function_area(self.grid[:])
+                #plot the value from the function and the porosity value to check
+                #the calculation for porosity
+                plt.figure()
+                plt.plot(self.grid[:], 1 - value_from_areafunction, '-', color = 'red')
+                plt.plot(self.grid[:], 1 - function_area(self.grid[:]), '*')
+                plt.xlabel('Yarn domain')
+                plt.ylabel('value')
+                plt.show()
+            self.porosity[:self.nr_cell] = 1. - value_from_areafunction[:self.nr_cell]
+            
         else:        
             for blend, model in zip(self.blend, self.fiber_models[0]):
                 self.volfracfib.append(

@@ -76,6 +76,8 @@ def main(argv=None):
             inifile = value
         elif option in ('-o', '--outputdir'):
             outputdir = value
+        elf option in ('--write-ini'):
+            writeini = True
     
     #Parse ini file to obtain parameters.
     cfg = conf.YarnConfigManager.get_instance(inifile)
@@ -97,7 +99,10 @@ def main(argv=None):
     #create the correct model, and run it
     from stick.yarn1d.yarn1dmodel import Yarn1DModel
     model = Yarn1DModel(cfg)
-    
+    if writeini:
+        print "Writing out inifile cleaned .ini to outputdir %s" %outputdir
+        cfg.save(outputdir + os.sep + 'cleaned.ini')
+        sys.exit()
     #pass further execution to the model
     model.run(wait=True)
 

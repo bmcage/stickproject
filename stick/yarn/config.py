@@ -52,9 +52,11 @@ METHOD = {
     }
 
 FIBERLAYOUTS = {
-    'random': ('random position of fibers in the yarn',),
-    'virtloc': ('default virtual locations (start in center, no overlap)',),
-    'virtlocoverlap': ('adapted virtual locations (different fiber size, overlap)',),
+    'uniform': ('the porosity is the same everywhere'),
+    'virtlocoverlap': ('adapted virtual locations (different fiber size, overlap), \
+                    area distribution is required',),
+    'random': ('do not use: random position of fibers in the yarn',),
+    'virtloc': ('do not use: default virtual locations (start in center, no overlap)',),
     }
 
 DIFF_FLUX = 0
@@ -136,7 +138,7 @@ class YarnConfigManager(ConfigManager):
             "extend the yarn domain with an extension outside the yarn")
         self.register("domain.extensionfraction", 1.,
             "extend the domain with this fraction*yarnradius")
-        self.register("domain.fiberlayout_method", 'random',
+        self.register("domain.fiberlayout_method", 'uniform',
             "Method for the fiber layout, one of " 
             + ",".join(FIBERLAYOUTS.keys()))
         self.register("domain.n_edge", 10, 'For 1D modelling, how many edges '
@@ -154,7 +156,7 @@ class YarnConfigManager(ConfigManager):
             "Blend distribution over the fiber types")
         self.register("fiber.radius_fiber", [100.])
         self.register("fiber.fiber_config", ['../fiber/defaultfiber.ini'])
-        self.register("fiber.prob_area", '[lambda r: r ** 2]')
+        self.register("fiber.prob_area", '[lambda r: 0.2]')
 
         #initial section
         self.register("initial.init_conc1d", 'lambda r: 0.', 
