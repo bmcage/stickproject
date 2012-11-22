@@ -66,18 +66,20 @@ def main(argv=None):
         print "Error parsing the arguments: %s " % argv[1:]
         sys.exit(0)
     if leftargs:
-        print 'bednet.py does not understand argument %s' % leftargs
+        print 'roomprog.py does not understand argument %s' % leftargs
         sys.exit(0)
 
     inifile = conf.INIFILE_DEFAULT
     outputdir = const.DATA_DIR
-    analytic = False
+    writeini = False
     for opt_ix in range(len(options)):
         option, value = options[opt_ix]
         if option in ( '-i', '--inifile'):
             inifile = value
         elif option in ('-o', '--outputdir'):
             outputdir = value
+        elif option in ('--write-ini',):
+            writeini = True
     
     #Parse ini file to obtain parameters.
     cfg = conf.RoomConfigManager.get_instance(inifile)
@@ -99,6 +101,11 @@ def main(argv=None):
     #create the correct model, and run it
     from stick.room.roommodel import RoomModel
     model = RoomModel(cfg)
+
+    if writeini:
+        print "Writing out ini file cleaned.ini to outputdir %s" % outputdir
+        cfg.save(outputdir + os.sep + 'cleaned.ini')
+        sys.exit()
     
     #pass further execution to the model
     model.run()

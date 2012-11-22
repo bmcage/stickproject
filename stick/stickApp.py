@@ -48,6 +48,7 @@ PROGS = {
     'bednet': 'stick.bednet.bednetprog',
     'pcm': 'stick.pcm.pcmprog',
     'room': 'stick.room.roomprog',
+    'fiberfabric': 'stick.fiberfabric.fiberfabricprog',
     }
 
 #-------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 #!/usr/bin env python
 
-# Copyright (C) 2009  B. Malengier
+# Copyright (C) 2012  B. Malengier
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 """
-    Main program that reads in ini file for fiber simulation and decides how 
+    Main program that reads in ini file for room simulation and decides how 
     to handle it
 """
 #-------------------------------------------------------------------------
@@ -25,8 +25,10 @@
 # Python modules
 #
 #-------------------------------------------------------------------------
+from __future__ import division
 import sys, os, shutil
 import getopt
+import time
 
 #-------------------------------------------------------------------------
 #
@@ -35,7 +37,7 @@ import getopt
 #-------------------------------------------------------------------------
 from stick.lib.utils.utils import set_outputdir
 import stick.const as const
-import stick.fiber.config as conf
+import stick.room.config as conf
 
 #-------------------------------------------------------------------------
 #
@@ -64,7 +66,7 @@ def main(argv=None):
         print "Error parsing the arguments: %s " % argv[1:]
         sys.exit(0)
     if leftargs:
-        print 'fiber.py does not understand argument %s' % leftargs
+        print 'fiberfabricprog.py does not understand argument %s' % leftargs
         sys.exit(0)
 
     inifile = conf.INIFILE_DEFAULT
@@ -80,7 +82,7 @@ def main(argv=None):
             writeini = True
     
     #Parse ini file to obtain parameters.
-    cfg = conf.FiberConfigManager.get_instance(inifile)
+    cfg = conf.FiberFabricConfigManager.get_instance(inifile)
     
     #create outputdir if not existing
     if not os.path.isdir(outputdir):
@@ -97,16 +99,16 @@ def main(argv=None):
     shutil.copy(inifile, outputdir)
     
     #create the correct model, and run it
-    from stick.fiber1d.fibermodel import FiberModel
-    model = FiberModel(cfg)
-    
+    from stick.fiberfabric.fiberfabricmodel import FiberFabricModel
+    model = FiberFabricModel(cfg)
+
     if writeini:
         print "Writing out ini file cleaned.ini to outputdir %s" % outputdir
         cfg.save(outputdir + os.sep + 'cleaned.ini')
         sys.exit()
-    
+
     #pass further execution to the model
-    model.run(wait=True, output=True)
+    model.run()
 
 if __name__ == "__main__":
     main()

@@ -2,7 +2,7 @@
 # Copyright (C) 2005-2007  Donald N. Allingham
 # Copyright (C) 2008-2009  Gary Burton 
 # Copyright (C) 2009       Doug Blank <doug.blank@gmail.com>
-# Copyright (C) 2009       Benny Malengier <bm@cage.ugent.be>
+# Copyright (C) 2009-2012  Benny Malengier <bm@cage.ugent.be>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,24 +39,18 @@ from stick.lib.config import ConfigManager
 # Constants
 #
 #---------------------------------------------------------------
-INIFILE_DEFAULT = const.INI_DIR + os.sep + 'room' + os.sep + 'defaultroom.ini'
+INIFILE_DEFAULT = const.INI_DIR + os.sep + 'fiberfabric' + os.sep + 'defaultfiberfabric.ini'
 
 LONGOPTS = ["inifile", 'outputdir', 'write-ini']
 SHORTOPTS = "i:o" 
 
-NONE = 0
-BOTCENT = 1
-PLACEMENT = {
-    'none': NONE,
-    'bottomcenter': BOTCENT
-    }
 #---------------------------------------------------------------
 #
 # DiffitConfigManager class
 #
 #---------------------------------------------------------------
 
-class RoomConfigManager(ConfigManager):
+class FiberFabricConfigManager(ConfigManager):
 
     __instance = {}
     
@@ -65,31 +59,31 @@ class RoomConfigManager(ConfigManager):
         that will work on inifile
         """
         inifilebase = os.path.basename(inifile)
-        if inifile in RoomConfigManager.__instance:
-            return RoomConfigManager.__instance[inifile]
-        elif inifilebase in RoomConfigManager.__instance:
-            return RoomConfigManager.__instance[inifilebase]
+        if inifile in FiberFabricConfigManager.__instance:
+            return FiberFabricConfigManager.__instance[inifile]
+        elif inifilebase in FiberFabricConfigManager.__instance:
+            return FiberFabricConfigManager.__instance[inifilebase]
         else:
-            RoomConfigManager.__instance[inifile] = None # Set for __init__()
-            RoomConfigManager.__instance[inifile] = RoomConfigManager(inifile,
+            FiberFabricConfigManager.__instance[inifile] = None # Set for __init__()
+            FiberFabricConfigManager.__instance[inifile] = FiberFabricConfigManager(inifile,
                                                                 realdatastr)
-            RoomConfigManager.__instance[inifilebase] = RoomConfigManager.__instance[inifile]
-        return RoomConfigManager.__instance[inifile]
+            FiberFabricConfigManager.__instance[inifilebase] = FiberFabricConfigManager.__instance[inifile]
+        return FiberFabricConfigManager.__instance[inifile]
     get_instance = staticmethod(get_instance)
 
     def delete(inifile):
         """remove the instance inifile from the loaded configurations"""
-        del RoomConfigManager.__instance[inifile]
+        del FiberFabricConfigManager.__instance[inifile]
         if inifile != os.path.basename(inifile):
-            del RoomConfigManager.__instance[os.path.basename(inifile)]
+            del FiberFabricConfigManager.__instance[os.path.basename(inifile)]
     delete = staticmethod(delete)
 
     def __init__(self, filename = INIFILE_DEFAULT, realdatastr=None):
         """ 
         A singleton implementation of config.ConfigManager
         """
-        if (filename not in RoomConfigManager.__instance) or (
-                RoomConfigManager.__instance[filename] is not None):
+        if (filename not in FiberFabricConfigManager.__instance) or (
+                FiberFabricConfigManager.__instance[filename] is not None):
             raise Exception("This class is a singleton per filename. "
                             "Use the get_instance() method")
         ConfigManager.__init__(self, filename, realdatastr)
