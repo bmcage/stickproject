@@ -257,7 +257,29 @@ class Room1DModel(object):
         """
         self.init_conc = np.empty(self.nr_cell, float)
         self.init_conc[:] = self.initconc
-        
+        self.viewerplotcount = 1
+        if self.plotevery:
+            self.viewerplotcount = self.viewerplotcount % self.plotevery
+            plt.ion()
+            plt.rc("font", family="serif")
+            plt.rc("font", size=10)
+            width = 4.5  #width in inches
+            height = 1.4 #height in inches
+            plt.rc("figure.subplot", left=(50/72.27)/width)
+            plt.rc("figure.subplot", right=(width-10/72.27)/width)
+            plt.rc("figure.subplot", bottom=(14/72.27)/height)
+            plt.rc("figure.subplot", top=(height-7/72.27)/height)
+            plt.figure(101)
+            plt.gca().set_xlabel('Position [mm]')
+            plt.gca().set_ylabel('Concentration [$\mu$g/mm$^3$]')
+            plt.gca().set_ylim(0.)
+            #plt.gca().yaxis.set_major_formatter(pylab.FormatStrFormatter('%e'))
+            plt.title('Concentration in the room at t = %g s' % 0.)
+            plt.plot(self.grid, self.init_conc)
+            plt.show()
+            plt.savefig(utils.OUTPUTDIR + os.sep 
+                            + 'AIconc_%03.1f_sec' % 0. + const.FIGFILEEXT)
+
     def init_yarn(self):
         self.yarn_mass = [0] * len(self.yarn_models)
         self.yarn_mass_overlap = [0] * len(self.yarn_models)
@@ -464,6 +486,29 @@ class Room1DModel(object):
                         extension='.gz')
             self.viewerwritecount += 1
             self.viewerwritecount = self.viewerwritecount % self.writeevery
+        if self.plotevery:
+            if self.viewerplotcount == 0:
+                plt.ion()
+                plt.rc("font", family="serif")
+                plt.rc("font", size=10)
+                width = 4.5  #width in inches
+                height = 1.4 #height in inches
+                plt.rc("figure.subplot", left=(50/72.27)/width)
+                plt.rc("figure.subplot", right=(width-10/72.27)/width)
+                plt.rc("figure.subplot", bottom=(14/72.27)/height)
+                plt.rc("figure.subplot", top=(height-7/72.27)/height)
+                plt.figure(101)
+                plt.gca().set_xlabel('Position [mm]')
+                plt.gca().set_ylabel('Concentration [$\mu$g/mm$^3$]')
+                plt.gca().set_ylim(0.)
+                #plt.gca().yaxis.set_major_formatter(pylab.FormatStrFormatter('%e'))
+                plt.title('Concentration in the room at t = %g s' % t)
+                plt.plot(self.grid, self.sol[self.tstep, :])
+                plt.show()
+                plt.savefig(utils.OUTPUTDIR + os.sep 
+                                + 'AIconc_%03.1f_sec' % t + const.FIGFILEEXT)
+            self.viewerplotcount += 1
+            self.viewerplotcount = self.viewerplotcount % self.plotevery
 
     def view_sol(self, times, sol):
         #maxv = np.max(self.sol)
