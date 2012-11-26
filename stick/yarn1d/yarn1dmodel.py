@@ -90,7 +90,7 @@ class Yarn1DModel(object):
         if self.verbose:
             print "Timestep used in yarn1d model:", self.delta_t
         
-        self.diff_coef = self.cfg.get('diffusion.diffusion_conc')
+        self.diff_coef = self.cfg.get('diffusion.diffusion_coeff')
         self.init_conc_func = eval(self.cfg.get('initial.init_conc1d'))
         
         self.number_fiber = self.cfg.get('fiber.number_fiber')

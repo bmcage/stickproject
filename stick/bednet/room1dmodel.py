@@ -459,6 +459,12 @@ class Room1DModel(object):
         #minv = np.min(self.sol)
         #print 'max', maxv, minv
         #self.plottimes = np.arange(self.times[0],self.times[-1]+1,self.plotevery)
+        plotextra = False
+        extravals = self.cfg.get("plot.extra_time_room")
+        if extravals:
+            extravals = extravals.split("|")
+            if len(extravals) == 3 and eval(extravals[1]):
+                plotextra = True
         plt.ion()
         ind = 0
         for ind, interpdat in enumerate(self.plotdata):
@@ -478,6 +484,8 @@ class Room1DModel(object):
             plt.gca().set_ylabel('Concentration [$\mu$g/mm$^3$]')
             #plt.gca().yaxis.set_major_formatter(pylab.FormatStrFormatter('%e'))
             plt.title('Concentration at position %g mm' % xval)
+            if plotextra:
+                plt.plot(eval(extravals[1]), eval(extravals[2]), extravals[0])
             plt.plot(self.times, conc_in_point)
             #plt.ylim(0, maxv*1.1)
             plt.plot(self.times, np.ones(len(self.times)) * self.treshold, 'b--')
