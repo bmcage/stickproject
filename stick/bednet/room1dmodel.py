@@ -547,6 +547,8 @@ class Room1DModel(object):
             plt.gca().set_ylabel('Mass [$\mu$g]')
             plt.title('Mass AC in yarn type %d' % ind)
             plt.plot(self.times, ymass)
+            plt.savefig(utils.OUTPUTDIR + os.sep 
+                        + 'AImass_yarn_%d' % ind + const.FIGFILEEXT)
             fignr += 1
 
         plt.figure(fignr)
@@ -554,12 +556,16 @@ class Room1DModel(object):
         plt.gca().set_ylabel('Mass [$\mu$g]')
         plt.title('Mass AC in the bednet')
         plt.plot(self.times, self.totyarnmass)
+        plt.savefig(utils.OUTPUTDIR + os.sep 
+                        + 'AImass_bednet' + const.FIGFILEEXT)
         fignr += 1
         plt.figure(fignr)
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Mass [$\mu$g]')
         plt.title('Mass AC in the room')
         plt.plot(self.times, self.totroommass)
+        plt.savefig(utils.OUTPUTDIR + os.sep 
+                        + 'AImass_in_room' + const.FIGFILEEXT)
         fignr += 1
         #plot to check mass conservation
         plt.figure(fignr)
@@ -567,6 +573,8 @@ class Room1DModel(object):
         plt.gca().set_ylabel('Mass [$\mu$g]')
         plt.title('Total Mass AC')
         plt.plot(self.times, self.totroommass+self.totyarnmass)
+        plt.savefig(utils.OUTPUTDIR + os.sep 
+                        + 'AImass_total' + const.FIGFILEEXT)
         return fignr
 
     def init_room(self):
