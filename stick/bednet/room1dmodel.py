@@ -132,9 +132,9 @@ class Room1DModel(object):
                                 (self.maxyarnrad**2)) * (self.nhoryarns 
                                     * self.room_W + self.nvertyarns 
                                     * self.room_H)
-                         )
+                         ) / 2
         #self.endoverlap = self.maxyarnrad * (1 + EXTFRAC)
-        self.endoverlap = voloverlapyarn /  self.room_W /  self.room_H
+        self.endoverlap = self.minyarnrad + voloverlapyarn /  self.room_W /  self.room_H
         print 'end overlap zone room at ', self.endoverlap, 'not', self.maxyarnrad * (1 + EXTFRAC)
         for config, rad in zip(self.cfg_yarn, self.radius_yarn):
             config.set("domain.extensionfraction", EXTFRAC)
