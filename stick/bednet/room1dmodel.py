@@ -233,7 +233,7 @@ class Room1DModel(object):
         """
         self.init_conc = np.empty(self.nr_cell, float)
         self.init_conc[:] = self.initconc
-        
+
     def init_yarn(self):
         self.yarn_mass = [0] * len(self.yarn_models)
         self.yarn_mass_overlap = [0] * len(self.yarn_models)
@@ -438,25 +438,20 @@ class Room1DModel(object):
 
         #store masses
         self.__store_masses(self.tstep)
-        
-        if self.writeevery:
-            if self.viewerwritecount == 0:
-                fipy.dump.write({
-                        'time': t,
-                        'step': self.delta_t,
-                        'concentration': self.sol[self.tstep, :] },
-                        filename=utils.OUTPUTDIR + os.sep + 'room1d_sol_%08d.gz'%(self.tstep),
-                        extension='.gz')
-            self.viewerwritecount += 1
-            self.viewerwritecount = self.viewerwritecount % self.writeevery
 
     def view_sol(self, times, sol):
         #maxv = np.max(self.sol)
         #minv = np.min(self.sol)
         #print 'max', maxv, minv
         #self.plottimes = np.arange(self.times[0],self.times[-1]+1,self.plotevery)
+        plotextra = False
+        extravals = self.cfg.get("plot.extra_time_room")
+        if extravals:
+            extravals = extravals.split("|")
+            if len(extravals) == 3 and not eval(extravals[1]) == []:
+                plotextra = True
         plt.ion()
-        
+        ind = 0
         for ind, interpdat in enumerate(self.plotdata):
             xval = self.x0[ind]
             cellstart, interpval = interpdat
@@ -474,20 +469,62 @@ class Room1DModel(object):
             plt.gca().set_ylabel('Concentration [$\mu$g/mm$^3$]')
             #plt.gca().yaxis.set_major_formatter(pylab.FormatStrFormatter('%e'))
             plt.title('Concentration at position %g mm' % xval)
+            if plotextra:
+                plt.plot(eval(extravals[1]), eval(extravals[2]), extravals[0])
             plt.plot(self.times, conc_in_point)
             #plt.ylim(0, maxv*1.1)
             plt.plot(self.times, np.ones(len(self.times)) * self.treshold, 'b--')
             plt.show()
             plt.savefig(utils.OUTPUTDIR + os.sep 
                         + 'AIconc_%03.1f_mm' % xval + const.FIGFILEEXT)
-                
+        return ind
         #fipy.dump.write({plt.plot},filename=utils.OUTPUTDIR + os.sep + 'bednetconc%08.4f.png' % t)
 
-    def view_sol_mass(self):
+    def plot_room_sol(self, ind, times, sol):
+        print 'Generating fig of solution over the room domain'
+        self.viewerplotcount = 0
+        minval = np.min(sol)
+        maxv = np.max(sol)
+        maxval = np.power(10., int(math.log10(maxv))+1)
+        plt.ion()
+        if self.plotevery:
+            for time, ssol in zip(times, sol):
+                if self.viewerplotcount == 0:
+                    print 'plotting for time', time
+                    plt.rc("font", family="serif")
+                    plt.rc("font", size=10)
+                    width = 4.5  #width in inches
+                    height = 1.4 #height in inches
+                    plt.rc("figure.subplot", left=(50/72.27)/width)
+                    plt.rc("figure.subplot", right=(width-10/72.27)/width)
+                    plt.rc("figure.subplot", bottom=(14/72.27)/height)
+                    plt.rc("figure.subplot", top=(height-7/72.27)/height)
+                    fig = plt.figure(ind)
+                    plt.gca().set_xlabel('Position [mm]')
+                    plt.gca().set_ylabel('Concentration [$\mu$g/mm$^3$]')
+                    plt.gca().set_ylim(minval, maxval)
+                    #plt.gca().yaxis.set_major_formatter(pylab.FormatStrFormatter('%e'))
+                    plt.title('Concentration in the room at t = %g s' % time)
+                    plt.ioff()
+                    lines = plt.plot(self.grid, ssol, 'r')
+                    plt.draw()
+                    try:
+                        fig.canvas.flush_events()
+                    except NotImplementedError:
+                        pass
+                    plt.ion()
+                    plt.savefig(utils.OUTPUTDIR + os.sep 
+                                    + 'AIconc_%08.1f_sec' % time + const.FIGFILEEXT)
+                    #remove the line again
+                    lines.pop(0).remove()
+                self.viewerplotcount += 1 
+                self.viewerplotcount = self.viewerplotcount % self.plotevery
+
+    def view_sol_mass(self, ind):
         """
         Plot the evolution of the mass at current state of the solution
         """
-        fignr = len(self.plotdata)
+        fignr = ind
         plt.ion()
         for ind, ymass in enumerate(self.yarnmass):
             plt.rc("font", family="serif")
@@ -523,7 +560,7 @@ class Room1DModel(object):
         plt.gca().set_ylabel('Mass [$\mu$g]')
         plt.title('Total Mass AC')
         plt.plot(self.times, self.totroommass+self.totyarnmass)
-        fignr += 1
+        return fignr
 
     def init_room(self):
         #first we create the room mesh
@@ -555,8 +592,9 @@ class Room1DModel(object):
         for t in self.times[1:]:
             self.solve_timestep(t)
           
-        self.view_sol(self.times, self.sol)
-        self.view_sol_mass()
+        fignr = self.view_sol(self.times, self.sol)
+        fignr = self.view_sol_mass(fignr+1)
+        self.plot_room_sol(fignr+1, self.times, self.sol)
 
         if wait:
             raw_input("Finished bednet run")

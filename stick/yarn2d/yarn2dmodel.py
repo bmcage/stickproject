@@ -91,7 +91,7 @@ class Yarn2DModel(object):
         self.delta_t = self.times[1] - self.times[0]
         if self.verbose:
             print "Timestep used in yarn1d model:", self.delta_t
-        self.diffusion_DEET = self.cfg.get('diffusion.diffusion_conc')
+        self.diffusion_DEET = self.cfg.get('diffusion.diffusion_coeff')
         self.init_conc = eval(self.cfg.get('initial.init_conc2d'))
         
         self.Ry = self.cfg.get('domain.yarnradius')

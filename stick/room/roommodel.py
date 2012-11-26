@@ -340,7 +340,8 @@ Volume(79) = {79};
         self.viewer.plot()
         #raw_input("take the example of the initial condition")
         self.viewerplotcount = 1
-        self.viewerplotcount = self.viewerplotcount % self.plotevery
+        if self.plotevery:
+            self.viewerplotcount = self.viewerplotcount % self.plotevery
 
     def solve_fabric_init(self):
         """

@@ -140,6 +140,8 @@ class BednetConfigManager(ConfigManager):
             "before plotting again")
         self.register("plot.writeevery", 100,
             "When writing data out over time, indicate how many steps dt to skip")
+        self.register("plot.extra_time_room", " |[]|[]",
+            "extra points to plot, matplotlib color| x points | y points")
         
         #time info: how long to run and timestep
         self.register("time.time_period", 5000.)
