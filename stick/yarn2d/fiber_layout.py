@@ -39,11 +39,11 @@ import matplotlib
 # Local Imports
 #
 #-------------------------------------------------------------------------
-import lib.utils.utils as utils
-from lib.utils.arraycompare import fullcompare_array, circledist
+import stick.lib.utils.utils as utils
+from stick.lib.utils.arraycompare import fullcompare_array, circledist
 from fipy import Gmsh2D
 from fipy import *
-from yarn.config import FIBERLAYOUTS
+from stick.yarn.config import FIBERLAYOUTS
 from virtlocgeom import *
 from arearatioprobability import *
 

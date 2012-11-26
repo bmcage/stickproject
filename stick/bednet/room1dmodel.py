@@ -99,7 +99,9 @@ class Room1DModel(object):
         self.saturation_conc = self.cfg.get('active_component.saturation_conc')
         self.treshold = self.cfg.get('active_component.treshold_effect')
         self.x0 = self.cfg.get('observer.x0')
-        
+        #define whether there is the ventilation existing
+	self.ventilation = self.cfg.get('domain.ventilation')
+	self.vel_ventilation = self.cfg.get('domain.vel_ventilation')
         #we set a distance for the yarn bc
         EXTFRAC = 1.
         self.cfg_yarn = []
@@ -226,32 +228,6 @@ class Room1DModel(object):
         return (yarnmass, yarnmassoverlap, totyarnmass, totyarnmassoverlap,
                 roommass, roomoverlapmass)
 
-    def calc_mass_ventilation(self):
-        """
-        Calculate the mass in the room and the bednet of Active Component
-        at this specific state the model is in.
-        """
-        #First, the mass in the yarns
-        yarnmass = [None] * len(self.yarn_models)
-        yarnmassoverlap = [None] * len(self.yarn_models)
-        for ttype, model in enumerate(self.yarn_models):
-            yarnmass[ttype] = model.calc_mass(model.step_old_sol)
-            yarnmassoverlap[ttype] = model.calc_mass_overlap(model.step_old_sol)
-        #Next, the upscaled mass in the yarns
-        totyarnmass = [None] * len(self.yarn_models)
-        totyarnmassoverlap = [None] * len(self.yarn_models)
-        for ttype, (massy, massyo) in enumerate(zip(yarnmass, yarnmassoverlap)):
-            totyarnmass[ttype] = self.upscale_yarnmass(massy)
-            totyarnmassoverlap[ttype] = self.upscale_yarnmass(massyo)
-
-        #Next, the mass in the room, divided in overlapzone and rest.
-        # factor 2 because we only model half of the room
-	#if we begin to consider the 
-        roomoverlapmass = 2* self.delta_x[0] * self.room_H * self.room_W * self.step_old_sol[0]
-        roommass = 2*np.sum(self.delta_x[1:] * self.room_H * self.room_W * self.step_old_sol[1:])
-        return (yarnmass, yarnmassoverlap, totyarnmass, totyarnmassoverlap,
-                roommass, roomoverlapmass)
-
     def initial_room(self):
         """ initial concentration in the room domain
         """
@@ -296,19 +272,28 @@ class Room1DModel(object):
         #Initialize the flux rate on the edges
         flux_edge = self.__tmp_flux_edge
         #set flux on edge 0, self.nr_edge-1
-        flux_edge[0] = 0.
-        flux_edge[-1] = 0.
+	flux_edge[0] = 0.
+	flux_edge[-1] = 0.
 
-        #calculate flux rate in each edge of the domain
-        flux_edge[1:self.nr_edge-1] = (2 * self.diff_coef *
+	#calculate flux rate in each edge of the domain
+	flux_edge[1:self.nr_edge-1] = (2 * self.diff_coef *
             (conc_x[1:]-conc_x[:-1]) / (self.delta_x[:-1]+self.delta_x[1:])
             )
-        
-        diff_u_t[:] = ((flux_edge[1:]-flux_edge[:-1])
+	diff_u_t[:] = ((flux_edge[1:]-flux_edge[:-1])
                             / self.delta_x[:]
-                      )
-        ## we add a source term in the first cell where the overlap is
-        diff_u_t[0] += self.source_room_from_yarn
+                      )	
+	if self.ventilation == 'advection':
+	    flux_edge[-1] = - self.vel_ventilation * conc_x[-1] * self.delta_t
+	    flux_edge[1:self.nr_edge-1] = (2 * self.diff_coef *
+		(conc_x[1:]-conc_x[:-1]) / (self.delta_x[:-1]+self.delta_x[1:])
+		) - 2 * self.vel_ventilation * (conc_x[1:] + conc_x[:-1]) / 2.
+	    diff_u_t[:] = ((flux_edge[1:]-flux_edge[:-1])
+		                / self.delta_x[:]
+		          ) 
+	## we add a source term in the first cell where the overlap is
+	diff_u_t[0] += self.source_room_from_yarn
+	    
+	
 
 ##    def f_conc_ode_vel(self, t, conc_x, diff_u_t, vel_ventilation):
 ##        """

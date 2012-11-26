@@ -115,7 +115,9 @@ class BednetConfigManager(ConfigManager):
             "room in m.")
         self.register("domain.n_edge", 40, "When modeling a room, number of "
             "edges to take into account to divide the domain")
-
+        self.register("domain.ventilation", '0')
+        self.register("domain.vel_ventilation", 0.2,
+            'the velocity of air flow in the room in units m/s')
         self.register("sample.yarn_config", ['../yarn/defaultyarn.ini'])
 
         #info about the diffusion outside fabric

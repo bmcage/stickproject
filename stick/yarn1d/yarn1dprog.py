@@ -70,6 +70,7 @@ def main(argv=None):
 
     inifile = conf.INIFILE_DEFAULT
     outputdir = const.DATA_DIR
+    writeini = False
     for opt_ix in range(len(options)):
         option, value = options[opt_ix]
         if option in ( '-i', '--inifile'):

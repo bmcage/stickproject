@@ -113,7 +113,6 @@ class RoomConfigManager(ConfigManager):
             " The msh_file should be consistent with domain and fabric values !!!")
         self.register("domain.msh_file", 'room.geo',
             "The msh file to load")
-
         self.register("fabric.fabric_config", '../fiberfabric/defaultfiberfabric',
             "The ini file describing the fabric used in this room")
         self.register("fabric.fabricposition", 'bottomcenter',

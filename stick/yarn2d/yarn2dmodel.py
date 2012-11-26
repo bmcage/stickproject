@@ -28,7 +28,6 @@ from __future__ import division
 import os.path
 import sys
 from copy import *
-import const
 import numpy as np
 import scipy as sp
 HAVE_ODES = False
@@ -46,13 +45,14 @@ import time
 # Local Imports
 #
 #-------------------------------------------------------------------------
-import lib.utils.utils as utils
-import lib.utils.gridutils as GridUtils
-import yarn.config as conf
+import stick.lib.utils.utils as utils
+import stick.const as const
+import stick.lib.utils.gridutils as GridUtils
+import stick.yarn.config as conf
 from mycorrection import MyDiffusionTermNoCorrection
 from yarn2dgrid import Yarn2dGrid
-from fiber.config import FiberConfigManager, CIRCLE
-from fiber1d.fibermodel import FiberModel
+from stick.fiber.config import FiberConfigManager, CIRCLE
+from stick.fiber1d.fibermodel import FiberModel
 
 #-------------------------------------------------------------------------
 #
