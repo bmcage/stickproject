@@ -100,8 +100,8 @@ class Room1DModel(object):
         self.treshold = self.cfg.get('active_component.treshold_effect')
         self.x0 = self.cfg.get('observer.x0')
         #define whether there is the ventilation existing
-	self.ventilation = self.cfg.get('domain.ventilation')
-	self.vel_ventilation = self.cfg.get('domain.vel_ventilation')
+        self.ventilation = self.cfg.get('domain.ventilation')
+        self.vel_ventilation = self.cfg.get('domain.vel_ventilation')
         #we set a distance for the yarn bc
         EXTFRAC = 1.
         self.cfg_yarn = []
@@ -128,9 +128,16 @@ class Room1DModel(object):
         #we want the overlap zone of the yarns to end at 2* maximum radius:
         self.maxyarnrad = max(self.radius_yarn)
         self.minyarnrad = min(self.radius_yarn)
-        self.endoverlap = self.maxyarnrad * (1 + EXTFRAC)
+        voloverlapyarn = (np.pi*((self.maxyarnrad * (1 + EXTFRAC))**2 -
+                                (self.maxyarnrad**2)) * (self.nhoryarns 
+                                    * self.room_W + self.nvertyarns 
+                                    * self.room_H)
+                         )
+        #self.endoverlap = self.maxyarnrad * (1 + EXTFRAC)
+        self.endoverlap = voloverlapyarn /  self.room_W /  self.room_H
+        print 'end overlap zone room at ', self.endoverlap, 'not', self.maxyarnrad * (1 + EXTFRAC)
         for config, rad in zip(self.cfg_yarn, self.radius_yarn):
-            config.set("domain.extensionfraction", (self.endoverlap-rad)/rad)
+            config.set("domain.extensionfraction", EXTFRAC)
         self.roomoverlapsize = self.endoverlap - self.minyarnrad
         self.roomoverlaparea = self.roomoverlapsize * self.room_H * self.room_W
         
@@ -272,28 +279,27 @@ class Room1DModel(object):
         #Initialize the flux rate on the edges
         flux_edge = self.__tmp_flux_edge
         #set flux on edge 0, self.nr_edge-1
-	flux_edge[0] = 0.
-	flux_edge[-1] = 0.
+        flux_edge[0] = 0.
+        flux_edge[-1] = 0.
 
-	#calculate flux rate in each edge of the domain
-	flux_edge[1:self.nr_edge-1] = (2 * self.diff_coef *
+        #calculate flux rate in each edge of the domain
+        flux_edge[1:self.nr_edge-1] = (2 * self.diff_coef *
             (conc_x[1:]-conc_x[:-1]) / (self.delta_x[:-1]+self.delta_x[1:])
             )
-	diff_u_t[:] = ((flux_edge[1:]-flux_edge[:-1])
+        diff_u_t[:] = ((flux_edge[1:]-flux_edge[:-1])
                             / self.delta_x[:]
                       )	
-	if self.ventilation == 'advection':
-	    flux_edge[-1] = - self.vel_ventilation * conc_x[-1] * self.delta_t
-	    flux_edge[1:self.nr_edge-1] = (2 * self.diff_coef *
-		(conc_x[1:]-conc_x[:-1]) / (self.delta_x[:-1]+self.delta_x[1:])
-		) - 2 * self.vel_ventilation * (conc_x[1:] + conc_x[:-1]) / 2.
-	    diff_u_t[:] = ((flux_edge[1:]-flux_edge[:-1])
-		                / self.delta_x[:]
-		          ) 
-	## we add a source term in the first cell where the overlap is
-	diff_u_t[0] += self.source_room_from_yarn
-	    
-	
+        if self.ventilation == 'advection':
+            flux_edge[-1] = - self.vel_ventilation * conc_x[-1] * self.delta_t
+            flux_edge[1:self.nr_edge-1] = (2 * self.diff_coef *
+            (conc_x[1:]-conc_x[:-1]) / (self.delta_x[:-1]+self.delta_x[1:])
+            ) - 2 * self.vel_ventilation * (conc_x[1:] + conc_x[:-1]) / 2.
+            diff_u_t[:] = ((flux_edge[1:]-flux_edge[:-1])
+                        / self.delta_x[:]
+                ) 
+        ## we add a source term in the first cell where the overlap is
+        diff_u_t[0] += self.source_room_from_yarn
+
 
 ##    def f_conc_ode_vel(self, t, conc_x, diff_u_t, vel_ventilation):
 ##        """
