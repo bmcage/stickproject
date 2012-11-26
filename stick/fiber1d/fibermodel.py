@@ -371,6 +371,7 @@ class FiberModel(object):
         Calculate the flux on the surface from concentration on surface with
         the BC
         """
+        
         if self.bound_right == FLUX:
             # a FVM cannot do pure Neumann condition, instead we set the
             # FVM flux - D \partial_x C with the value we want for \partial_x C.
@@ -389,8 +390,10 @@ class FiberModel(object):
             #self.out_conc = eval(self.cfg.get('boundary.out_conc'))
             eCy = self.out_conc(t, self.get_userdata())
             eCs = self.evap_satconc(self.temp)
+            if eCy > eCs:
+                print 'ERROR', eCy, eCs
             return (self.porosity_domain[-1] 
-                    * self.evap_transfer * (eCs - eCy) 
+                    * self.evap_transfer * (eCs - eCy)
                     * Heaviside_oneside(conc_r - self.evap_minbound, 
                                         eCs - eCy)
                    )

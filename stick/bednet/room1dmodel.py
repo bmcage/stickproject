@@ -151,8 +151,8 @@ class Room1DModel(object):
         #now some output on density
         self.volbednet = 0.
         for rad in self.radius_yarn:
-            print 'vert vol', self.nvertyarns * pi * rad**2 * self.room_H
-            print 'horz vol', self.nhoryarns * pi * rad**2 * self.room_W
+            print 'vert vol', self.nvertyarns * pi * rad**2 * self.room_H, 'mm2'
+            print 'horz vol', self.nhoryarns * pi * rad**2 * self.room_W, 'mm2'
             self.volbednet += self.nvertyarns * pi * rad**2 * self.room_H
             self.volbednet += self.nhoryarns * pi * rad**2 * self.room_W
         print 'volume_bednet space =', (2 * self.maxyarnrad * self.room_H
@@ -161,7 +161,7 @@ class Room1DModel(object):
                                                 * self.room_W)
         print "\n\nINFO ON BEDNET"
         print "**************"
-        print  "volume bednet = %f m^3, which means calculated porosity"\
+        print  "volume bednet = %g m^3, which means calculated porosity"\
                 " %f mm^3 fabric/mm^3" \
                 % (self.volbednet/1e9, self.densitybednet)
         print "**************\n\n"
@@ -473,6 +473,7 @@ class Room1DModel(object):
                 plt.plot(eval(extravals[1]), eval(extravals[2]), extravals[0])
             plt.plot(self.times, conc_in_point)
             #plt.ylim(0, maxv*1.1)
+            plt.plot(self.times, np.ones(len(self.times)) * self.saturation_conc, 'k--')
             plt.plot(self.times, np.ones(len(self.times)) * self.treshold, 'b--')
             plt.show()
             plt.savefig(utils.OUTPUTDIR + os.sep 
