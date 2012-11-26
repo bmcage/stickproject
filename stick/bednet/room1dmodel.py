@@ -463,7 +463,7 @@ class Room1DModel(object):
         extravals = self.cfg.get("plot.extra_time_room")
         if extravals:
             extravals = extravals.split("|")
-            if len(extravals) == 3 and eval(extravals[1]):
+            if len(extravals) == 3 and not eval(extravals[1]) == []:
                 plotextra = True
         plt.ion()
         ind = 0
