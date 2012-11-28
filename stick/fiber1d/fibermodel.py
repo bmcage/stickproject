@@ -411,7 +411,7 @@ class FiberModel(object):
     def f_conc1_ode(self, t, w_rep):
         self.f_conc1_odes(t, w_rep, self.__tmp_diff_w_t)
         return self.__tmp_diff_w_t
-    
+
     def f_conc1_odes(self, t, w_rep, diff_w_t):
         grid = self.grid
         n_cell = len(grid)
@@ -429,7 +429,7 @@ class FiberModel(object):
                         * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
                         / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
         diff_w_t[:] = (flux_edge[:-1] - flux_edge[1:]) / self.delta_r[:] / self.porosity_domain[:]
-    
+
     def f_conc1_odeu(self, t, conc_r):
         grid = self.grid
         n_cell = len(grid)
@@ -451,7 +451,7 @@ class FiberModel(object):
                         /(self.grid_edge[1:]**2-self.grid_edge[:-1]**2)
                         / self.porosity_domain[:])
         return diff_u_t
-    
+
     def solve_odes_init(self):
         """
         Initialize the cvode solver
@@ -928,7 +928,7 @@ class FiberModel(object):
     def run_init(self):
         self.create_mesh()
         self.initial_fiber()
-        
+
     def run(self, wait=False, output=False):
         self.run_init()
         if not self.initialized:
