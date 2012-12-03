@@ -113,7 +113,7 @@ class RoomConfigManager(ConfigManager):
             " The msh_file should be consistent with domain and fabric values !!!")
         self.register("domain.msh_file", 'room.geo',
             "The msh file to load")
-        self.register("fabric.fabric_config", '../fiberfabric/defaultfiberfabric',
+        self.register("fabric.fabric_config", '../fiberfabric/defaultfiberfabric.ini',
             "The ini file describing the fabric used in this room")
         self.register("fabric.fabricposition", 'bottomcenter',
             'Placement of the fabric in the room. Choose from ' + 
@@ -134,16 +134,24 @@ class RoomConfigManager(ConfigManager):
         self.register("initial.init_concvap", 'lambda x,y,z: 1.0', 
             'Initial vapour concentration in kg/m^3.')
         self.register("initial.init_concair", 'lambda x,y,z: 1.0', 
-            'Initial vapour concentration in kg/m^3.')
+            'Initial air concentration in kg/m^3.')
         self.register("initial.init_temp", 'lambda x,y,z: 20.0', 
             'Initial temperature in degrees celcius')
     
         self.register("roomcoeff.diff_coef", 25.,
             "Diffusion coefficient in the room in mm^2/s")
-        self.register("roomcoeff.therm_cond_K", 10.,
+        self.register("roomcoeff.therm_cond_K", 0.025,
             "Thermal conductivity of air in W / (m K)")
-        self.register("roomcoeff.spec_heat_c", 10.,
-            "Volumetric Specific heat of air J/m^3")
+        self.register("roomcoeff.spec_heat_c", 1.21,
+            "Volumetric Specific heat of air J/(mm^3 K). References: Air, 1.21;"
+            " cotton, 1925.5; ABS, 1647.; Polyester, 1411.5")
+
+        #data about the active component
+        self.register("active_component.saturation_conc", 5.589e-5,
+            "Saturation concentration for the active component in microgram/mm^3")
+        self.register("active_component.treshold_effect", 2e-6,
+            "Treshold the active component should reach in the environment"
+            " in microgram/mm^3")
 
         self.register("boundary.dirichletval_T_BC", 21., 
             "Dirichilet boundary condition for Temperature in degree Celcius")

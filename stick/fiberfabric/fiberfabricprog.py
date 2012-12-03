@@ -17,8 +17,8 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 """
-    Main program that reads in ini file for room simulation and decides how 
-    to handle it
+    Main program that reads in ini file for fiberfabric simulation and decides
+    how to handle it
 """
 #-------------------------------------------------------------------------
 #
@@ -37,7 +37,7 @@ import time
 #-------------------------------------------------------------------------
 from stick.lib.utils.utils import set_outputdir
 import stick.const as const
-import stick.room.config as conf
+import stick.fiberfabric.config as conf
 
 #-------------------------------------------------------------------------
 #

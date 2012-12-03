@@ -21,7 +21,8 @@
 
 
 """
-This package implements config defaults for RoomFabric
+This package implements config defaults for FiberFabric, which models a 
+fabric consisting of fibers/pcm (so neglecting yarn scale)
 """
 #---------------------------------------------------------------
 #
@@ -93,66 +94,60 @@ class FiberFabricConfigManager(ConfigManager):
         self.register("general.read", False)
         self.register("general.verbose", False)
         
-        self.register("domain.type", 'beam',
-            "type of domain. options are: beam")
-        
-        self.register("domain.length", 200.,
-            "If domain type has length, it's length in mm")
-        self.register("domain.width", 200.,
-            "If domain type has width, it's width in mm")
-        self.register("domain.height", 100.,
-            "If domain type has height, it's height in mm")
-        self.register("domain.load_msh", False,
-            "If True, msh_file is loaded instead of constructing the domain again."
-            " The msh_file should be consistent with domain and fabric values !!!")
-        self.register("domain.msh_file", 'room.geo',
-            "The msh file to load")
-
-        self.register("fabric.fabric_config", '../fiberfabric/defaultfiberfabric',
-            "The ini file describing the fabric used in this room")
-        self.register("fabric.fabricposition", 'bottomcenter',
-            'Placement of the fabric in the room. Choose from ' + 
-                ",".join(PLACEMENT.keys()))
         self.register("fabric.type", 'square',
-            'The form of the fabric. Choose from: square. Should be consistent '
-            'with the data in the fabric config file !!' )
+            "type of domain. options are: square")
         self.register("fabric.length", 100.,
-            "If fabric form has length, it's length in mm. Should be consistent "
-            'with the data in the fabric config file !!' )
+            "If fabric type has length, it's length in mm")
         self.register("fabric.width", 100.,
-            "If fabric form has width, it's width in mm. Should be consistent "
-            'with the data in the fabric config file !!' )
+            "If fabric type has width, it's width in mm")
         self.register("fabric.height", 3.,
-            "If fabric form has height, it's height in mm. Should be consistent "
-            'with the data in the fabric config file !!' )
-        
+            "If fabric type has height, it's height in mm")
+
+        self.register("fiber.fiber_config", ['../fiber/defaultfiber.ini'],
+            "List of ini files describing the fibers used in this fabric")
+        self.register("fiber.volfrac", [0.3],
+            'Volume fraction of the fibers. % of volume of fabric occupied by fiber')
+
+        self.register("pcm.pcm_config", ['../pcm/defaultpcm.ini'],
+            "List of ini files describing the pcms used in this fabric")
+        self.register("pcm.volfrac", [0.03],
+            'Volume fraction of the pcms. % of volume of fabric occupied by pcm')
+
+        self.register("component.present", False,
+            "Indicate if an active component is present. If not, it will not be"
+            " tracked")
+
+        self.register("initial.init_conc", 'lambda x,y,z: 0.0', 
+            'Initial concentration of an active component we track in kg/m^3.')
         self.register("initial.init_concvap", 'lambda x,y,z: 1.0', 
             'Initial vapour concentration in kg/m^3.')
         self.register("initial.init_concair", 'lambda x,y,z: 1.0', 
-            'Initial vapour concentration in kg/m^3.')
+            'Initial air concentration in kg/m^3.')
         self.register("initial.init_temp", 'lambda x,y,z: 20.0', 
             'Initial temperature in degrees celcius')
     
-        self.register("roomcoeff.diff_coef", 25.,
+        self.register("fabriccoeff.diff_coef", 25.,
             "Diffusion coefficient in the room in mm^2/s")
-        self.register("roomcoeff.therm_cond_K", 10.,
+        self.register("fabriccoeff.therm_cond_K", 0.025,
             "Thermal conductivity of air in W / (m K)")
-        self.register("roomcoeff.spec_heat_c", 10.,
-            "Volumetric Specific heat of air J/m^3")
+        self.register("fabriccoeff.spec_heat_c", 1.21,
+            "Volumetric Specific heat of air J/(mm^3 K). References: Air, 1.21;"
+            " cotton, 1925.5; ABS, 1647.; Polyester, 1411.5")
 
-        self.register("boundary.dirichletval_T_BC", 21., 
-            "Dirichilet boundary condition for Temperature in degree Celcius")
+        self.register("boundary.T_type", 'heatingplate', 
+            "Type of boundary condition for temperature. Possibilies: "
+            "  1. heatingplate = bottom on a heating plate"
+            "  2. insulated    = bottom on insulated plate")
+        self.register("boundary.T_dir", 55.,
+            "Dirichilet boundary condition for Temperature in degree Celcius"
+            " as appropriate for the set T_type")
 
-        self.register("discretization.el_length", 10,
+        self.register("discretization.el_length", 8,
             "Number of elements along the length")
-        self.register("discretization.el_width", 10,
+        self.register("discretization.el_width", 8,
             "Number of elements along the width")
-        self.register("discretization.el_height", 6,
+        self.register("discretization.el_height", 4,
             "Number of elements along the height")
-
-        #info about the diffusion outside fabric
-        self.register("diffusion.diff_coef", 5.0e-8,
-            "Diffusion in air of the active component, in mm^2/s")
 
         #plotting output
         self.register("plot.plotevery", 10,

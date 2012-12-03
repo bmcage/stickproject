@@ -98,7 +98,7 @@ class RoomModel(object):
                 raise NotImplementedError('Wrong placement given')
                 
             #create fabric model
-            self.fabric_model = FiberFabricModel(cfg)
+            self.fabric_model = FiberFabricModel(self.cfg_fabric)
 
         self.plotevery = self.cfg.get("plot.plotevery")
         self.writeevery = self.cfg.get("plot.writeevery")
@@ -329,7 +329,8 @@ Volume(79) = {79};
 
         # constans in the equations
         self.Da = self.cfg.get('roomcoeff.diff_coef')
-        self.Ka = self.cfg.get('roomcoeff.therm_cond_K')
+        #conductivity convert to mm
+        self.Ka = self.cfg.get('roomcoeff.therm_cond_K') * (10**(-3))
         self.ca = self.cfg.get('roomcoeff.spec_heat_c')
 
         self.valueDirTmp = self.cfg.get('boundary.dirichletval_T_BC')
