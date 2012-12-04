@@ -142,9 +142,10 @@ class RoomConfigManager(ConfigManager):
             "Diffusion coefficient in the room in mm^2/s")
         self.register("roomcoeff.therm_cond_K", 0.025,
             "Thermal conductivity of air in W / (m K)")
-        self.register("roomcoeff.spec_heat_c", 1.21,
-            "Volumetric Specific heat of air J/(mm^3 K). References: Air, 1.21;"
-            " cotton, 1925.5; ABS, 1647.; Polyester, 1411.5")
+        self.register("roomcoeff.spec_heat_c", 1.21e-6,
+            "Volumetric Specific heat of air J/(mm^3 K). References: Air, 1.21e-6;"
+            " cotton, 1.9255e-3; ABS, 1.647e-3; Polyester, 1.17e-3; "
+            "viscose, 1.3e-3")
 
         #data about the active component
         self.register("active_component.saturation_conc", 5.589e-5,

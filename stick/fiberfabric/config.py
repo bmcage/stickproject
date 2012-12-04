@@ -130,9 +130,10 @@ class FiberFabricConfigManager(ConfigManager):
             "Diffusion coefficient in the room in mm^2/s")
         self.register("fabriccoeff.therm_cond_K", 0.025,
             "Thermal conductivity of air in W / (m K)")
-        self.register("fabriccoeff.spec_heat_c", 1.21,
-            "Volumetric Specific heat of air J/(mm^3 K). References: Air, 1.21;"
-            " cotton, 1925.5; ABS, 1647.; Polyester, 1411.5")
+        self.register("fabriccoeff.spec_heat_c", 1.21e-6,
+            "Volumetric Specific heat of air J/(mm^3 K). References: Air, 1.21e-6;"
+            " cotton, 1.9255e-3; ABS, 1.647e-3; Polyester, 1.17e-3; "
+            "viscose, 1.3e-3")
 
         self.register("boundary.T_type", 'heatingplate', 
             "Type of boundary condition for temperature. Possibilies: "

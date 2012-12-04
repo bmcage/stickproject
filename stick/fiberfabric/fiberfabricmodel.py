@@ -49,6 +49,58 @@ from fipy import *
 
 #-------------------------------------------------------------------------
 #
+# Functions
+#
+#-------------------------------------------------------------------------
+
+rho_w =  10**(-3) # density water g/mm^3 
+M_Molw = 18.01528 # molar mass water g/mol
+Kw = 0.6 / 10**3  # heat conductivity water in W / (mm K)
+Ka = 0.025 / 10**3# heat conductivity air in W / (mm K) at 298 K
+Cvw = 4.1796 / 10**3 # volumetric heat capacity water in J/ (mm^3 K) at 298 K
+
+def porisity(por_no_water, water_content_surface):
+    """
+    Current porisity based on the porosity with no water, and the water content
+    on the surface of the fibers
+    """
+    return por_no_water - water_content_surface*(1-por_no_water)
+
+def eff_heat_cond(por_no_water, heatcond_gas, heatcond_fibs, density_fibers, 
+        water_content_surface,
+        water_contents_fiber_relative_fiber_weight):
+        """ The effective heat conductivity of the fiberfabric, excluding the
+            PCM
+        """
+        Wtilde = water_content_surface
+        Wfibers = water_content_fiber_relative_fiber_weight
+        Kg = heatcond_gas # should be 0.025 W/ (m K) for 298 K (=25 C)
+        Kfs = heatcond_fibs
+        rho_fs = density_fibers
+        # first the solid
+        Ks = Kf + Wtilde*Kw
+        Ksnom = 1 + Wtilde
+        for Kf, Wfiber, rho_f in zip(Kfs, Wfibers, rho_fs):
+            Ks += rho_f/rho_w*Wfiber*Kf
+            Ksnom += rho_f/rho_w*Wfiber
+        Ks = Ks / Ksnom
+        por = porosity(por_no_water, water_content_surface)
+        return por * Kg + (1-por) * Ks
+
+def eff_heat_capacity(por_no_water, heatcap_gas, heatcap_fibs, density_fibers, 
+        water_content_surface,
+        water_contents_fiber_relative_fiber_weight):
+        """ The effective heat capacity of the fiberfabric, excluding the PCM
+        """
+        Wtilde = water_content_surface
+        Wfibers = water_content_fiber_relative_fiber_weight
+        Cvg = heatcap_gas # should be 0.025 W/ (m K) for 298 K (=25 C)
+        Cvfs = heatcond_fibs
+        rho_fs = density_fibers
+        # first the solid
+
+#-------------------------------------------------------------------------
+#
 # DiffusionModel class 
 #
 #-------------------------------------------------------------------------

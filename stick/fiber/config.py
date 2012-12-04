@@ -141,10 +141,12 @@ class FiberConfigManager(ConfigManager):
             "conductivity of the fiber in W / (m K). References: Air, 0.025 W/m K"
             " Cotton, 0.071 W/m K and 0.0716 W/m K; wool felt, 0.0519 W/m K; "
             " wool 0.0540 W/m K and 0.0528 W/m K; protective clothing shell fabric, 0.0470 W/m K; "
-            "mineral fiber blanket 0.038 W/m K.")
-        self.register("fiber.spec_heat_c", 1411.,
-            "Volumetric Specific heat of air J/(mm^3 K). References: Air, 1.21;"
-            " cotton, 1925.5; ABS, 1647.; Polyester, 1411.5")
+            "mineral fiber blanket 0.038 W/m K.; polyester 0.1; viscose 0.15")
+        self.register("fiber.spec_heat_c", 1.17e-3,
+            "Volumetric Specific heat of air J/(mm^3 K). References: Air, 1.21e-6;"
+            " cotton, 1.9255e-3; ABS, 1.647e-3; Polyester, 1.17e-3; "
+            "viscose, 1.3e-3")
+
         self.register("fiber.n_edge", 41)
         self.register("fiber.init_conc", 'lambda x: 0.',
                         'initial concentration in the layer in terms '
