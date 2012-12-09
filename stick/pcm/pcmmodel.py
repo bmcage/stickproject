@@ -351,6 +351,7 @@ class PCMModel(object):
         self.cfg = config
         self.verbose = self.cfg.get('general.verbose')
 
+        self.__userdata = None
         self.__cont = False
         self.solver = None
         self.time_period = self.cfg.get('time.time_period')
@@ -373,6 +374,16 @@ class PCMModel(object):
         self.initialized = False
 
         self.plotevery = self.cfg.get("plot.plotevery")
+
+    def set_userdata(self, data):
+        """
+        Read the data of the temp in the void space and overwrite the 
+        default value 
+        """
+        self.__userdata = data
+
+    def get_userdata(self):
+        return self.__userdata
 
     def create_mesh(self):
         """
@@ -499,9 +510,9 @@ class PCMModel(object):
         flux_edge[-1] = -K/rho/Cv * dxdr * u_rep[-1] \
                         /self.state.outer_x_to_r(self.state.outer_gridx[-1])
         #edge of PCM, transfer cond, stored at first point
-        #print u_rep[0]/Rlast - self.Tout(t), u_rep[0]
+        #print u_rep[0]/Rlast - self.Tout(t, self.get_userdata()), u_rep[0]
         flux_edge[0] = (self.hT / rho / Cv * dxdr*L*
-                         (u_rep[0]/Rlast - self.Tout(t))
+                         (u_rep[0]/Rlast - self.Tout(t, self.get_userdata()))
                         -K/rho/Cv * dxdr*u_rep[0] /Rlast)
         flux_edge[1:-1] = -K/rho/Cv * (u_rep[1:]-u_rep[:-1])/ Dxavg[:]*dxdr**2
         diff_u_t[:] = (flux_edge[:-1]-flux_edge[1:])/Dx[:]
@@ -538,8 +549,10 @@ class PCMModel(object):
         rhoi = self.state.inner_data['rho']
         
         Tmelt = self.state.meltpoint
-        if uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s) > self.Tout(t):
-            print 'WRONG', t, uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s), '>',  self.Tout(t)
+        if uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s) \
+                > self.Tout(t, self.get_userdata()):
+            print 'WRONG', t, uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s),\
+                        '>',  self.Tout(t, self.get_userdata())
         ao = Ko/rhoo/Cvo
         ai = Ki/rhoi/Cvi
 
@@ -605,11 +618,12 @@ class PCMModel(object):
         # at edge of PCM, transfer cond, so x=0 for outer
         r_edge = self.state.outer_x_to_r(self.state.outer_gridx[0], s)
         flux_edgeo[0] = (self.hT / rhoo / Cvo * dxdro*L*
-                         (uo[0]/r_edge - self.Tout(t))
+                         (uo[0]/r_edge - self.Tout(t, self.get_userdata()))
                         -ao * dxdro * uo[0] /r_edge)
     
         if flux_edgeo[0] < 0.:
-            print  'flux_edge < 0,', flux_edgeo[0], uo[0]/r_edge, self.Tout(t)
+            print  'flux_edge < 0,', flux_edgeo[0], uo[0]/r_edge, \
+                    self.Tout(t, self.get_userdata())
         #outer part
         flux_edgeo[1:self.pos_s] = -ao * (uo[1:]-uo[:-1])/ Dxoavg[:]*dxdro**2
         flux_edgeo[self.pos_s] = -ao * dudxo_ats *dxdro**2
@@ -660,8 +674,10 @@ class PCMModel(object):
         rhoi = self.state.inner_data['rho']
         
         Tmelt = self.state.meltpoint
-        if uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s) > self.Tout(t):
-            print 'WRONG', t, uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s), '>',  self.Tout(t)
+        if uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s) \
+                > self.Tout(t, self.get_userdata()):
+            print 'WRONG', t, uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s),\
+                    '>',  self.Tout(t, self.get_userdata())
         ao = Ko/rhoo/Cvo
         ai = Ki/rhoi/Cvi
 
@@ -707,11 +723,12 @@ class PCMModel(object):
         # at edge of PCM, transfer cond, so x=0 for outer
         r_edge = self.state.outer_x_to_r(self.state.outer_gridx[0], s)
         flux_edgeo[0] = (self.hT / rhoo / Cvo * dxdro*L*
-                         (uo[0]/r_edge - self.Tout(t))
+                         (uo[0]/r_edge - self.Tout(t, self.get_userdata()))
                         -ao * dxdro * uo[0] /r_edge)
     
         if flux_edgeo[0] < 0.:
-            print  'flux_edge < 0,', flux_edgeo[0], uo[0]/r_edge, self.Tout(t)
+            print  'flux_edge < 0,', flux_edgeo[0], uo[0]/r_edge,\
+                        self.Tout(t, self.get_userdata())
         #outer part
         flux_edgeo[1:self.pos_s] = -ao * (uo[1:]-uo[:-1])/ Dxoavg[:]*dxdro**2\
                     + dxdto * (uo[:-1]+uo[1:])/2

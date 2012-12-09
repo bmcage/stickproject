@@ -102,6 +102,11 @@ class FiberFabricConfigManager(ConfigManager):
             "If fabric type has width, it's width in mm")
         self.register("fabric.height", 3.,
             "If fabric type has height, it's height in mm")
+        self.register("fabric.porosity", 0.7,
+            "Porosity or Void Fraction in the fabric."
+            " This is fraction filled with air when dry.")
+        self.register("fabric.water_content_voids", 0.,
+            "Fraction of the voids with liquid water [-]")
 
         self.register("fiber.fiber_config", ['../fiber/defaultfiber.ini'],
             "List of ini files describing the fibers used in this fabric")
@@ -142,6 +147,12 @@ class FiberFabricConfigManager(ConfigManager):
         self.register("boundary.T_dir", 55.,
             "Dirichilet boundary condition for Temperature in degree Celcius"
             " as appropriate for the set T_type")
+        self.register("boundary.overlapzone", False,
+            "The zone on the outside can be used as an overlap zone, "
+            "in that case, all outside BC are hom. Neumann")
+        self.register("boundary.outtemp", 12.,
+            "The outside can have a certain temperature. We set that at the "
+            "edge of the outside zone")
 
         self.register("discretization.el_length", 8,
             "Number of elements along the length")

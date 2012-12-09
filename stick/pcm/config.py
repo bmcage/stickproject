@@ -97,7 +97,7 @@ class PCMConfigManager(ConfigManager):
     def register_defaults(self):
         """default ini settings for a PCM problem"""
         self.register("general.read", False)
-        self.register("general.verbose", True)
+        self.register("general.verbose", False)
 
         self.register("pcm.radius", 0.01,
             "radius of the pcm in mm")
@@ -127,7 +127,7 @@ class PCMConfigManager(ConfigManager):
 
         self.register("boundary.heat_transfer_coeff", 8.5,
             "h_t, heat transfer coefficient through pcm boundary, in W/(m^2 K)")
-        self.register("boundary.T_out", 'lambda T: 31.3',#28.9', #31.3',
+        self.register("boundary.T_out", 'lambda T, data: 31.3',#28.9', #31.3',
             "Outside temperature, in degree Celcius, as function of Temp")
         
         self.register("fabric.simulate", False,

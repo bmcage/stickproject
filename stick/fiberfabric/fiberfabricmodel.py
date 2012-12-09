@@ -59,45 +59,59 @@ Kw = 0.6 / 10**3  # heat conductivity water in W / (mm K)
 Ka = 0.025 / 10**3# heat conductivity air in W / (mm K) at 298 K
 Cvw = 4.1796 / 10**3 # volumetric heat capacity water in J/ (mm^3 K) at 298 K
 
-def porisity(por_no_water, water_content_surface):
+def porosity(por_no_water, water_content_surface, outside):
     """
     Current porisity based on the porosity with no water, and the water content
     on the surface of the fibers
     """
-    return por_no_water - water_content_surface*(1-por_no_water)
+    por = por_no_water - water_content_surface*(1-por_no_water)
+    por[outside] = 1.
+    return por
 
 def eff_heat_cond(por_no_water, heatcond_gas, heatcond_fibs, density_fibers, 
-        water_content_surface,
-        water_contents_fiber_relative_fiber_weight):
+        volfracfibers, water_content_surface,
+        water_contents_fiber_relative_fiber_weight, outside):
         """ The effective heat conductivity of the fiberfabric, excluding the
             PCM
         """
         Wtilde = water_content_surface
-        Wfibers = water_content_fiber_relative_fiber_weight
+        Wfibers = water_contents_fiber_relative_fiber_weight
         Kg = heatcond_gas # should be 0.025 W/ (m K) for 298 K (=25 C)
         Kfs = heatcond_fibs
         rho_fs = density_fibers
         # first the solid
-        Ks = Kf + Wtilde*Kw
-        Ksnom = 1 + Wtilde
-        for Kf, Wfiber, rho_f in zip(Kfs, Wfibers, rho_fs):
-            Ks += rho_f/rho_w*Wfiber*Kf
-            Ksnom += rho_f/rho_w*Wfiber
+        Ks = Wtilde*Kw
+        Ksnom = Wtilde
+        for Kf, Wfiber, rho_f, volfrac in zip(Kfs, Wfibers, rho_fs, volfracfibers):
+            Ks += Kf * volfrac / (1-por_no_water) + rho_f/rho_w*Wfiber*Kf
+            Ksnom += volfrac / (1-por_no_water) + rho_f/rho_w*Wfiber
         Ks = Ks / Ksnom
-        por = porosity(por_no_water, water_content_surface)
-        return por * Kg + (1-por) * Ks
+        por = porosity(por_no_water, water_content_surface, outside)
+        K = por * Kg + (1-por) * Ks
+        K[outside] = Kg
+        return K
 
 def eff_heat_capacity(por_no_water, heatcap_gas, heatcap_fibs, density_fibers, 
-        water_content_surface,
-        water_contents_fiber_relative_fiber_weight):
+        volfracfibers, water_content_surface,
+        water_contents_fiber_relative_fiber_weight, outside):
         """ The effective heat capacity of the fiberfabric, excluding the PCM
         """
         Wtilde = water_content_surface
-        Wfibers = water_content_fiber_relative_fiber_weight
+        Wfibers = water_contents_fiber_relative_fiber_weight
         Cvg = heatcap_gas # should be 0.025 W/ (m K) for 298 K (=25 C)
-        Cvfs = heatcond_fibs
+        Cvfs = heatcap_fibs
         rho_fs = density_fibers
         # first the solid
+        Cvs = Wtilde*Cvw
+        Cvsnom = Wtilde
+        for Cvf, Wfiber, rho_f, volfrac in zip(Cvfs, Wfibers, rho_fs, volfracfibers):
+            Cvs += Cvf * volfrac / (1-por_no_water) + rho_f/rho_w*Wfiber*Cvf
+            Cvsnom += volfrac / (1-por_no_water) + rho_f/rho_w*Wfiber
+        Cvs = Cvs / Cvsnom
+        por = porosity(por_no_water, water_content_surface, outside)
+        Cv = por * Cvg + (1-por) *Cvs
+        Cv[outside] = Cvg
+        return Cv
 
 #-------------------------------------------------------------------------
 #
@@ -160,6 +174,9 @@ class FiberFabricModel(object):
         self.writeevery = self.cfg.get("plot.writeevery")
         self.writeoutcount = 0
         
+        #allow a multiscale model to work with a source in overlap zone
+        self.source_overlap = 0.
+        
         self.initialized = False
 
     def create_mesh(self):
@@ -173,13 +190,29 @@ class FiberFabricModel(object):
         el_width = self.cfg.get('discretization.el_width')
         el_height = self.cfg.get('discretization.el_height')
         
-        dx = length / el_length # mesh size in x direction 
-        dy = width / el_width # mesh size in x direction
-        dz = height / el_height # mesh size in x direction
+        dxe = length / el_length # mesh size in x direction 
+        dye = width / el_width # mesh size in x direction
+        dze = height / el_height # mesh size in x direction
+        outsidesize = height
+        dz = [dze] * el_height
+        dz = dz + dz
+        dz = np.array(dz)
+        
+        dx = [dxe] * el_length
+        dx = np.array(dx)
+        dy = [dye] * el_width
+        dy = np.array(dy)
 
         # construct the fipy mesh
-        self.mesh = Grid3D(dx=dx, nx=el_length, dy=dy, ny=el_width, dz=dz, 
-                   nz=el_height)
+        self.mesh = Grid3D(dx=dx, dy=dy, dz=dz)
+        
+        xc, yc, zc = self.mesh.cellCenters
+        self.outsidecells = (zc > height)
+        xfc, yfc, zfc = self.mesh.faceCenters
+        self.textilesurface = (height - dze/10 * height < zfc ) & \
+                            ( zfc < height + dze/10 * height)
+        self.toptextlayer = (height - 2*dze/3 < zc) & \
+                            (zc < height )
         
         # we construct fibermodels and pcmmodels in every fipy cell
         self.fiber_model = [0] * len(self.cfg_fiber)
@@ -191,7 +224,16 @@ class FiberFabricModel(object):
 
         from stick.fiber1d.fibermodel import FiberModel
         from stick.pcm.pcmmodel import PCMModel
-        for x, y, z in self.mesh.cellCenters:
+
+        self.nrcells = len(self.mesh.cellCenters[0])
+        self.nr_pcmmodels = len(self.cfg_pcm)
+        self.nr_fibermodels = len(self.cfg_fiber)
+        if self.nr_pcmmodels:
+            self.pcm_E = np.empty((self.nrcells, self.nr_pcmmodels), float)
+        if self.nr_fibermodels and self.modelcomp:
+            self.fiber_mass = np.empty((self.nrcells, self.nr_pcmmodels), float)
+        
+        for x in self.mesh.cellCenters[0]:
             if self.modelcomp:
                 for ind, cfg in enumerate(self.cfg_fiber):
                     #create fiber model
@@ -233,19 +275,66 @@ class FiberFabricModel(object):
         self.concAir = CellVariable(name = "Conc. air", 
                                     mesh = self.mesh,
                                     value = initialConcAir)
-        self.concTmp = CellVariable(name = "Temperature", 
+        self.Temp = CellVariable(name = "Temperature", 
                                     mesh = self.mesh,
                                     value = initialTemp)
 
+        self.heat_cond = CellVariable(name='Effective Heat Conductivity',
+                                      mesh=self.mesh)
+        self.heat_cap = CellVariable(name="Effective Heat Capacity",
+                                     mesh=self.mesh)
+        
         # constans in the equations
+        self.porosity = self.cfg.get("fabric.porosity")
+        self.volfrac = self.cfg.get("fiber.volfrac")
+        # test
+        totfracs = self.porosity
+        for frac in self.volfrac:
+            totfracs += frac
+        assert totfracs == 1., "fraction of voids and fibers does not sum to 1"
         self.Da = self.cfg.get('fabriccoeff.diff_coef')
-        self.Ka = self.cfg.get('fabriccoeff.therm_cond_K')
+        self.Ka = self.cfg.get('fabriccoeff.therm_cond_K') * (10**(-3))
         self.ca = self.cfg.get('fabriccoeff.spec_heat_c')
+        self.Kf = []
+        self.cf = []
+        self.rhof = []
+        self.Wfinit = [] #original water content absorbed relative to fiber density
+        for cfg in self.cfg_fiber:
+            self.Kf += [cfg.get("fiber.therm_cond_K") * 10**(-3)] #in  W / (mm K)
+            self.cf += [cfg.get("fiber.spec_heat_c")]
+            self.rhof += [cfg.get("fiber.density") * 10**(-3)] # in  g/mm^3
+            Wfinit = np.empty(self.nrcells, float)
+            Wfinit[:] = cfg.get("fiber.water_absorbed_rel_dens")
+            Wfinit[self.outsidecells] = 0.
+            self.Wfinit += [Wfinit]
+        #we store the amount of water around the fibers (percentage of voids)
+        self.W_v = np.empty(self.nrcells, float)
+        self.W_v[:] = self.cfg.get("fabric.water_content_voids")
+        self.W_v[self.outsidecells] = 0.
+        #derive water content surface as in articles
+        self.W_s = self.W_v * self.porosity / (1-self.porosity)
 
-        self.valueDirTmp = self.cfg.get('boundary.dirichletval_T_BC')
-
+        self.BC_T_type = self.cfg.get('boundary.T_type')
+        self.BC_T_dir = None
+        if self.BC_T_type == 'heatingplate':
+            self.BC_T_dir = self.cfg.get('boundary.T_dir')
+        elif self.BC_T_type == 'insulated':
+            pass
+        else:
+            print "ERROR: unknown Temperature boundary type"
+            sys.exit()
+        self.with_overlap = self.cfg.get("boundary.overlapzone")
+        self.outTemp = self.cfg.get("boundary.outtemp")
+        self.Temp[self.outsidecells] = self.outTemp
+        self.minTempup = np.empty(len(self.times), float)
+        self.maxTempup = np.empty(len(self.times), float)
+        self.avgTempup = np.empty(len(self.times), float)
+        self.minTempup[0] = np.min(self.Temp[self.toptextlayer].value)
+        self.maxTempup[0] = np.max(self.Temp[self.toptextlayer].value)
+        self.avgTempup[0] = (self.minTempup[0] + self.maxTempup[0]) / 2
+        
         self.viewer = None
-        self.viewer = Viewer(vars = self.concTmp, title = 'Temperature Distribution', 
+        self.viewer = Viewer(vars = self.Temp, title = 'Temperature Distribution', 
                             datamin = 15., datamax = 45.)
         self.viewer.plot()
         #raw_input("take the example of the initial condition")
@@ -253,45 +342,124 @@ class FiberFabricModel(object):
         if self.plotevery:
             self.viewerplotcount = self.viewerplotcount % self.plotevery
 
-    def solve_fabric_init(self):
-        """
-        Initialize the solver that does the fabric simulation
-        """
-        self.fabric_model.run_init()
-        self.fabric_model.solve_init()
+        #now we initialize our submodels
+        self.solve_fiber_init()
+        self.solve_pcm_init()
 
-    def solve_room(self):
+    def solve_fiber_init(self):
         """
-        Solve the unknowns in the room
+        Initialize the solvers that do the fiber simulations
+        """
+        for type, models in enumerate(self.fiber_model):
+            #first index is type of fiber
+            for ind, model in enumerate(models):
+                #ind is position of the cell in the datastructure
+                model.run_init()
+                model.solve_init()
+                print 'ERROR: not implemented yet to run fibers!'
+                sys.exit()
+                #rebind the out_conc method to a call to fiberfabric
+                model.set_userdata(self.get_data(ind))
+                model.out_conc = lambda t, data: self.out_conc(data, t)
+                self.fiber_mass[ind, type] = model.calc_mass(model.initial_c1)
+
+    def solve_pcm_init(self):
+        """
+        Initialize the solvers that do the pcm simulations
+        """
+        for type, models in enumerate(self.pcm_model):
+            #first index is type of fiber
+            for ind, model in enumerate(models):
+                #ind is position of the cell in the datastructure
+                model.run_init()
+                model.solve_init()
+                #rebind the out_conc method to a call to fiberfabric
+                model.set_userdata(self.get_data(ind))
+                model.Tout = lambda t, data: self.out_temp(data, t)
+                self.pcm_E[ind, type] = model.calc_energy(model.initial_T_in, 
+                            model.initial_T_out)
+
+    def get_data(self, cellnr):
+        return cellnr
+
+    def out_temp(self, data, t):
+        """
+        return the temperature at cellnr data at time t
+        """
+        timenowyarn = self.step_old_time
+        if t >= timenowyarn:
+            #return data
+            return self.step_old_sol[data]
+        raise ValueError, 'out temperature should only be requested at a later time'
+
+    def update_heat_cond(self):
+        """
+        Update heat conductivity in the fabric based on the previous solution
+        """
+        ## we assume for now no water change
+        heat_cond = eff_heat_cond(self.porosity, self.Ka, self.Kf,
+                    self.rhof, self.volfrac, self.W_s, self.Wfinit,
+                    self.outsidecells)
+        self.heat_cond.value = heat_cond
+
+    def update_heat_cap(self):
+        """
+        Update heat capacity in the fabric based on the previous solution
+        """
+        ## we assume for now no water change
+        heat_cap = eff_heat_capacity(self.porosity, self.ca, self.cf,
+                    self.rhof, self.volfrac, self.W_s, self.Wfinit,
+                    self.outsidecells)
+        self.heat_cap.value = heat_cap
+
+    def solve_fabric(self):
+        """
+        Solve the unknowns in the fiberfabric
         """
         #input the transient equation
-        self.eqVap = TransientTerm() == DiffusionTerm(coeff=self.Da)
-        self.eqAir = TransientTerm() == DiffusionTerm(coeff=self.Da)
-        self.eqTmp = TransientTerm(coeff=self.ca) == DiffusionTerm(coeff=self.Ka)
+        self.update_heat_cap()
+        self.update_heat_cond()
+        print 'Min - Max heat cond', min(self.heat_cond.value), max(self.heat_cond.value)
+        print 'Min - Max heat cap ', min(self.heat_cap.value), max(self.heat_cap.value)
+        self.eqTmp = TransientTerm(coeff=self.heat_cap) == \
+                            DiffusionTerm(coeff=self.heat_cond)
 
-        #Dirichlet boundary conditions
-        self.concTmp.constrain(self.valueDirTmp, self.facesBound)
-        self.concTmp.constrain(40., self.facesTextile)
-        
+        #boundary conditions
+        if self.BC_T_type == 'heatingplate':
+            self.Temp.constrain(self.BC_T_dir, where=self.mesh.facesFront)
+        elif self.BC_T_type == 'insulated':
+            pass
+        else:
+            pass
+        if not self.with_overlap:
+            #we set on top boundary the outside temperature
+            self.Temp.constrain(self.outTemp, where=self.mesh.facesBack)
+
         #all other boundaries are automatically Neumann BC
         
         #now loop in time to solve
         t = self.initial_t
         stop_time = self.times[-1]
         compute = True
+        post = 0
         while compute:
             t += self.delta_t
+            post += 1
             print 'computing time', t
             if t >= stop_time -self.delta_t / 100:
                 t = stop_time
                 compute = False
-            self.eqTmp.solve(var = self.concTmp,
+            self.eqTmp.solve(var = self.Temp,
                           dt = self.delta_t)
             
+            self.minTempup[post] = np.min(self.Temp[self.toptextlayer].value)
+            self.maxTempup[post] = np.max(self.Temp[self.toptextlayer].value)
+            self.avgTempup[post] = (self.minTempup[post] + self.maxTempup[post]) / 2
+        
             if self.viewer is not None and self.viewerplotcount == 0:
                     self.viewer.plot()
                     outvtk =  utils.OUTPUTDIR + os.sep + \
-                                        'roomTemp%08.3f.vtk' % t
+                                        'fiberfabricTemp%08.3f.vtk' % t
                     invtk = self.viewer.vtkcellfname
                     shutil.copy(invtk, outvtk)
             self.viewerplotcount += 1
@@ -302,6 +470,15 @@ class FiberFabricModel(object):
             self.writeoutcount += 1
             self.writeoutcount = self.writeoutcount % self.writeevery
 
+        #now we plot the min and max temp in upper layer
+        plt.figure(num=None)
+        plt.plot(self.times, self.minTempup, 'b', 
+                    self.times, self.maxTempup, 'r',
+                    self.times, self.avgTempup, 'k--')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Temperature (C)')
+        plt.show()
+        
         raw_input("Finished <press return>.....")
 
     def run(self):
@@ -310,6 +487,4 @@ class FiberFabricModel(object):
         """
         self.create_mesh()
         self.initial_fabric()
-        print 'exiting'
-        sys.exit()
-        self.solve_room()
+        self.solve_fabric()

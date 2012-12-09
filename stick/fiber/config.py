@@ -146,6 +146,10 @@ class FiberConfigManager(ConfigManager):
             "Volumetric Specific heat of air J/(mm^3 K). References: Air, 1.21e-6;"
             " cotton, 1.9255e-3; ABS, 1.647e-3; Polyester, 1.17e-3; "
             "viscose, 1.3e-3")
+        self.register("fiber.water_absorbed_rel_dens", 0.1,
+            "Water content absorbed by fiber relative to fiber density."
+            "Unit is a percentage, so in [-] =[kg/m^3] / [kg/m^3]. "
+            "Example: 0.1 for viscose at 60% relative humidity outside")
 
         self.register("fiber.n_edge", 41)
         self.register("fiber.init_conc", 'lambda x: 0.',

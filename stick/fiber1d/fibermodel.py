@@ -155,7 +155,6 @@ class FiberModel(object):
             
         #data for stepwise operation
         self.initialized = False
-        ##self.yarndata = None
         self.__userdata = None
         
         self.__Rf_pure = None
@@ -660,9 +659,10 @@ class FiberModel(object):
                         * self.porosity_domain[-1] \
                         * self.evap_transfer
             satevap = self.evap_satconc(self.temp)
-            flux_outevap = lambda M, t:  coeffevap * (satevap - self.out_conc(t)) \
+            flux_outevap = lambda M, t:  coeffevap \
+                                * (satevap - self.out_conc(t, self.get_userdata())) \
                                 * Heaviside_oneside(M/V-self.evap_minbound, 
-                                                    satevap - self.out_conc(t))
+                                    satevap - self.out_conc(t, self.get_userdata()))
         else:
             raise Exception, 'ERROR: boundary type right not implemented'
         tstep = 0
