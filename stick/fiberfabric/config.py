@@ -110,13 +110,13 @@ class FiberFabricConfigManager(ConfigManager):
 
         self.register("fiber.fiber_config", ['../fiber/defaultfiber.ini'],
             "List of ini files describing the fibers used in this fabric")
-        self.register("fiber.volfrac", [0.3],
-            'Volume fraction of the fibers. % of volume of fabric occupied by fiber')
+        self.register("fiber.volfrac", [0.073],
+            'Volume fraction of the fibers. 1 = 100% of volume of fabric occupied by fiber')
 
         self.register("pcm.pcm_config", ['../pcm/defaultpcm.ini'],
             "List of ini files describing the pcms used in this fabric")
         self.register("pcm.volfrac", [0.03],
-            'Volume fraction of the pcms. % of volume of fabric occupied by pcm')
+            'Volume fraction of the pcms. 1=100% of volume of fabric occupied by pcm')
 
         self.register("component.present", False,
             "Indicate if an active component is present. If not, it will not be"

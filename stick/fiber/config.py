@@ -160,7 +160,8 @@ class FiberConfigManager(ConfigManager):
         self.register("fiber.mean_deviation", 0.00355,
             "Mean deviation of the fiber radius in mm")
         self.register("fiber.density", 1.4,
-            "Density of fiber in g/cm^3")
+            "Density of fiber in g/cm^3. References: polyester 1.38, "
+            "cotton 1.55")
 
         self.register("fiberlayer_0.n_edge", 41)
         self.register("fiberlayer_0.thickness", 0.0017,

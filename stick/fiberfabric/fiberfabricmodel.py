@@ -167,8 +167,7 @@ class FiberFabricModel(object):
             self.cfg_pcm += [PCMConfigManager.get_instance(filename)]
             #set values from the fiberfabric on this inifile
             self.cfg_pcm[-1].set("time.time_period", self.time_period)
-            if self.cfg_pcm[-1].get("time.dt") > self.cfg.get("time.dt"):
-                self.cfg_pcm[-1].set("time.dt", self.cfg.get("time.dt"))
+            self.cfg_pcm[-1].set("time.dt", self.cfg.get("time.dt"))
 
         self.plotevery = self.cfg.get("plot.plotevery")
         self.writeevery = self.cfg.get("plot.writeevery")
@@ -183,17 +182,17 @@ class FiberFabricModel(object):
         """
         Create a mesh for use in the model
         """
-        length = self.cfg.get('fabric.length')
-        width = self.cfg.get('fabric.width')
-        height = self.cfg.get('fabric.height')
+        self.length = self.cfg.get('fabric.length')
+        self.width = self.cfg.get('fabric.width')
+        self.height = self.cfg.get('fabric.height')
         el_length = self.cfg.get('discretization.el_length')
         el_width = self.cfg.get('discretization.el_width')
         el_height = self.cfg.get('discretization.el_height')
         
-        dxe = length / el_length # mesh size in x direction 
-        dye = width / el_width # mesh size in x direction
-        dze = height / el_height # mesh size in x direction
-        outsidesize = height
+        dxe = self.length / el_length # mesh size in x direction 
+        dye = self.width / el_width # mesh size in x direction
+        dze = self.height / el_height # mesh size in x direction
+        outsidesize = self.height
         dz = [dze] * el_height
         dz = dz + dz
         dz = np.array(dz)
@@ -207,12 +206,13 @@ class FiberFabricModel(object):
         self.mesh = Grid3D(dx=dx, dy=dy, dz=dz)
         
         xc, yc, zc = self.mesh.cellCenters
-        self.outsidecells = (zc > height)
+        self.outsidecells = (zc > self.height)
         xfc, yfc, zfc = self.mesh.faceCenters
-        self.textilesurface = (height - dze/10 * height < zfc ) & \
-                            ( zfc < height + dze/10 * height)
-        self.toptextlayer = (height - 2*dze/3 < zc) & \
-                            (zc < height )
+        self.textilesurface = (self.height - dze/10 * self.height < zfc ) & \
+                            ( zfc < self.height + dze/10 * self.height)
+        self.toptextlayer = (self.height - 2*dze/3 < zc) & \
+                            (zc < self.height )
+        self.textilebody = (zc < self.height )
         
         # we construct fibermodels and pcmmodels in every fipy cell
         self.fiber_model = [0] * len(self.cfg_fiber)
@@ -221,26 +221,7 @@ class FiberFabricModel(object):
         self.pcm_model = [0] * len(self.cfg_pcm)
         for ind in range(len(self.pcm_model)):
             self.pcm_model[ind] = []
-
-        from stick.fiber1d.fibermodel import FiberModel
-        from stick.pcm.pcmmodel import PCMModel
-
-        self.nrcells = len(self.mesh.cellCenters[0])
-        self.nr_pcmmodels = len(self.cfg_pcm)
-        self.nr_fibermodels = len(self.cfg_fiber)
-        if self.nr_pcmmodels:
-            self.pcm_E = np.empty((self.nrcells, self.nr_pcmmodels), float)
-        if self.nr_fibermodels and self.modelcomp:
-            self.fiber_mass = np.empty((self.nrcells, self.nr_pcmmodels), float)
         
-        for x in self.mesh.cellCenters[0]:
-            if self.modelcomp:
-                for ind, cfg in enumerate(self.cfg_fiber):
-                    #create fiber model
-                    self.fiber_model[ind] += [FiberModel(cfg)]
-            for ind, cfg in enumerate(self.cfg_pcm):
-                #create fiber model
-                self.pcm_model[ind] += [PCMModel(cfg)]
 
     def initial_fabric(self):
         """
@@ -264,10 +245,39 @@ class FiberFabricModel(object):
         initialConcVap = sp.array(initialConcVap)
         initialConcAir = sp.array(initialConcAir)
         initialTemp = sp.array(initialTemp)
+
+        from stick.fiber1d.fibermodel import FiberModel
+        from stick.pcm.pcmmodel import PCMModel
+
+        self.nrcells = len(self.mesh.cellCenters[0])
+        self.nrcellsfabric = len(self.mesh.cellCenters[0][self.textilebody])
+        self.nr_pcmmodels = len(self.cfg_pcm)
+        self.nr_fibermodels = len(self.cfg_fiber)
+        if self.nr_pcmmodels:
+            self.pcm_E = np.empty((self.nrcellsfabric, self.nr_pcmmodels), float)
+            self.tmp_E = np.empty((self.nrcellsfabric, self.nr_pcmmodels), float)
+            self.source_energy = np.empty((self.nrcells, self.nr_pcmmodels), float)
+        if self.nr_fibermodels and self.modelcomp:
+            self.fiber_mass = np.empty((self.nrcellsfabric, self.nr_pcmmodels), float)
         
-        self.step_old_sol_vap = initialConcVap[0]
-        self.step_old_sol_air = initialConcAir[0]
-        self.step_old_sol_tmp = initialTemp[0]
+        for x, y, z in zip(self.mesh.cellCenters[0][self.textilebody], 
+                self.mesh.cellCenters[1][self.textilebody],
+                self.mesh.cellCenters[2][self.textilebody]):
+            if self.modelcomp:
+                for ind, cfg in enumerate(self.cfg_fiber):
+                    #create fiber model
+                    self.fiber_model[ind] += [FiberModel(cfg)]
+            for ind, cfg in enumerate(self.cfg_pcm):
+                #set correct init temp of the PCM
+                cfg.set("init.init_temp", 'lambda x: %g' % 
+                                self.init_temp(x, y, z))
+                #create fiber model
+                self.pcm_model[ind] += [PCMModel(cfg)]
+
+        self.step_old_sol_vap = initialConcVap
+        self.step_old_sol_air = initialConcAir
+        self.step_old_sol_temp = initialTemp
+        self.step_old_sol_temp_body = self.step_old_sol_temp[self.textilebody]
 
         self.conVap = CellVariable(name = "Conc. water vapour", 
                                     mesh = self.mesh,
@@ -345,6 +355,38 @@ class FiberFabricModel(object):
         #now we initialize our submodels
         self.solve_fiber_init()
         self.solve_pcm_init()
+        #initialize upscale data
+        self.volfrac_pcm = self.cfg.get("pcm.volfrac")
+        self.vol_pcm = []
+        self.nr_pcm_permm3 = []
+        for cfg in self.cfg_pcm:
+            self.vol_pcm += [4/3*np.pi * cfg.get("pcm.radius")]
+        for vol, volfrac in zip(self.vol_pcm, self.volfrac_pcm):
+            self.nr_pcm_permm3 += [volfrac/vol]
+        
+        #now print out some data for user to verify
+        print 'sample size in mm is', self.length, 'x', self.width, 'x', self.height
+        self.volume = self.length * self.width * self.height
+        print '  ==> volume', self.volume, 'mm3'
+        self.weight = 0.
+        for cfg, volfracf in zip(self.cfg_fiber, self.volfrac):
+            self.weight += self.volume * volfracf * cfg.get("fiber.density") * 1e-3
+        print '  ==> weight', self.weight, 'g/mm3'
+        print 'Last due to fiber volume fractions of', self.volfrac
+        if self.volfrac_pcm:
+            print '\nPCM'
+            print 'volume fractions of', self.volfrac_pcm
+            print 'weight added in g/mm3',
+            weightpcms = 0.
+            for volfrac, nrpcm, cfg in zip(self.volfrac_pcm, self.nr_pcm_permm3, 
+                                            self.cfg_pcm):
+                weight = volfrac * self.volume * cfg.get("pcm.density") * 1e-6
+                print weight,
+                weightpcms += weight
+            print ' '
+            print 'weight pickup pcms is', weightpcms/self.weight * 100, '%'
+            print 'total weight fabric + pcm', self.weight + weightpcms
+        #raw_input('\nPress key to start computation\n')
 
     def solve_fiber_init(self):
         """
@@ -368,12 +410,12 @@ class FiberFabricModel(object):
         Initialize the solvers that do the pcm simulations
         """
         for type, models in enumerate(self.pcm_model):
-            #first index is type of fiber
+            #first index is type of pcm
             for ind, model in enumerate(models):
                 #ind is position of the cell in the datastructure
                 model.run_init()
                 model.solve_init()
-                #rebind the out_conc method to a call to fiberfabric
+                #rebind the Tout method to a call to fiberfabric
                 model.set_userdata(self.get_data(ind))
                 model.Tout = lambda t, data: self.out_temp(data, t)
                 self.pcm_E[ind, type] = model.calc_energy(model.initial_T_in, 
@@ -389,7 +431,7 @@ class FiberFabricModel(object):
         timenowyarn = self.step_old_time
         if t >= timenowyarn:
             #return data
-            return self.step_old_sol[data]
+            return self.step_old_sol_temp_body[data]
         raise ValueError, 'out temperature should only be requested at a later time'
 
     def update_heat_cond(self):
@@ -412,17 +454,45 @@ class FiberFabricModel(object):
                     self.outsidecells)
         self.heat_cap.value = heat_cap
 
+
+    def do_pcm_step(self, stopt):
+        """
+        Solve the diffusion process on the fiber up to stoptime, starting
+        from where we where last. 
+        The flux is the BC: S*h(C_equi - C_yarn(t))*H(C-C_b,C_equi-C_yarn(t))
+        """
+        #Outside temp is current temp at that position via func out_temp!!
+        for type, models in enumerate(self.pcm_model):
+            #first index is type of pcm
+            for ind, model in enumerate(models):
+                model.solve_step()
+                self.tmp_E[ind, type] = model.calc_last_energy()
+        self.source_energy[self.textilebody, :] = self.pcm_E[:, :] - self.tmp_E[:,:]
+        self.pcm_E[:, :] = self.tmp_E[:,:]
+
     def solve_fabric(self):
         """
         Solve the unknowns in the fiberfabric
+        Solve fabric in steps of delta t. This does:
+           1. solve the pcm for delta t
+           2. set correct source term for the fabric
+           3. solve the fabric for delta t
         """
         #input the transient equation
         self.update_heat_cap()
         self.update_heat_cond()
         print 'Min - Max heat cond', min(self.heat_cond.value), max(self.heat_cond.value)
         print 'Min - Max heat cap ', min(self.heat_cap.value), max(self.heat_cap.value)
-        self.eqTmp = TransientTerm(coeff=self.heat_cap) == \
-                            DiffusionTerm(coeff=self.heat_cond)
+        
+        rhs = DiffusionTerm(coeff=self.heat_cond)
+        self.source_var = []
+        for pcmtype, Np in enumerate(self.nr_pcm_permm3):
+            self.source_var += [CellVariable(name="Source pcm %d" % pcmtype,
+                                     mesh=self.mesh)]
+            rhs = rhs + self.source_var[-1]
+
+        self.eqTmp = TransientTerm(coeff=self.heat_cap) == rhs
+                            
 
         #boundary conditions
         if self.BC_T_type == 'heatingplate':
@@ -449,9 +519,26 @@ class FiberFabricModel(object):
             if t >= stop_time -self.delta_t / 100:
                 t = stop_time
                 compute = False
+
+            # step 1 solve the pcm models. 
+            self.do_pcm_step(t)
+            
+            # step 2 update source by setting value of the source variables
+            for type, var in enumerate(self.source_var):
+                # upscale the energy of a single PCM
+                var.value = self.source_energy[:, type] /self.delta_t \
+                            * self.nr_pcm_permm3[type]
+            
+            # step 3 solve fabric model
             self.eqTmp.solve(var = self.Temp,
                           dt = self.delta_t)
             
+            #store solution
+            self.step_old_time += self.delta_t
+            self.step_old_sol_temp[:] = self.Temp.value[:]
+            self.step_old_sol_temp_body = self.step_old_sol_temp[self.textilebody]
+            
+            #store data for plot
             self.minTempup[post] = np.min(self.Temp[self.toptextlayer].value)
             self.maxTempup[post] = np.max(self.Temp[self.toptextlayer].value)
             self.avgTempup[post] = (self.minTempup[post] + self.maxTempup[post]) / 2

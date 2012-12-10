@@ -370,6 +370,7 @@ class PCMModel(object):
         self.hT = self.cfg.get('boundary.heat_transfer_coeff') * 10**(-6)
         self.lambda_m = self.state.latent_heat_fusion
         self.Tout = eval(self.cfg.get('boundary.T_out'))
+        self.init_temp = eval(self.cfg.get('init.init_temp'))
 
         self.initialized = False
 
@@ -391,7 +392,6 @@ class PCMModel(object):
         We use an equidistant mesh (in mm) on which we project results
         grid: the space position of each central point for every cell element;
         """
-        self.init_temp = eval(self.cfg.get('init.init_temp'))
         self.state.set_state(self.init_temp)
         self.state.calc_grid()
 
@@ -435,6 +435,27 @@ class PCMModel(object):
     def calc_volume(self):
         """ volume in mm^3 """
         return 4/3 * np.pi * self.state.L**3 
+
+    def calc_last_energy(self):
+        """
+        Calculate the energy based on the last tstep
+        """
+        tstep = self.last_sol_tstep
+        rT = self.all_sol_u[tstep][:]
+        if rT[self.pos_s] == 0.:
+            meshr = self.state.outer_x_to_r(self.state.outer_gridx[::-1], 
+                                                        rT[self.pos_s])
+            solr1 = []
+            solr2 = rT[:self.pos_s][::-1]/meshr
+        else:
+            meshr1 = self.state.inner_x_to_r(self.state.inner_gridx, 
+                                                        rT[self.pos_s])
+            meshr2 = self.state.outer_x_to_r(self.state.outer_gridx[::-1], 
+                                                        rT[self.pos_s])
+            solr1 = rT[:self.pos_s]/meshr1
+            solr2 = rT[self.pos_s+1:]/meshr2
+
+        return self.calc_energy(solr1, solr2)
 
     def calc_energy(self, inner_T, outer_T, base=None):
         """ calculate the energy in the PCM based on temperature over the 
@@ -743,10 +764,12 @@ class PCMModel(object):
         Reinitialize the cvode solver to start again
         """
         self.initial_t = self.times[0]
-        print 'REINIT SOLVER'
+        if self.verbose:
+            print 'REINIT SOLVER'
         del self.solver
         if self.state.single_phase():
-            print ' ... SINGLE'
+            if self.verbose:
+                print ' ... SINGLE'
             self.solverunknowns = self.pos_s
             rootfn=RootFnsp()
             rootfn.set_data(self.state.outer_x_to_r(self.state.outer_gridx[0]), 
@@ -756,7 +779,8 @@ class PCMModel(object):
                                  nr_rootfns=1, rootfn=rootfn,
                                  first_step_size=1e-12)
         else:
-            print ' ... DOUBLE'
+            if self.verbose:
+                print ' ... DOUBLE'
             self.solverunknowns = self.nrunknowns
             rootfn=RootFndp()
             rootfn.set_data(self.state.L, self.pos_s, self.state.epsilon)
@@ -793,7 +817,7 @@ class PCMModel(object):
         self.__tmp_diff_sol_t = sp.empty(self.nrunknowns, float)
         self.__tmp_flux_edge = sp.empty(self.nrunknowns+2, float)
 
-        self.tstep = 0
+        self.last_sol_tstep = 0
         self.solve_odes_reinit()
         self.initialized = True
 
@@ -804,8 +828,19 @@ class PCMModel(object):
         if not self.initialized:
             print 'ERROR, solver not initialized'
             sys.exit()
+        self.solve_step(len(self.times)-1)
 
-        tstep = 0
+        self.view_sol(self.times, self.all_sol_u)
+
+    def solve_step(self, steps=1):
+        """
+        Solve the PCM model for steps step
+        """
+        if not self.initialized:
+            print 'ERROR, solver not initialized'
+            sys.exit()
+
+        tstep = self.last_sol_tstep
         single_phase = self.state.single_phase()
         changed = False
         cont = True
@@ -894,8 +929,7 @@ class PCMModel(object):
                 if not single_phase:
                     tstep += 1
 
-            if tstep == len(self.times)-1:
-                print 'End reached'
+            if tstep - self.last_sol_tstep == steps:
                 break
             if changed:
                 # we need to swap the solver we use!
@@ -948,8 +982,6 @@ class PCMModel(object):
                 self.solve_odes_reinit()
                     
         self.last_sol_tstep = tstep
-        
-        self.view_sol(self.times, self.all_sol_u)
 
     def project_outsp_dp(self, sol, R):
         """ project a single phase solution (so only outer) to a double phase
