@@ -168,6 +168,7 @@ class FiberFabricModel(object):
             #set values from the fiberfabric on this inifile
             self.cfg_pcm[-1].set("time.time_period", self.time_period)
             self.cfg_pcm[-1].set("time.dt", self.cfg.get("time.dt"))
+            self.cfg_pcm[-1].set("general.verbose", False)
 
         self.plotevery = self.cfg.get("plot.plotevery")
         self.writeevery = self.cfg.get("plot.writeevery")
@@ -212,8 +213,19 @@ class FiberFabricModel(object):
                             ( zfc < self.height + dze/10 * self.height)
         self.toptextlayer = (self.height - 2*dze/3 < zc) & \
                             (zc < self.height )
+        # we also track the two layers on top of the textile surface
+        self.overtoptextlayer = (self.height + dze + 2/3 * dze > zc) & \
+                            (zc > self.height )
         self.textilebody = (zc < self.height )
         
+        self.BC_texsurf = self.cfg.get("surfacesource.where")
+        self.BC_texsurfval = self.cfg.get("surfacesource.temp")
+        if self.BC_texsurf:
+            self.BC_texsurf = eval(self.BC_texsurf)
+            self.BC_texsurf = self.BC_texsurf & self.overtoptextlayer
+        else:
+            self.BC_texsurf = None
+
         # we construct fibermodels and pcmmodels in every fipy cell
         self.fiber_model = [0] * len(self.cfg_fiber)
         for ind in range(len(self.fiber_model)):
@@ -221,7 +233,6 @@ class FiberFabricModel(object):
         self.pcm_model = [0] * len(self.cfg_pcm)
         for ind in range(len(self.pcm_model)):
             self.pcm_model[ind] = []
-        
 
     def initial_fabric(self):
         """
@@ -245,6 +256,12 @@ class FiberFabricModel(object):
         initialConcVap = sp.array(initialConcVap)
         initialConcAir = sp.array(initialConcAir)
         initialTemp = sp.array(initialTemp)
+        self.with_overlap = self.cfg.get("boundary.overlapzone")
+        self.outTemp = self.cfg.get("boundary.outtemp")
+        initialTemp[self.outsidecells] = self.outTemp
+        if self.BC_texsurf is not None:
+            print 'set inT', self.BC_texsurfval
+            initialTemp[self.BC_texsurf] = self.BC_texsurfval
 
         from stick.fiber1d.fibermodel import FiberModel
         from stick.pcm.pcmmodel import PCMModel
@@ -256,7 +273,7 @@ class FiberFabricModel(object):
         if self.nr_pcmmodels:
             self.pcm_E = np.empty((self.nrcellsfabric, self.nr_pcmmodels), float)
             self.tmp_E = np.empty((self.nrcellsfabric, self.nr_pcmmodels), float)
-            self.source_energy = np.empty((self.nrcells, self.nr_pcmmodels), float)
+            self.source_energy = np.zeros((self.nrcells, self.nr_pcmmodels), float)
         if self.nr_fibermodels and self.modelcomp:
             self.fiber_mass = np.empty((self.nrcellsfabric, self.nr_pcmmodels), float)
         
@@ -287,7 +304,8 @@ class FiberFabricModel(object):
                                     value = initialConcAir)
         self.Temp = CellVariable(name = "Temperature", 
                                     mesh = self.mesh,
-                                    value = initialTemp)
+                                    value = initialTemp, hasOld=True)
+        self.Temp.updateOld()
 
         self.heat_cond = CellVariable(name='Effective Heat Conductivity',
                                       mesh=self.mesh)
@@ -333,19 +351,18 @@ class FiberFabricModel(object):
         else:
             print "ERROR: unknown Temperature boundary type"
             sys.exit()
-        self.with_overlap = self.cfg.get("boundary.overlapzone")
-        self.outTemp = self.cfg.get("boundary.outtemp")
-        self.Temp[self.outsidecells] = self.outTemp
         self.minTempup = np.empty(len(self.times), float)
         self.maxTempup = np.empty(len(self.times), float)
         self.avgTempup = np.empty(len(self.times), float)
-        self.minTempup[0] = np.min(self.Temp[self.toptextlayer].value)
-        self.maxTempup[0] = np.max(self.Temp[self.toptextlayer].value)
+        self.minTempup[0] = np.min(self.Temp.value[self.toptextlayer])
+        self.maxTempup[0] = np.max(self.Temp.value[self.toptextlayer])
         self.avgTempup[0] = (self.minTempup[0] + self.maxTempup[0]) / 2
         
         self.viewer = None
         self.viewer = Viewer(vars = self.Temp, title = 'Temperature Distribution', 
-                            datamin = 15., datamax = 45.)
+                            #datamin = 15., datamax = 45.
+                            )
+        print 'min', np.min(self.Temp.value), np.max(self.Temp.value)
         self.viewer.plot()
         #raw_input("take the example of the initial condition")
         self.viewerplotcount = 1
@@ -360,7 +377,7 @@ class FiberFabricModel(object):
         self.vol_pcm = []
         self.nr_pcm_permm3 = []
         for cfg in self.cfg_pcm:
-            self.vol_pcm += [4/3*np.pi * cfg.get("pcm.radius")]
+            self.vol_pcm += [4/3*np.pi * cfg.get("pcm.radius")**3]
         for vol, volfrac in zip(self.vol_pcm, self.volfrac_pcm):
             self.nr_pcm_permm3 += [volfrac/vol]
         
@@ -376,6 +393,7 @@ class FiberFabricModel(object):
         if self.volfrac_pcm:
             print '\nPCM'
             print 'volume fractions of', self.volfrac_pcm
+            print 'number of pcm per mm3', self.nr_pcm_permm3
             print 'weight added in g/mm3',
             weightpcms = 0.
             for volfrac, nrpcm, cfg in zip(self.volfrac_pcm, self.nr_pcm_permm3, 
@@ -429,10 +447,13 @@ class FiberFabricModel(object):
         return the temperature at cellnr data at time t
         """
         timenowyarn = self.step_old_time
-        if t >= timenowyarn:
+        # we allow numerical error, so 0.1 delta_t discrepancy allowed
+        if t >= timenowyarn - 0.1 * self.delta_t:
             #return data
             return self.step_old_sol_temp_body[data]
-        raise ValueError, 'out temperature should only be requested at a later time'
+        raise ValueError, 'out temperature should only be requested at a later'\
+            ' time, now at ' + str(t) + ' which is before ' + str(timenowyarn) \
+            + ' time fibermodel' 
 
     def update_heat_cond(self):
         """
@@ -454,7 +475,6 @@ class FiberFabricModel(object):
                     self.outsidecells)
         self.heat_cap.value = heat_cap
 
-
     def do_pcm_step(self, stopt):
         """
         Solve the diffusion process on the fiber up to stoptime, starting
@@ -467,8 +487,11 @@ class FiberFabricModel(object):
             for ind, model in enumerate(models):
                 model.solve_step()
                 self.tmp_E[ind, type] = model.calc_last_energy()
-        self.source_energy[self.textilebody, :] = self.pcm_E[:, :] - self.tmp_E[:,:]
-        self.pcm_E[:, :] = self.tmp_E[:,:]
+        if len(self.pcm_model) > 0:
+            self.source_energy[self.textilebody, :] = self.pcm_E[:, :] - self.tmp_E[:,:]
+            self.pcm_E[:, :] = self.tmp_E[:,:]
+        ##print 'new energy', self.pcm_E
+        ##raw_input('tst')
 
     def solve_fabric(self):
         """
@@ -489,10 +512,9 @@ class FiberFabricModel(object):
         for pcmtype, Np in enumerate(self.nr_pcm_permm3):
             self.source_var += [CellVariable(name="Source pcm %d" % pcmtype,
                                      mesh=self.mesh)]
+            self.viewer_src = Viewer(vars = self.source_var, title = 'Source')
+            self.viewer_src.plot()
             rhs = rhs + self.source_var[-1]
-
-        self.eqTmp = TransientTerm(coeff=self.heat_cap) == rhs
-                            
 
         #boundary conditions
         if self.BC_T_type == 'heatingplate':
@@ -500,13 +522,32 @@ class FiberFabricModel(object):
         elif self.BC_T_type == 'insulated':
             pass
         else:
-            pass
+            print 'ERROR, wrong BC type'. self.BC_T_type
+            sys.exit()
         if not self.with_overlap:
             #we set on top boundary the outside temperature
             self.Temp.constrain(self.outTemp, where=self.mesh.facesBack)
+        if self.BC_texsurf is not None:
+            #constraining does not work for inernal edge!!
+            ##self.Temp.constrain(self.BC_texsurfval, where=self.BC_texsurf)
+            largeValue = 1e3
+            fakeimpsource = CellVariable(name='Fake Implicit Source',
+                                      mesh=self.mesh)
+            fakeimpsource.value = largeValue *self.BC_texsurf
+            fakesource =  CellVariable(name='Fake Source',
+                                      mesh=self.mesh)
+            fakesource.value = largeValue * self.BC_texsurf * self.BC_texsurfval
+            rhs = rhs - ImplicitSourceTerm(fakeimpsource) \
+                        + fakesource
 
         #all other boundaries are automatically Neumann BC
         
+        #the pde equation
+        self.eqTmp = TransientTerm(coeff=self.heat_cap) == rhs
+
+        #solver to use
+        mySolver = LinearPCGSolver(iterations=5000, tolerance=1e-6)
+        ##mySolver = LinearLUSolver(iterations=5000, tolerance=1e-6)
         #now loop in time to solve
         t = self.initial_t
         stop_time = self.times[-1]
@@ -526,12 +567,21 @@ class FiberFabricModel(object):
             # step 2 update source by setting value of the source variables
             for type, var in enumerate(self.source_var):
                 # upscale the energy of a single PCM
-                var.value = self.source_energy[:, type] /self.delta_t \
-                            * self.nr_pcm_permm3[type]
+                var.setValue(self.source_energy[:, type] /self.delta_t \
+                            * self.nr_pcm_permm3[type])
+                self.viewer_src.plot()
+                #print 'new source term', var.value,  self.nr_pcm_permm3[type]
+                #raw_input('test')
             
             # step 3 solve fabric model
-            self.eqTmp.solve(var = self.Temp,
-                          dt = self.delta_t)
+            if True: #self.BC_texsurf is not None:
+                for sweep in range(5):
+                    self.eqTmp.sweep(var=self.Temp,
+                                     dt = self.delta_t)
+                    self.Temp.updateOld()
+            else:
+                self.eqTmp.solve(var=self.Temp,
+                                 dt = self.delta_t)
             
             #store solution
             self.step_old_time += self.delta_t
@@ -539,8 +589,8 @@ class FiberFabricModel(object):
             self.step_old_sol_temp_body = self.step_old_sol_temp[self.textilebody]
             
             #store data for plot
-            self.minTempup[post] = np.min(self.Temp[self.toptextlayer].value)
-            self.maxTempup[post] = np.max(self.Temp[self.toptextlayer].value)
+            self.minTempup[post] = np.min(self.Temp.value[self.toptextlayer])
+            self.maxTempup[post] = np.max(self.Temp.value[self.toptextlayer])
             self.avgTempup[post] = (self.minTempup[post] + self.maxTempup[post]) / 2
         
             if self.viewer is not None and self.viewerplotcount == 0:
@@ -558,8 +608,16 @@ class FiberFabricModel(object):
             self.writeoutcount = self.writeoutcount % self.writeevery
 
         #now we plot the min and max temp in upper layer
+        surf_exp_time = self.cfg.get("experiment.surface_temp_t")
+        surf_exp = self.cfg.get("experiment.surface_temp")
         plt.figure(num=None)
-        plt.plot(self.times, self.minTempup, 'b', 
+        if surf_exp_time and len(surf_exp_time) == len(surf_exp):
+            plt.plot(self.times, self.minTempup, 'b', 
+                    self.times, self.maxTempup, 'r',
+                    self.times, self.avgTempup, 'k--',
+                    surf_exp_time, surf_exp, 'kx')
+        else:
+            plt.plot(self.times, self.minTempup, 'b', 
                     self.times, self.maxTempup, 'r',
                     self.times, self.avgTempup, 'k--')
         plt.xlabel('Time (s)')

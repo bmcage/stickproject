@@ -154,6 +154,14 @@ class FiberFabricConfigManager(ConfigManager):
             "The outside can have a certain temperature. We set that at the "
             "edge of the outside zone")
 
+        #extra heat source on surface of textile
+        self.register("surfacesource.where", '',
+            "where on the surface of textile temperture is fixed in face coord,"
+            " eg.: '(xc <750) & (xc > 150) & (yc > 100) & (yc < 1700)'")
+        self.register("surfacesource.temp", 32.,
+            "Temperature of the surface source")
+
+        #discretization things
         self.register("discretization.el_length", 8,
             "Number of elements along the length")
         self.register("discretization.el_width", 8,
@@ -161,6 +169,11 @@ class FiberFabricConfigManager(ConfigManager):
         self.register("discretization.el_height", 4,
             "Number of elements along the height")
 
+        #experiment data
+        self.register("experiment.surface_temp_t", [],
+            "time data of a surface temperature measurement")
+        self.register("experiment.surface_temp", [],
+            "data of a surface temperature measurement")
         #plotting output
         self.register("plot.plotevery", 10,
             "When plotting over time, indicate how many steps dt to skip "
