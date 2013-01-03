@@ -164,13 +164,16 @@ class Room1DModel(object):
             self.volbednet += self.nhoryarns * pi * rad**2 * self.room_W
         print 'volume_bednet space =', (2 * self.maxyarnrad * self.room_H
                                                 * self.room_W)
+        self.totalvolume_net = self.room_H*self.room_W
+        self.voidvolume = self.totalvolume_net - self.volbednet
         self.densitybednet =  self.volbednet / (2 * self.maxyarnrad * self.room_H
                                                 * self.room_W)
+        self.porosity = self.voidvolume / self.totalvolume_net
         print "\n\nINFO ON BEDNET"
         print "**************"
         print  "volume bednet = %g m^3, which means calculated porosity"\
                 " %f mm^3 fabric/mm^3" \
-                % (self.volbednet/1e9, self.densitybednet)
+                % (self.volbednet/1e9, self.porosity)
         print "**************\n\n"
         
         self.initialized = False
@@ -394,6 +397,7 @@ class Room1DModel(object):
             self.yarn_mass[ttype] = tmp
             self.yarn_mass_overlap[ttype] = tmp_overlap
             if self.source_mass[ttype, self.tstep] < 0.:
+                print "source mass", self.source_mass
                 if abs(self.source_mass[ttype, self.tstep]) < 1e-7:
                     self.source_mass[ttype, self.tstep] = 0.
                     print 'WARNING: small negative release, set to 0'
@@ -462,6 +466,7 @@ class Room1DModel(object):
             xval = self.x0[ind]
             cellstart, interpval = interpdat
             conc_in_point = interpval * self.sol[:, ind] + (1-interpval) * self.sol[:, ind+1]
+            print conc_in_point[-1]
             plt.rc("font", family="serif")
             plt.rc("font", size=10)
             width = 4.5  #width in inches
