@@ -168,12 +168,12 @@ class Room1DModel(object):
         self.voidvolume = self.totalvolume_net - self.volbednet
         self.densitybednet =  self.volbednet / (2 * self.maxyarnrad * self.room_H
                                                 * self.room_W)
-        self.porosity = self.voidvolume / self.totalvolume_net
+        self.fabporosity = self.voidvolume / self.totalvolume_net
         print "\n\nINFO ON BEDNET"
         print "**************"
         print  "volume bednet = %g m^3, which means calculated porosity"\
                 " %f mm^3 fabric/mm^3" \
-                % (self.volbednet/1e9, self.porosity)
+                % (self.volbednet/1e9, self.fabporosity)
         print "**************\n\n"
         
         self.initialized = False
@@ -380,23 +380,23 @@ class Room1DModel(object):
         # the corresponding concentration by dividing by the volume of a yarn pi Ry^2
         for ttype, model in enumerate(self.yarn_models):
             rt, rety = model.do_yarn_step(t)
+            print "after step conc mass", rety
             tmp = model.calc_mass(rety)
             tmp_overlap = model.calc_mass_overlap(rety)
             # mass that goes into overlap is the mass that disappeared.
-            #self.source_mass[ttype, self.tstep] = self.yarn_mass[ttype] - tmp
-            ##print 'first calc source mass', self.source_mass[ttype, self.tstep],
+            self.source_mass[ttype, self.tstep] = self.yarn_mass[ttype] - tmps
             self.source_mass[ttype, self.tstep] = -(
                         (self.yarn_mass_overlap[ttype] + 
                          model.source_overlap*self.delta_t * model.areaextend
                         ) - tmp_overlap)
-            ##print 'second', self.source_mass[ttype, self.tstep], tmp_overlap, model.source_overlap*self.delta_t * model.areaextend
+            print 'second', self.source_mass[ttype, self.tstep], 'tmp_overlap', tmp_overlap, 'model.source_overlap',model.source_overlap*self.delta_t * model.areaextend
             #self.source_mass[ttype, self.tstep] /= V
             ##print 'mass yarn now', tmp, 'prev', self.yarn_mass[ttype], 'release', self.source_mass[ttype, self.tstep]
             ##print 'test', model.calc_mass_overlap(model.step_old_sol)
             self.yarn_mass[ttype] = tmp
             self.yarn_mass_overlap[ttype] = tmp_overlap
             if self.source_mass[ttype, self.tstep] < 0.:
-                print "source mass", self.source_mass
+                print "source mass", self.source_mass[ttype, self.tstep]
                 if abs(self.source_mass[ttype, self.tstep]) < 1e-7:
                     self.source_mass[ttype, self.tstep] = 0.
                     print 'WARNING: small negative release, set to 0'

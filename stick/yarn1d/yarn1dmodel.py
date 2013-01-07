@@ -360,6 +360,7 @@ class Yarn1DModel(object):
                         np.power(self.grid_edge[self.nr_edge-1:-1], 2)) *
                       self.porosity[self.nr_cell:]
                      ) * np.pi
+        print "porosity",self.porosity
         ##print 'yarn mass overlap', conc[self.nr_cell:], mass
         return mass
 
