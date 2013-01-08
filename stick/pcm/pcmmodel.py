@@ -324,13 +324,19 @@ class RootFndp(CV_RootFunction):
         self.L = L
         self.pos_s = pos_s
         self.eps = eps
-        self.minval = L*eps/2.  # used also elsewhere in the code !!
+        self.minval = 0.02*L #L*eps/2.  # used also elsewhere in the code !!
         self.maxval = L*(1-eps/2.)
 
     def evaluate(self, t, u, out, userdata):
         out[0] = u[self.pos_s] - self.minval
         out[1] = self.maxval - u[self.pos_s]
-        #print 'test root double ph', u[self.pos_s]/self.L, out[0], out[1]
+        if str(out[0]) == 'nan':
+            print 'problem'
+            raw_input('cont')
+            print t, u, out
+            out[0] = 0.
+            out[1] = 0.
+        print 'test root double ph', u[self.pos_s]/self.L, out[0], out[1]
         return 0
 
 #-------------------------------------------------------------------------
@@ -537,6 +543,11 @@ class PCMModel(object):
                         -K/rho/Cv * dxdr*u_rep[0] /Rlast)
         flux_edge[1:-1] = -K/rho/Cv * (u_rep[1:]-u_rep[:-1])/ Dxavg[:]*dxdr**2
         diff_u_t[:] = (flux_edge[:-1]-flux_edge[1:])/Dx[:]
+##        print 'part flux', diff_u_t
+##        print 'flux', flux_edge
+##        print 'u', u_rep
+##        print 'Dx', Dxavg, Dx
+##        print dxdr, -K/rho/Cv, Dxavg[3], u_rep[3]
 
     def f_odes_dph_FD(self, t, u_rep, diff_u_t):
         """ RHS function for the cvode solver for double phase energy diffusion
@@ -570,7 +581,7 @@ class PCMModel(object):
         rhoi = self.state.inner_data['rho']
         
         Tmelt = self.state.meltpoint
-        if uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s) \
+        if uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0], s) \
                 > self.Tout(t, self.get_userdata()):
             print 'WRONG', t, uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s),\
                         '>',  self.Tout(t, self.get_userdata())
@@ -583,6 +594,7 @@ class PCMModel(object):
         #at interface
         dudxi_ats = deriv133(gridi[-2],ui[-2],gridi[-1],ui[-1],1.,s*Tmelt)
         dudxo_ats = deriv133(grido[-2],uo[-2],grido[-1],uo[-1],1.,s*Tmelt)
+##        print 'dudxats', (gridi[-2],ui[-2],gridi[-1],ui[-1],1.,s*Tmelt), dudxi_ats
 
         #equation sdot
         ##sdot = 1./rhoo/self.lambda_m *(
@@ -593,6 +605,8 @@ class PCMModel(object):
         ##        - Ko*dxdro*(Tmelt-uo[-1]/(L-(L-s)*grido[-1]))/(1-grido[-1]))
         sdot = 1/self.lambda_m /s*(ai*Cvi*dxdri*dudxi_ats-ao*Cvo*dxdro*dudxo_ats) \
                 -Tmelt/self.lambda_m/ s**3 *(ai*Cvi - ao*Cvo)
+        print 'sdot', t, sdot, L, s/L
+        #raw_input('cont')
         ##sdot = sdot3
 
         #average value of dxdt at the gridpoints of centers
@@ -616,6 +630,8 @@ class PCMModel(object):
         #at interface
         flux_edgei[self.pos_s] = -ai * dudxi_ats *dxdri**2
         diff_u_t[:self.pos_s] = (flux_edgei[:-1]-flux_edgei[1:])/Dxi[:]
+##        print 'part flux', (flux_edgei[:-1]-flux_edgei[1:])/Dxi[:]
+##        print 'flux', flux_edgei
         #FD part
         # 1. use flux_edgei to store u_edgei
         u_edgei = flux_edgei
@@ -623,11 +639,18 @@ class PCMModel(object):
         u_edgei[-1] = s * Tmelt
         u_edgei[1:-1] = inter2(gridi[:-1], ui[:-1], gridi[1:], ui[1:], gridi_edge[1:-1])#(ui[:-1] + ui[:-1])/2. ##TODO should we not average T ??
         # 2. add the FD part of dxdt term
-        diff_u_t[:self.pos_s] += sdot * dxdri * \
-                    ((gridi_edge[1:] * u_edgei[1:] - gridi_edge[:-1] * u_edgei[:-1])/Dxi[:]
-                    - (u_edgei[:-1]/2 + u_edgei[1:]/2))
+        ##diff_u_t[:self.pos_s] += sdot * dxdri * \
+        ##            ((gridi_edge[1:] * u_edgei[1:] - gridi_edge[:-1] * u_edgei[:-1])/Dxi[:]
+        ##            - (u_edgei[:-1]/2 + u_edgei[1:]/2))
         ## alternative 1
-        ##diff_u_t[:self.pos_s] += dxdtic[:]/Dxi[:] * (u_edgei[:-1] - u_edgei[1:])
+        diff_u_t[:self.pos_s] += dxdtic[:]/Dxi[:] * (u_edgei[:-1] - u_edgei[1:])
+
+##        print 'u', ui
+##        print 'Dxiavg', Dxiavg, Dxi, dxdri
+##        print 'part move', dxdtic[:]/Dxi[:] * (u_edgei[:-1] - u_edgei[1:])
+##        print 'part move alt', sdot * dxdri * \
+##                    ((gridi_edge[1:] * u_edgei[1:] - gridi_edge[:-1] * u_edgei[:-1])/Dxi[:]
+##                    - (u_edgei[:-1]/2 + u_edgei[1:]/2))
         ## alternative 2
         ##diff_u_t[:self.pos_s] += sdot * dxdri * \
         ##            ((gridi_edge[1:] * u_edgei[1:] - gridi_edge[:-1] * u_edgei[:-1])/Dxi[:]
@@ -659,6 +682,7 @@ class PCMModel(object):
         tmp[:self.pos_s] += dxdtoc[:]/Dxo[:] * (u_edgeo[:-1] - u_edgeo[1:])
         #we store it inverse, like the physical PCM in order !
         diff_u_t[self.pos_s+1:] = tmp[::-1]
+##        print 'dudt', diff_u_t
 
     def f_odes_dph_FV(self, t, u_rep, diff_u_t):
         """ RHS function for the cvode solver for double phase energy diffusion
@@ -860,6 +884,7 @@ class PCMModel(object):
                                 [prev_time,time], 
                                 initval
                                 )
+                print 'sph', t_retn, flag
                 #print flag, t_retn, time, t_out
                 if flag == CV_ROOT_RETURN:
                     print 'At time', t_out, 'no longer single phase'
@@ -902,7 +927,7 @@ class PCMModel(object):
                                 [prev_time,time], 
                                 initval,
                                 )
-                
+                print 'dph', t_retn, flag
                 if flag == CV_ROOT_RETURN:
                     print 'At time', t_out, 'no longer double phase, s at', u_last[self.pos_s]/self.state.L
                     #store the last solution
@@ -940,7 +965,7 @@ class PCMModel(object):
                     #2. change solver
                     #3. update data
                     if abs(self.all_sol_u[tstep+1][self.pos_s]) \
-                        < self.state.L*self.state.epsilon/2. * 1.001:
+                        < .021 * self.state.L:#< self.state.L*self.state.epsilon/2. * 1.001:
                         # now only outer state
                         self.state.state = self.state.outer_data['state']
                         self.state.inner_data = self.state.outer_data
@@ -955,7 +980,7 @@ class PCMModel(object):
                         self.state.outer_data = self.state.inner_data
                         self.step_old_sol = copy(self.project_indp_sp(self.all_sol_u[tstep+1]))
                     else:
-                        raise NotImplementedError, 'We should not reach this'
+                        raise NotImplementedError, 'We should not reach this '+str(self.all_sol_u[tstep+1][self.pos_s])+' | '+ str(self.all_sol_u[tstep+1])
                     # no more interface:
                     self.state.R = 0.
                 else:
@@ -1102,12 +1127,12 @@ class PCMModel(object):
                     / (4/3*np.pi * (newredge[1:]**3 - newredge[:-1]**3))
         #we store outer data in one phase in the x order, so inverse from r
         newdataC = newdataC[::-1]
-##        print 'before T', sol[:self.pos_s]/self.state.inner_x_to_r(self.state.inner_gridx[:], R=sol[self.pos_s])
-##        print '  over', self.state.inner_x_to_r(self.state.inner_gridx[:], R=sol[self.pos_s]) / self.state.L
-##        print ' and   T', sol[self.pos_s+1:]/self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=sol[self.pos_s])
-##        print '  over', self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=sol[self.pos_s]) / self.state.L
-##        print 'after T', newdataC[::-1]/self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=0.)
-##        print '  over', self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=0.) / self.state.L
+        print 'before T', sol[:self.pos_s]/self.state.inner_x_to_r(self.state.inner_gridx[:], R=sol[self.pos_s])
+        print '  over', self.state.inner_x_to_r(self.state.inner_gridx[:], R=sol[self.pos_s]) / self.state.L
+        print ' and   T', sol[self.pos_s+1:]/self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=sol[self.pos_s])
+        print '  over', self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=sol[self.pos_s]) / self.state.L
+        print 'after T', newdataC[::-1]/self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=0.)
+        print '  over', self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=0.) / self.state.L
         return newdataC
 
     def project_indp_sp(self, sol):
