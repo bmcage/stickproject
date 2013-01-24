@@ -201,7 +201,6 @@ class Yarn1DModel(object):
         self.volfracfib = []  # volume fraction of the fiber types
         if self.fiberlayout_method == 'virtlocoverlap':
             value_from_areafunction = np.zeros(self.nr_cell, float)
-
             for i_porosity in range(len(self.prob_area)):
                 function_area = self.prob_area[i_porosity]
                 value_from_areafunction += function_area(self.grid[:])
@@ -218,11 +217,17 @@ class Yarn1DModel(object):
             
         else:        
             for blend, model in zip(self.blend, self.fiber_models[0]):
+                print 'fiberradius', model.radius(), 'yarnradius', self.end_point   
                 self.volfracfib.append(
                         blend * self.nr_fibers *  np.power(model.radius(),2)
                                 / np.power(self.end_point,2) )
+                if np.sum(self.volfracfib)>1:
+                    raise ValueError, 'porosity  negative, unrealistic number of fibers in yarn cross section, %f fibers per yarn * Rf^2/Ry^2 = %f' % (self.nr_fibers,np.sum(self.volfracfib))
+                    raw_input()
             self.porosity[:self.nr_cell] = 1- np.sum(self.volfracfib)
-        
+            print 'porosity', self.porosity[:self.nr_cell], 
+            #if self.porosity[:self.nr_cell]<0:
+                # raise ValueError, 'porosity  negative'
         #create cylindrical 1D grid over domain for using fipy to view.
         if self.plotevery:
             self.mesh_yarn = CylindricalGrid1D(dr=tuple(self.delta_r[:self.nr_cell]))
@@ -331,7 +336,6 @@ class Yarn1DModel(object):
                         np.power(self.grid_edge[:self.nr_edge-1], 2)) *
                       self.porosity[:self.nr_cell]
                      ) * np.pi
-        #print 'calc mass', mass,
         #now we add the mass in the fibers
         for ind, pos in enumerate(self.grid[:self.nr_cell]):
             for type, blend in enumerate(self.blend):
@@ -339,10 +343,10 @@ class Yarn1DModel(object):
                 #print 'fiber mass', self.fiber_mass
                 massfib = (self.fiber_mass[ind, type]
                             * self.nrf_shell[ind] * blend)
-                ##print 'mass fibers per shell', massfib
+                #print 'mass fiber', self.fiber_mass[ind,type], 'nr fibers per shell', self.nrf_shell[ind]
                 mass += massfib
-        ##print 'yarn conc', conc
-        ##print 'yarn totalmass',  mass, 'microgram'
+        #print 'yarn conc', conc
+        #print 'yarn totalmass',  mass, 'microgram'
         return mass
 
     def calc_mass_overlap(self, conc):
