@@ -313,7 +313,9 @@ class FiberModel(object):
         self.initial_w1 = self.initial_c1 * self.grid
         self.volume = self.calc_volume()
         if self.verbose:
+            print 'initial concentration', self.initial_c1
             print 'initial mass = ', self.calc_mass(self.initial_c1)
+            
 
     def calc_mass(self, conc_r):
         """calculate the mass of component present given value in cell center
@@ -324,8 +326,7 @@ class FiberModel(object):
         return sp.sum(conc_r * (sp.power(self.grid_edge[1:], 2) - 
                                 sp.power(self.grid_edge[:-1], 2)) 
                            * self.porosity_domain) * sp.pi 
-
-        #print 'fibermass', mass
+        
         #return mass
 
     def calc_volume(self):
