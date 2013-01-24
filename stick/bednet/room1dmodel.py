@@ -158,8 +158,8 @@ class Room1DModel(object):
         #now some output on density
         self.volbednet = 0.
         for rad in self.radius_yarn:
-            print 'vert vol', self.nvertyarns * pi * rad**2 * self.room_H, 'mm2'
-            print 'horz vol', self.nhoryarns * pi * rad**2 * self.room_W, 'mm2'
+            print 'vert vol', self.nvertyarns * pi * rad**2 * self.room_H, 'mm3'
+            print 'horz vol', self.nhoryarns * pi * rad**2 * self.room_W, 'mm3'
             self.volbednet += self.nvertyarns * pi * rad**2 * self.room_H
             self.volbednet += self.nhoryarns * pi * rad**2 * self.room_W
         print 'volume_bednet space =', (2 * self.maxyarnrad * self.room_H
@@ -210,8 +210,7 @@ class Room1DModel(object):
         Upscale the mass in one yarn, to the mass in the entire bednet,
         returns the mass
         """
-        return (self.nhoryarns * self.room_W + self.nvertyarns * self.room_H) \
-                * mass
+        return (self.nhoryarns + self.nvertyarns) * mass
 
     def calc_mass(self):
         """
@@ -222,7 +221,7 @@ class Room1DModel(object):
         yarnmass = [None] * len(self.yarn_models)
         yarnmassoverlap = [None] * len(self.yarn_models)
         for ttype, model in enumerate(self.yarn_models):
-            yarnmass[ttype] = model.calc_mass(model.step_old_sol)
+            yarnmass[ttype] = model.calc_mass(model.step_old_sol) 
             yarnmassoverlap[ttype] = model.calc_mass_overlap(model.step_old_sol)
         #Next, the upscaled mass in the yarns
         totyarnmass = [None] * len(self.yarn_models)
@@ -384,7 +383,7 @@ class Room1DModel(object):
             tmp = model.calc_mass(rety)
             tmp_overlap = model.calc_mass_overlap(rety)
             # mass that goes into overlap is the mass that disappeared.
-            self.source_mass[ttype, self.tstep] = self.yarn_mass[ttype] - tmp
+            #self.source_mass[ttype, self.tstep] = self.yarn_mass[ttype] - tmp
             ##print 'first calc source mass', self.source_mass[ttype, self.tstep],
             self.source_mass[ttype, self.tstep] = -(
                         (self.yarn_mass_overlap[ttype] + 
@@ -466,7 +465,7 @@ class Room1DModel(object):
             xval = self.x0[ind]
             cellstart, interpval = interpdat
             conc_in_point = interpval * self.sol[:, ind] + (1-interpval) * self.sol[:, ind+1]
-            print conc_in_point[-1]
+            print 'conc in end point', conc_in_point[-1]
             plt.rc("font", family="serif")
             plt.rc("font", size=10)
             width = 4.5  #width in inches
@@ -560,6 +559,7 @@ class Room1DModel(object):
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Mass [$\mu$g]')
         plt.title('Mass AC in the bednet')
+        plt.plot([0,8000],[28.935, 28.90885073], 'r*')
         plt.plot(self.times, self.totyarnmass)
         plt.savefig(utils.OUTPUTDIR + os.sep 
                         + 'AImass_bednet' + const.FIGFILEEXT)
