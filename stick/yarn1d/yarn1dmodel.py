@@ -225,7 +225,7 @@ class Yarn1DModel(object):
                     raise ValueError, 'porosity  negative, unrealistic number of fibers in yarn cross section, %f fibers per yarn * Rf^2/Ry^2 = %f' % (self.nr_fibers,np.sum(self.volfracfib))
                     raw_input()
             self.porosity[:self.nr_cell] = 1- np.sum(self.volfracfib)
-            print 'porosity', self.porosity[:self.nr_cell], 
+            print 'porosity in yarn', self.porosity[:self.nr_cell], 
             #if self.porosity[:self.nr_cell]<0:
                 # raise ValueError, 'porosity  negative'
         #create cylindrical 1D grid over domain for using fipy to view.
@@ -234,7 +234,7 @@ class Yarn1DModel(object):
             self.mesh_yarn.periodicBC = False
             self.mesh_yarn = self.mesh_yarn
 
-        print 'mesh', self.grid_edge, ', delta_r', self.delta_r
+        print 'mesh yarn', self.grid_edge, ', delta_r yarn', self.delta_r
 
     def initial_yarn1d(self):
         """ initial concentration over the domain"""
@@ -360,7 +360,7 @@ class Yarn1DModel(object):
                         np.power(self.grid_edge[self.nr_edge-1:-1], 2)) *
                       self.porosity[self.nr_cell:]
                      ) * np.pi
-        print "porosity",self.porosity
+        #print "porosity",self.porosity
         ##print 'yarn mass overlap', conc[self.nr_cell:], mass
         return mass
 
