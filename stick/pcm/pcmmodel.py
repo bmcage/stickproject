@@ -82,9 +82,9 @@ class PCMState(object):
         #units in mm instead of m
         self.solid = {
             'state' : PCMState.SOLID,
-            'rho' : config.get("pcm.density") * 10**(-9),
-            'C'   : 1000 * config.get("pcm.specific_heat_solid"),
-            'K'   : config.get("pcm.thermal_cond_solid") * 10**(-3)
+            'rho' : config.get("pcm.density") * 10**(-9),  # kg / mm^3
+            'C'   : 1000 * config.get("pcm.specific_heat_solid"),  # J/ kg K
+            'K'   : config.get("pcm.thermal_cond_solid") * 10**(-3) # W/mm K
             }
         self.liquid = {
             'state' : PCMState.LIQUID,
@@ -324,19 +324,13 @@ class RootFndp(CV_RootFunction):
         self.L = L
         self.pos_s = pos_s
         self.eps = eps
-        self.minval = 0.02*L #L*eps/2.  # used also elsewhere in the code !!
+        self.minval = L*eps/2.  # used also elsewhere in the code !!
         self.maxval = L*(1-eps/2.)
 
     def evaluate(self, t, u, out, userdata):
         out[0] = u[self.pos_s] - self.minval
         out[1] = self.maxval - u[self.pos_s]
-        if str(out[0]) == 'nan':
-            print 'problem'
-            raw_input('cont')
-            print t, u, out
-            out[0] = 0.
-            out[1] = 0.
-        print 'test root double ph', u[self.pos_s]/self.L, out[0], out[1]
+        #print 'test root double ph', u[self.pos_s]/self.L, out[0], out[1]
         return 0
 
 #-------------------------------------------------------------------------
@@ -461,7 +455,8 @@ class PCMModel(object):
             solr1 = rT[:self.pos_s]/meshr1
             solr2 = rT[self.pos_s+1:]/meshr2
 
-        return self.calc_energy(solr1, solr2)
+        E = self.calc_energy(solr1, solr2)
+        return E
 
     def calc_energy(self, inner_T, outer_T, base=None):
         """ calculate the energy in the PCM based on temperature over the 
@@ -474,20 +469,21 @@ class PCMModel(object):
         meltpoint = self.state.meltpoint
         innerE = 0.
         prevedgex = 0.
-        for xpos, temp in zip(self.state.inner_gridx_edge[1:], self.initial_T_in):
-            volshell = 4/3*np.pi * \
-                (self.state.inner_x_to_r(xpos)**3 
-                 - self.state.inner_x_to_r(prevedgex)**3)
-            prevedgex = xpos
-            if temp > meltpoint:
-                innerE += Cl * (temp-meltpoint) * rhol * volshell \
-                            + Cs * meltpoint * rhos * volshell\
-                            + self.lambda_m * rhos * volshell
-            else:
-                innerE += Cs * temp * rhos * volshell
+        if len(inner_T) > 0:
+            for xpos, temp in zip(self.state.inner_gridx_edge[1:], inner_T):
+                volshell = 4/3*np.pi * \
+                    (self.state.inner_x_to_r(xpos)**3 
+                     - self.state.inner_x_to_r(prevedgex)**3)
+                prevedgex = xpos
+                if temp > meltpoint:
+                    innerE += Cl * (temp-meltpoint) * rhol * volshell \
+                                + Cs * meltpoint * rhos * volshell\
+                                + self.lambda_m * rhos * volshell
+                else:
+                    innerE += Cs * temp * rhos * volshell
         outerE = 0.
         prevedgex = 0.
-        for xpos, temp in zip(self.state.outer_gridx_edge[1:], self.initial_T_out):
+        for xpos, temp in zip(self.state.outer_gridx_edge[1:], outer_T):
             volshell = 4/3*np.pi * \
                 (self.state.outer_x_to_r(prevedgex)**3
                  - self.state.outer_x_to_r(xpos)**3 )
@@ -538,22 +534,18 @@ class PCMModel(object):
                         /self.state.outer_x_to_r(self.state.outer_gridx[-1])
         #edge of PCM, transfer cond, stored at first point
         #print u_rep[0]/Rlast - self.Tout(t, self.get_userdata()), u_rep[0]
+        ##print 'T out', self.get_userdata(), self.Tout(t, self.get_userdata())
         flux_edge[0] = (self.hT / rho / Cv * dxdr*L*
                          (u_rep[0]/Rlast - self.Tout(t, self.get_userdata()))
                         -K/rho/Cv * dxdr*u_rep[0] /Rlast)
         flux_edge[1:-1] = -K/rho/Cv * (u_rep[1:]-u_rep[:-1])/ Dxavg[:]*dxdr**2
         diff_u_t[:] = (flux_edge[:-1]-flux_edge[1:])/Dx[:]
-##        print 'part flux', diff_u_t
-##        print 'flux', flux_edge
-##        print 'u', u_rep
-##        print 'Dx', Dxavg, Dx
-##        print dxdr, -K/rho/Cv, Dxavg[3], u_rep[3]
 
     def f_odes_dph_FD(self, t, u_rep, diff_u_t):
         """ RHS function for the cvode solver for double phase energy diffusion
         The grid is in x with first x from 0 to 1 with outer data, so 0 is 
         at L and 1 is at interface, then the interface position, then x from 1
-        to 0 with innter data, with 1 the interface, and 0 the center
+        to 0 with inner data, with 1 the interface, and 0 the center
         """
         gridi = self.state.inner_gridx
         gridi_edge = self.state.inner_gridx_edge
@@ -561,6 +553,22 @@ class PCMModel(object):
         s = u_rep[self.pos_s]
         #we store outer from highest x to lowest x!
         uo =  u_rep[self.pos_s+1:][::-1]
+        
+##        print ' T', t, ui / self.state.inner_x_to_r(gridi, R=s)
+##        print '  over', self.state.inner_x_to_r(gridi, R=s) / self.state.L
+##        print '      T', uo[::-1]/self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=s)
+##        print '  over', self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=s) / self.state.L
+        #raw_input('cont')
+        # correct obtained data
+        if self.state.state == PCMState.SOLID_LIQUID:
+            boolTmin = uo/self.state.outer_x_to_r(self.state.outer_gridx, R=s) < self.state.meltpoint
+            uo[boolTmin] = self.state.meltpoint * self.state.outer_x_to_r(self.state.outer_gridx[boolTmin], R=s)
+            boolTmin = ui/self.state.inner_x_to_r(self.state.inner_gridx, R=s) < self.doubleph_minT
+            boolTmax = ui/self.state.inner_x_to_r(self.state.inner_gridx, R=s) > self.state.meltpoint
+            ui[boolTmin] = self.doubleph_minT * self.state.inner_x_to_r(self.state.inner_gridx, R=s)
+            ui[boolTmax] = self.state.meltpoint * self.state.inner_x_to_r(self.state.inner_gridx, R=s)
+        
+        
         Dxi = self.state.inner_delta_x
         Dxiavg = self.state.inner_delta_x_avg
         grido = self.state.outer_gridx
@@ -581,10 +589,10 @@ class PCMModel(object):
         rhoi = self.state.inner_data['rho']
         
         Tmelt = self.state.meltpoint
-        if uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0], s) \
-                > self.Tout(t, self.get_userdata()):
-            print 'WRONG', t, uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s),\
-                        '>',  self.Tout(t, self.get_userdata())
+##        if uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s) \
+##                > self.Tout(t, self.get_userdata()):
+##            print 'WRONG', t, uo[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],s),\
+##                        '>',  self.Tout(t, self.get_userdata())
         ao = Ko/rhoo/Cvo
         ai = Ki/rhoi/Cvi
 
@@ -594,19 +602,25 @@ class PCMModel(object):
         #at interface
         dudxi_ats = deriv133(gridi[-2],ui[-2],gridi[-1],ui[-1],1.,s*Tmelt)
         dudxo_ats = deriv133(grido[-2],uo[-2],grido[-1],uo[-1],1.,s*Tmelt)
-##        print 'dudxats', (gridi[-2],ui[-2],gridi[-1],ui[-1],1.,s*Tmelt), dudxi_ats
 
-        #equation sdot
-        ##sdot = 1./rhoo/self.lambda_m *(
-        ##        Ki*(dudxi_ats*dxdri/s - Tmelt/s)
-        ##      - Ko*(dudxo_ats*dxdro/s - Tmelt/s))
-        ##sdot2 = 1./rhoo/self.lambda_m*\
-        ##         (Ki*dxdri*(Tmelt-ui[-1]/s/gridi[-1])/(1-gridi[-1]) 
-        ##        - Ko*dxdro*(Tmelt-uo[-1]/(L-(L-s)*grido[-1]))/(1-grido[-1]))
+        #equation sdot in different forms
+##        sdot1 = 1./rhoo/self.lambda_m *(
+##                Ki*(dudxi_ats*dxdri/s - Tmelt/s)
+##              - Ko*(dudxo_ats*dxdro/s - Tmelt/s))
+        sdot2 = 1./rhoo/self.lambda_m*\
+                 (Ki*dxdri*(Tmelt-ui[-1]/s/gridi[-1])/(1-gridi[-1]) 
+                - Ko*dxdro*(Tmelt-uo[-1]/(L-(L-s)*grido[-1]))/(1-grido[-1]))
+        ## TODO TODO: forgot if not last term /s**3 ... :-(
         sdot = 1/self.lambda_m /s*(ai*Cvi*dxdri*dudxi_ats-ao*Cvo*dxdro*dudxo_ats) \
-                -Tmelt/self.lambda_m/ s**3 *(ai*Cvi - ao*Cvo)
-        print 'sdot', t, sdot, L, s/L
-        #raw_input('cont')
+                -Tmelt/self.lambda_m/ s *(ai*Cvi - ao*Cvo)
+        print 's', t, s, sdot #, sdot1, sdot2
+##        print 'dudx', dudxi_ats, dudxo_ats
+##        print gridi[-2],ui[-2],gridi[-1],ui[-1],1.,s*Tmelt
+##        print grido[-2],uo[-2],grido[-1],uo[-1],1.,s*Tmelt
+##        raw_input('test')
+##        if s > 0.5*L :
+        ##sdot = -sdot
+        ##sdot = sdot2
         ##sdot = sdot3
 
         #average value of dxdt at the gridpoints of centers
@@ -630,8 +644,6 @@ class PCMModel(object):
         #at interface
         flux_edgei[self.pos_s] = -ai * dudxi_ats *dxdri**2
         diff_u_t[:self.pos_s] = (flux_edgei[:-1]-flux_edgei[1:])/Dxi[:]
-##        print 'part flux', (flux_edgei[:-1]-flux_edgei[1:])/Dxi[:]
-##        print 'flux', flux_edgei
         #FD part
         # 1. use flux_edgei to store u_edgei
         u_edgei = flux_edgei
@@ -639,18 +651,11 @@ class PCMModel(object):
         u_edgei[-1] = s * Tmelt
         u_edgei[1:-1] = inter2(gridi[:-1], ui[:-1], gridi[1:], ui[1:], gridi_edge[1:-1])#(ui[:-1] + ui[:-1])/2. ##TODO should we not average T ??
         # 2. add the FD part of dxdt term
-        ##diff_u_t[:self.pos_s] += sdot * dxdri * \
-        ##            ((gridi_edge[1:] * u_edgei[1:] - gridi_edge[:-1] * u_edgei[:-1])/Dxi[:]
-        ##            - (u_edgei[:-1]/2 + u_edgei[1:]/2))
+        diff_u_t[:self.pos_s] += sdot * dxdri * \
+                    ((gridi_edge[1:] * u_edgei[1:] - gridi_edge[:-1] * u_edgei[:-1])/Dxi[:]
+                    - (u_edgei[:-1]/2 + u_edgei[1:]/2))
         ## alternative 1
-        diff_u_t[:self.pos_s] += dxdtic[:]/Dxi[:] * (u_edgei[:-1] - u_edgei[1:])
-
-##        print 'u', ui
-##        print 'Dxiavg', Dxiavg, Dxi, dxdri
-##        print 'part move', dxdtic[:]/Dxi[:] * (u_edgei[:-1] - u_edgei[1:])
-##        print 'part move alt', sdot * dxdri * \
-##                    ((gridi_edge[1:] * u_edgei[1:] - gridi_edge[:-1] * u_edgei[:-1])/Dxi[:]
-##                    - (u_edgei[:-1]/2 + u_edgei[1:]/2))
+        ##diff_u_t[:self.pos_s] += dxdtic[:]/Dxi[:] * (u_edgei[:-1] - u_edgei[1:])
         ## alternative 2
         ##diff_u_t[:self.pos_s] += sdot * dxdri * \
         ##            ((gridi_edge[1:] * u_edgei[1:] - gridi_edge[:-1] * u_edgei[:-1])/Dxi[:]
@@ -663,7 +668,16 @@ class PCMModel(object):
         r_edge = self.state.outer_x_to_r(self.state.outer_gridx[0], s)
         flux_edgeo[0] = (self.hT / rhoo / Cvo * dxdro*L*
                          (uo[0]/r_edge - self.Tout(t, self.get_userdata()))
-                        -ao * dxdro * uo[0] /r_edge)
+                        -ao * dxdro * uo[0] /r_edge
+                        )
+##        flux_edgeo[0] = (self.hT / rhoo / Cvo *L* dxdro *
+##                         (uo[0]/r_edge - self.Tout(t, self.get_userdata()))
+##                        #-ao * dxdro * uo[0] /r_edge
+##                        )
+##        flux_edgeo[0] = -ao * dxdro**2 * r_edge*(r_edge-s)/Ko * (self.hT *
+##                         (uo[0]/r_edge - self.Tout(t, self.get_userdata()))
+##                        -Ko * uo[0] /r_edge **2
+##                        )
     
         if flux_edgeo[0] < 0.:
             print  'flux_edge < 0,', flux_edgeo[0], uo[0]/r_edge, \
@@ -677,12 +691,11 @@ class PCMModel(object):
         u_edgeo = flux_edgeo
         u_edgeo[0] = uo[0] # at r=L, u =L*T 
         u_edgeo[-1] = s * Tmelt
-        u_edgeo[1:-1] = (uo[:-1] + uo[:-1])/2. ##TODO should we not average T ??
+        u_edgeo[1:-1] =  inter2(grido[:-1], uo[:-1], grido[1:], uo[1:], grido_edge[1:-1])#(uo[:-1] + uo[:-1])/2. ##TODO should we not average T ??
         # 2. add the FD part of dxdt term
         tmp[:self.pos_s] += dxdtoc[:]/Dxo[:] * (u_edgeo[:-1] - u_edgeo[1:])
         #we store it inverse, like the physical PCM in order !
         diff_u_t[self.pos_s+1:] = tmp[::-1]
-##        print 'dudt', diff_u_t
 
     def f_odes_dph_FV(self, t, u_rep, diff_u_t):
         """ RHS function for the cvode solver for double phase energy diffusion
@@ -787,7 +800,7 @@ class PCMModel(object):
         """
         Reinitialize the cvode solver to start again
         """
-        self.initial_t = self.times[0]
+        #self.initial_t = self.times[0]
         if self.verbose:
             print 'REINIT SOLVER'
         del self.solver
@@ -799,7 +812,7 @@ class PCMModel(object):
             rootfn.set_data(self.state.outer_x_to_r(self.state.outer_gridx[0]), 
                             self.state.meltpoint)
             self.solver = sc_ode('cvode', self.f_odes_sph,
-                                 max_steps=50000, lband=1, uband=1,
+                                 max_steps=5000, lband=1, uband=1,
                                  nr_rootfns=1, rootfn=rootfn,
                                  first_step_size=1e-12)
         else:
@@ -809,11 +822,11 @@ class PCMModel(object):
             rootfn=RootFndp()
             rootfn.set_data(self.state.L, self.pos_s, self.state.epsilon)
             self.solver = sc_ode('cvode', self.f_odes_dph_FD,
-                                 max_steps=50000, 
+                                 max_steps=5000, 
                                  #lband=1, uband=1,
                                  nr_rootfns=2, rootfn=rootfn,
-                                 atol=1e-12, rtol=1e-12,
-                                 first_step_size=1e-12)
+                                 atol=1e-4, rtol=1e-4,
+                                 first_step_size=1e-9)
 
 ##        self.solver.init_step(self.step_old_time, self.step_old_sol)
 
@@ -830,7 +843,7 @@ class PCMModel(object):
         
         self.pos_s = self.state.n_edge-1
         #data storage
-        self.all_sol_u = np.empty((len(self.times), self.nrunknowns), float)
+        self.all_sol_u = np.zeros((len(self.times), self.nrunknowns), float)
         self.ret_sol = sp.empty(self.nrunknowns, float)
 
         if self.state.single_phase():
@@ -869,8 +882,9 @@ class PCMModel(object):
         changed = False
         cont = True
         while cont:
+            time = self.times[tstep+1]
+            self.curTout = self.Tout(time, self.get_userdata())
             if single_phase:
-                time = self.times[tstep+1]
                 if changed:
                     prev_time = self.step_old_time
                     #retrieve stored start point
@@ -884,10 +898,12 @@ class PCMModel(object):
                                 [prev_time,time], 
                                 initval
                                 )
-                print 'sph', t_retn, flag
                 #print flag, t_retn, time, t_out
                 if flag == CV_ROOT_RETURN:
                     print 'At time', t_out, 'no longer single phase'
+                    print 'temp at edge',  u_last[0]/self.state.outer_x_to_r(self.state.outer_gridx[0],self.state.R), \
+                            'meltpoint', self.state.meltpoint, \
+                            u_retn[0][0]/self.state.outer_x_to_r(self.state.outer_gridx[0],self.state.R), t_retn
                     #store the last solution
                     self.all_sol_u[tstep+1][:self.solverunknowns] = u_last
                     self.all_sol_u[tstep+1][self.pos_s] = 0.
@@ -905,6 +921,7 @@ class PCMModel(object):
                     tret = t_retn[-1]
                 else:
                     print 'ERROR: unable to compute solution, flag', flag
+                    raw_input('Cancel computation with CTRL+C')
                     break
                     
                 if self.verbose:
@@ -913,7 +930,6 @@ class PCMModel(object):
                     tstep += 1
             else:
                 #double phase model to run
-                time = self.times[tstep+1]
                 if changed:
                     prev_time = self.step_old_time
                     #retrieve stored start point
@@ -927,7 +943,7 @@ class PCMModel(object):
                                 [prev_time,time], 
                                 initval,
                                 )
-                print 'dph', t_retn, flag
+                
                 if flag == CV_ROOT_RETURN:
                     print 'At time', t_out, 'no longer double phase, s at', u_last[self.pos_s]/self.state.L
                     #store the last solution
@@ -965,7 +981,7 @@ class PCMModel(object):
                     #2. change solver
                     #3. update data
                     if abs(self.all_sol_u[tstep+1][self.pos_s]) \
-                        < .021 * self.state.L:#< self.state.L*self.state.epsilon/2. * 1.001:
+                        < self.state.L*self.state.epsilon/2. * 1.001:
                         # now only outer state
                         self.state.state = self.state.outer_data['state']
                         self.state.inner_data = self.state.outer_data
@@ -980,7 +996,7 @@ class PCMModel(object):
                         self.state.outer_data = self.state.inner_data
                         self.step_old_sol = copy(self.project_indp_sp(self.all_sol_u[tstep+1]))
                     else:
-                        raise NotImplementedError, 'We should not reach this '+str(self.all_sol_u[tstep+1][self.pos_s])+' | '+ str(self.all_sol_u[tstep+1])
+                        raise NotImplementedError, 'We should not reach this'
                     # no more interface:
                     self.state.R = 0.
                 else:
@@ -994,6 +1010,7 @@ class PCMModel(object):
                         self.state.state = PCMState.LIQUID_SOLID
                         self.state.inner_data = self.state.outer_data
                         self.state.outer_data = self.state.solid
+                        print 'to LIQUID_SOLID', self.state.R
                     elif self.state.outer_data['state'] == PCMState.SOLID:
                         self.state.state = PCMState.SOLID_LIQUID
                         self.state.inner_data = self.state.outer_data
@@ -1001,11 +1018,43 @@ class PCMModel(object):
                         print 'to SOLID_LIQUID', self.state.R
                     else:
                         raise NotImplementedError, 'We should not reach this'
+                    currT = self.all_sol_u[tstep+1][:self.pos_s] / \
+                        self.state.outer_x_to_r(self.state.outer_gridx, R=0.)
+                    self.doubleph_minT = np.amin(currT)
+                    self.doubleph_maxT = np.amax(currT)
+                    ## HACKING
                     self.step_old_sol = self.project_outsp_dp(self.all_sol_u[tstep+1],
                                             self.state.R)
+##                    self.state.R = 0.
+##                    single_phase = True
+##                    cooling = True
+##                    if self.state.outer_data['state'] == PCMState.LIQUID:
+##                        if cooling:
+##                            #cooling, we don't allow to turn liquid again!
+##                            self.state.state = PCMState.SOLID
+##                            self.state.inner_data = self.state.solid
+##                            self.state.outer_data = self.state.solid
+##                            #keep previous solution data
+##                            self.step_old_sol = self.all_sol_u[tstep+1][:self.solverunknowns]
+##                        else:
+##                            self.state.state = PCMState.LIQUID
+##                            self.state.inner_data = self.state.liquid
+##                            self.state.outer_data = self.state.liquid
+##                            self.step_old_sol = self.state.meltpoint * 1.001 * self.state.outer_x_to_r(self.state.outer_gridx[:])
+##                            print 'HACK to LIQUID', self.state.R
+##                    elif self.state.outer_data['state'] == PCMState.SOLID:
+##                        self.state.state = PCMState.SOLID
+##                        self.state.inner_data = self.state.solid
+##                        self.state.outer_data = self.state.solid
+##                        self.step_old_sol = self.state.meltpoint * 0.999 * self.state.outer_x_to_r(self.state.outer_gridx[:])
+##                        print 'HACK to SOLID', self.state.R
+##                    else:
+##                        raise NotImplementedError, 'We should not reach this'
+##                    ## END HACKING
+                    
                     
                 self.solve_odes_reinit()
-                    
+
         self.last_sol_tstep = tstep
 
     def project_outsp_dp(self, sol, R):
@@ -1016,8 +1065,11 @@ class PCMModel(object):
         newdataC = np.zeros(len(self.state.outer_gridx)+1+len(self.state.inner_gridx), float)
         newrout = self.state.outer_x_to_r(self.state.outer_gridx, R=R)
         for i in xrange(self.pos_s):
-            newdataC[self.pos_s+1:] = self.state.meltpoint * newrout[::-1] \
-                                    #* (1+self.state.epsilon) 
+            newdataC[self.pos_s+1:] = self.state.meltpoint * newrout[::-1] #* (1+self.state.epsilon) 
+##            #outside goes from outtemp to Tmelt
+##            newdataC[self.pos_s+1:] = self.curTout + \
+##                (self.state.meltpoint-self.curTout)* (newrout[::-1] - self.state.L)/(R - self.state.L)
+##            newdataC[self.pos_s+1:] = newdataC[self.pos_s+1:] * newrout[::-1] 
         #new interface is set
         newdataC[self.pos_s] = R
         #and we project the old outer solution to inner solution, which we 
@@ -1127,12 +1179,12 @@ class PCMModel(object):
                     / (4/3*np.pi * (newredge[1:]**3 - newredge[:-1]**3))
         #we store outer data in one phase in the x order, so inverse from r
         newdataC = newdataC[::-1]
-        print 'before T', sol[:self.pos_s]/self.state.inner_x_to_r(self.state.inner_gridx[:], R=sol[self.pos_s])
-        print '  over', self.state.inner_x_to_r(self.state.inner_gridx[:], R=sol[self.pos_s]) / self.state.L
-        print ' and   T', sol[self.pos_s+1:]/self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=sol[self.pos_s])
-        print '  over', self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=sol[self.pos_s]) / self.state.L
-        print 'after T', newdataC[::-1]/self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=0.)
-        print '  over', self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=0.) / self.state.L
+##        print 'before T', sol[:self.pos_s]/self.state.inner_x_to_r(self.state.inner_gridx[:], R=sol[self.pos_s])
+##        print '  over', self.state.inner_x_to_r(self.state.inner_gridx[:], R=sol[self.pos_s]) / self.state.L
+##        print ' and   T', sol[self.pos_s+1:]/self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=sol[self.pos_s])
+##        print '  over', self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=sol[self.pos_s]) / self.state.L
+##        print 'after T', newdataC[::-1]/self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=0.)
+##        print '  over', self.state.outer_x_to_r(self.state.outer_gridx[::-1], R=0.) / self.state.L
         return newdataC
 
     def project_indp_sp(self, sol):
