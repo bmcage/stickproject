@@ -189,6 +189,7 @@ class Yarn1DModel(object):
         self.fiber_models = [0] * (self.nr_edge - 1)
         self.fiber_mass = np.empty((self.nr_edge - 1, self.nr_models), float)
         self.source_mass = np.empty((self.nr_edge - 1, self.nr_models), float)
+        self.source_conc = np.empty((self.nr_edge - 1, self.nr_models), float)
         self.source = np.zeros(self.nr_edge_tot - 1, float)
         for ind in range(self.nr_edge-1):
             self.fiber_models[ind] = []
@@ -331,16 +332,16 @@ class Yarn1DModel(object):
         stored
         """
         #first we calculate the mass in the void space:
-        mass = np.sum(conc[:self.nr_cell] * 
-                      (np.power(self.grid_edge[1:self.nr_edge], 2) -
-                        np.power(self.grid_edge[:self.nr_edge-1], 2)) *
-                      self.porosity[:self.nr_cell]
-                     ) * np.pi
+        mass = np.sum(conc[:self.nr_cell] *
+                     (np.power(self.grid_edge[1:self.nr_edge], 2) -
+                       np.power(self.grid_edge[:self.nr_edge-1], 2)) *
+                     self.porosity[:self.nr_cell]
+                    ) * np.pi
+        print "mass in void space yarn", mass
         #now we add the mass in the fibers
         for ind, pos in enumerate(self.grid[:self.nr_cell]):
             for type, blend in enumerate(self.blend):
-                #nrf is number of fibers of blend in the shell at that grid position
-                #print 'fiber mass', self.fiber_mass
+                #nrf_shell is number of fibers of blend in the shell at that grid position
                 massfib = (self.fiber_mass[ind, type]
                             * self.nrf_shell[ind] * blend)
                 #print 'mass fiber', self.fiber_mass[ind,type], 'nr fibers per shell', self.nrf_shell[ind]
@@ -365,21 +366,25 @@ class Yarn1DModel(object):
         return mass
 
     def set_source(self, timestep):
+        ## we calculated the source_mass from a fiber, using upscaling via volume averaging technique:
+        ## source conc = nrf_shell * conc_r * \int_{r_{i+1}}^r_i rdr / V = nrf_shell * conc_r / (2*\pi)
+        ## source mass = source conc * V = nrf_shell * conc_r * (r_{i+1}^2-r_i^2)*pi / 2*pi
+
         """
         Method to calculate the radial source term
         Per radial we have the global equation 
            \partial_t (n r C) = \partial_r (D/tau) r \partial_r (n C) + r Source
-        where Source is amount per time per volume released/absorbed
-        So Source = masssourceyarns / (V \Delta t)
+        where Source is mass per time per volume released/absorbed by the fibers
+        So Source = nrf_shell * mass_source_fiber / (V \Delta t)
         This equation is integrated over a shell and devided by n (the porosity), and we determine 
-           n d_t w, with w = rC, where the sourceterm is \int_{r_i}^{r_{i+1}} r Source
+           n d_t w, with w = rC, where the sourceterm is \int_{r_i}^{r_{i+1}} r Source dr
         and is the term here calculated and stored in self.source
         As we assume Source constant over a shell by averaging out the mass over the area of a shell (nV), we have
-            Source = masssourceyarns/(V \Delta t) * \Delta r_i^2 / 2
+            Source = nrf_shell * mass_source_fiber/(V \Delta t) * \Delta r_i^2 / 2
         self.source_mass contains per shell how much mass was released in 
-        previous step by a fiber. Suppose this mass is M. 
+        previous step by one fiber. Suppose this mass is M. 
         We determine how many fibers there are radially, multiply this with M
-        and divide by volume V \delta t to obtain Source-concentration, since concentration is mass/volume time. 
+        and divide by volume V * porosity n \delta t to obtain Source-concentration, since concentration is mass/volume time. 
         Afterwards we multiply this Source with \Delta r_i^2 / (2 n \Delta r)
         coming from the integration (int n d_t w gives the term n \Delta r).
         """
@@ -388,36 +393,32 @@ class Yarn1DModel(object):
             #V is the area of the shell
             V = np.pi*((pos+self.delta_r[ind])**2-pos**2)
             for type, blend in enumerate(self.blend):
-                #nrf is number of fibers of blend in the shell at that grid position
+                #nrf_shell is number of fibers of blend in the shell at that grid position
                 # per radial
-                self.source[ind] += (self.source_mass[ind, type] 
+                # self.source_mass is the mass coming out of one fiber, we need a concentration
+                # so,nrf_shell * self.source_conc = (nrf_shell * self.source_mass) / (porosity*V_shell)
+                self.source_conc[ind,type] = self.source_mass[ind, type] / (self.porosity[ind]*V)
+                self.source[ind] += (self.source_conc[ind, type]
                                         * self.nrf_shell[ind] * blend)
             #self.source[ind] /= timestep
-            self.source[ind] /= V * timestep
+            self.source[ind] /= 2 * np.pi * timestep
         ##print 'source', self.source
-        ## TODO Tine, what formula is this? Comment above says just multiply...
-        ##self.source *= self.delta_rsquare / (2.*V*self.porosity)
-        ## I think:
-        ##    nrfibershell*blend* mass diff / Volume shell
-        ## so only remains to divide by volume shell. HOWEVER, this must be 
-        ## in for loop at level of cell, so pos. In essence, you have a 
-        ## factor self.delta_rsquare / 2   more that I don't see
-        ## Also: source must be per second, so divided by the timestep
+        ## Note: source must be per second, so divided by the timestep
 
     def f_conc1_ode(self, t, conc_r, diff_u_t):
         """
         Solving the radial yarn 1D diffusion equation: 
         
-          \partial_t (rC) =  \partial_r (D/tau r \partial_r C) + Source * r
+         n \partial_t (rC) =  \partial_r (D/tau r n \partial_r C) + Source * r
         
         with Source the conc amount per time unit added at r. 
         Solution is obtained by integration over a cell, so
         
-           \delta r d_t (r C) = flux_right - flux_left + Source (\delta r^2 /2)
+         n \delta r d_t (r C) = flux_right - flux_left + Source (\delta r^2 /2)
         
         so 
         
-          d_t C = 1 / (r \delta r) * (flux_right - flux_left + Source (\delta r^2 /2) )
+         n d_t C = 1 / (r \delta r) * (flux_right - flux_left + Source (\delta r^2 /2) )
         """
         grid = self.grid
         n_cellcenters = len(grid)

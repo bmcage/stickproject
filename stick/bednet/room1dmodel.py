@@ -149,7 +149,7 @@ class Room1DModel(object):
         
         #some memory
         self.source_mass = np.empty((self.nr_models, self.timesteps + 1), float)
-        self.mass_build =  [0.,]
+        #self.mass_build =  [0.,]
         
         #plot the result every few seconds so outcome becomes visible during calculations
         self.plotevery = self.cfg.get("plot.plotevery")
@@ -211,7 +211,7 @@ class Room1DModel(object):
         Upscale the mass in one yarn, to the mass in the entire bednet,
         returns the mass
         """
-        return (self.nhoryarns + self.nvertyarns) * mass
+        return (self.nhoryarns * self.room_W + self.nvertyarns * self.room_H) * mass
 
     def calc_mass(self):
         """
@@ -235,8 +235,7 @@ class Room1DModel(object):
         # factor 2 because we only model half of the room
         roomoverlapmass = 2* self.delta_x[0] * self.room_H * self.room_W * self.step_old_sol[0]
         roommass = 2*np.sum(self.delta_x[1:] * self.room_H * self.room_W * self.step_old_sol[1:])
-        print "totyarnmass", totyarnmass
-        raw_input()
+        print "yarnmass", yarnmass, "totyarnmass", totyarnmass
         return (yarnmass, yarnmassoverlap, totyarnmass, totyarnmassoverlap,
                 roommass, roomoverlapmass)
 
@@ -387,13 +386,10 @@ class Room1DModel(object):
             tmp = model.calc_mass(rety)
             tmp_overlap = model.calc_mass_overlap(rety)
             # mass that goes into overlap is the mass that disappeared.
-            self.source_mass[ttype, self.tstep] = self.yarn_mass[ttype] - tmp
-            #print "first mass", self.source_mass
-                #self.source_mass[ttype, self.tstep] = -(
-                #(self.yarn_mass_overlap[ttype] +
-                #        model.source_overlap*self.delta_t * model.areaextend
-            #       ) - tmp_overlap)
-            #print "second mass", self.source_mass
+            #self.source_mass[ttype, self.tstep] = self.yarn_mass[ttype] - tmp
+            self.source_mass[ttype, self.tstep] = tmp_overlap -(self.yarn_mass_overlap[ttype]
+                                                     + model.source_overlap * self.delta_t * model.areaextend)
+            #print "old mass yarn", self.yarn_mass, "new mass yarn",tmp, "new mass in overlap zone per yarn", tmp_overlap
             #self.source_mass[ttype, self.tstep] /= V
             ##print 'mass yarn now', tmp, 'prev', self.yarn_mass[ttype], 'release', self.source_mass[ttype, self.tstep]
             ##print 'test', model.calc_mass_overlap(model.step_old_sol)
@@ -407,10 +403,10 @@ class Room1DModel(object):
                 else:
                     raise NotImplementedError, 'source must be positive, negative not supported'
         ##raw_input('Continue press ENTER')
-        #mass is the result of all previously released mass. So sum over all previous timesteps and keep track of mass build up.
-        print np.sum(self.source_mass[:,self.tstep])
-        self.mass_build = self.mass_build + np.sum(self.source_mass[:,self.tstep])
-        print 'mass_build',self.mass_build
+        #mass in the room is the result of all previously released mass. So sum over all previous timesteps and keep track of mass build up.
+        #print np.sum(self.source_mass[:,self.tstep])
+        #self.mass_build
+        #print 'mass_build',self.mass_build
   
 
         # 2. step two, solve the room model
@@ -423,11 +419,12 @@ class Room1DModel(object):
         # concentration is a consequence of all previous releases, so sum 
         # over all times, and compute contribution of that moment.
         # A factor 2 as we model only half of room, and source_mass is entire yarn!
-       
-        concreleased = (self.nhoryarns+ self.nvertyarns) \
-                * self.mass_build / (2*self.overlapvolume)
+        concreleased = (self.nhoryarns * self.room_W + self.nvertyarns * self.room_H) \
+                        * np.sum(self.source_mass[:,self.tstep]) / (2*self.overlapvolume)
+        #concreleased = (self.nhoryarns+ self.nvertyarns) \
+               # * self.mass_build / (2*self.overlapvolume)
         self.source_room_from_yarn = concreleased / self.delta_t
-        print 'source_mass in total up to tstep %f' %self.tstep, self.mass_build
+        #print 'source_mass in total up to tstep %f' %self.tstep, self.mass_build
         print 'source from yarn', self.source_room_from_yarn
         
         # 2.b solve the room model
@@ -442,7 +439,7 @@ class Room1DModel(object):
         ##massdiff = massoverlapnew - massoverlapold
         massperyarn = (massoverlapnew #- (massoverlapold + concreleased * self.overlapvolume)
             / (self.nhoryarns * self.room_W + self.nvertyarns * self.room_H)
-            / len(self.cfg_yarn)
+            #/ len(self.cfg_yarn)
             )
         for ind, model in enumerate(self.yarn_models):
             #the source mass is what was present in the overlap
