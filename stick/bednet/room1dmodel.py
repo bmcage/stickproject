@@ -170,12 +170,6 @@ class Room1DModel(object):
         self.densitybednet =  self.volbednet / (2 * self.maxyarnrad * self.room_H
                                                 * self.room_W)
         self.fabporosity = self.voidvolume / self.totalvolume_net
-        print "\n\nINFO ON BEDNET"
-        print "**************"
-        print  "volume bednet = %g m^3, which means calculated porosity"\
-                " %f mm^3 fabric/mm^3" \
-                % (self.volbednet/1e9, self.fabporosity)
-        print "**************\n\n"
         
         self.initialized = False
 
@@ -615,8 +609,34 @@ class Room1DModel(object):
         self.totyarnmass[ind] = np.sum(totyarnmass)
         self.totroommass[ind] = roommass + roomoverlapmass
 
+    def write_info(self):
+        """
+        Write generic info on the bednet
+        """
+        print "\n\nINFO ON BEDNET"
+        print "**************"
+        print  "volume bednet = %g m^3, which means calculated porosity"\
+                " %f mm^3 fabric/mm^3" \
+                % (self.volbednet/1e9, self.fabporosity)
+        print " initial mass in bednet", self.totyarnmass[0], "room",\
+                self.totroommass[0]
+        print " masses in the yarns "
+        
+        for mind, val in enumerate(self.yarn_mass):
+            print "Yarn %d has initial mass AC %f" % (mind, val)
+            for ind, models in enumerate(self.yarn_models[mind].fiber_models):
+                print 'yarn cell', ind,
+                for type, model in enumerate(models):
+                    print "fibertype %d: fibermass %f ; " % (type,
+                            self.yarn_models[mind].fiber_mass[ind, type]),
+                print ' '
+            print "Blend in yarn is", self.yarn_models[mind].blend
+        print "**************\n\n"
+        raw_input("Press key to start")
+
     def run(self, wait=False):
         self.init_room()
+        self.write_info()
         for t in self.times[1:]:
             self.solve_timestep(t)
           
