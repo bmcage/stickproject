@@ -644,5 +644,10 @@ class Room1DModel(object):
         fignr = self.view_sol_mass(fignr+1)
         self.plot_room_sol(fignr+1, self.times, self.sol)
 
+        for ymod in self.yarn_models:
+            ymod.view_sol([self.step_old_time], [self.step_old_sol])
+            for ind_cell, models in enumerate(ymod.fiber_models):
+                for type, model in enumerate(models):
+                    model.view_last_sol(" cell %d, type %d" % (ind_cell, type))
         if wait:
             raw_input("Finished bednet run")

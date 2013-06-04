@@ -891,7 +891,8 @@ class FiberModel(object):
                             value = conc[0][:])
         name = self.solution_view.name                    
         if self.plotevery:
-            self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0., datamax=conc.max()+0.20*conc.max())
+            self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0.,
+                                datamax=conc.max()+0.20*conc.max())
         self.viewerplotcount = 0
         for time, con in zip(times[1:], conc[1:][:]):
             self.solution_view.setValue(con)
@@ -906,6 +907,27 @@ class FiberModel(object):
                     
                 self.viewerplotcount += 1
                 self.viewerplotcount = self.viewerplotcount % self.plotevery   
+
+    def view_last_sol(self, title, time=None, conc=None):
+        if conc is None:
+            conc = self.step_old_sol / self.grid
+        if time is None:
+            time = self.step_old_time
+        self.solution_view = CellVariable(name = "fiber concentration", 
+                            mesh = self.mesh_fiber,
+                            value = conc)
+        self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0.,
+                                datamax=conc.max()+0.20*conc.max())
+        self.viewer.axes.set_title('Fiber Conc vs radius at time %s' %str(time) + 
+                                    title)
+        self.viewer.axes.set_xlabel('Radius')
+        self.viewer.axes.set_ylabel('Conc')
+        print time, conc
+        print 'fiber_fiberconc_%08.4f_sec_%s.png' % (time, title)
+        self.viewer.plot(filename=utils.OUTPUTDIR + os.sep +
+                            'fiber_fiberconc_%08.4f_sec_%s.png' % 
+                            (time, title.replace(',','').replace(' ','_')))
+        
 
     def view_time(self, times, conc, title=None):
         draw_time = times/(3600.*24.*30.) # convert seconds to months

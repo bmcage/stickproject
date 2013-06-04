@@ -545,8 +545,12 @@ class Yarn1DModel(object):
         if self.plotevery:
             self.solution_view = CellVariable(name="Yarn radial concentration",
                         mesh=self.mesh_yarn, value=conc[0][:self.nr_cell])
+            if isinstance(conc, np.ndarray):
+                maxv = conc.max()+0.20*conc.max()
+            else:
+                maxv = np.max(conc)
             self.viewer =  Matplotlib1DViewer(vars=self.solution_view,
-                                datamin=0., datamax=conc.max()+0.20*conc.max())
+                                datamin=0., datamax=maxv)
             self.viewerplotcount = 0
             self.viewerwritecount = 0
             for time, con in zip(times, conc):
