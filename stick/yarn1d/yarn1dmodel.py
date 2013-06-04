@@ -376,15 +376,18 @@ class Yarn1DModel(object):
            \partial_t (n r C) = \partial_r (D/tau) r \partial_r (n C) + r Source
         where Source is mass per time per volume released/absorbed by the fibers
         So Source = nrf_shell * mass_source_fiber / (V \Delta t)
-        This equation is integrated over a shell and devided by n (the porosity), and we determine 
+        This equation is integrated over a shell and devided by n (the porosity),
+        and we determine 
            n d_t w, with w = rC, where the sourceterm is \int_{r_i}^{r_{i+1}} r Source dr
         and is the term here calculated and stored in self.source
-        As we assume Source constant over a shell by averaging out the mass over the area of a shell (nV), we have
-            Source = nrf_shell * mass_source_fiber/(V \Delta t) * \Delta r_i^2 / 2
+        As we assume Source constant over a shell by averaging out the mass over
+        the area of void space of a shell (nV), we have
+            Source = nrf_shell * mass_source_fiber/(nV \Delta t) * \Delta r_i^2 / 2
         self.source_mass contains per shell how much mass was released in 
         previous step by one fiber. Suppose this mass is M. 
         We determine how many fibers there are radially, multiply this with M
-        and divide by volume V * porosity n \delta t to obtain Source-concentration, since concentration is mass/volume time. 
+        and divide by volume V * porosity n \delta t to obtain Source-concentration,
+        since concentration is mass/volume time. 
         Afterwards we multiply this Source with \Delta r_i^2 / (2 n \Delta r)
         coming from the integration (int n d_t w gives the term n \Delta r).
         """
@@ -397,11 +400,12 @@ class Yarn1DModel(object):
                 # per radial
                 # self.source_mass is the mass coming out of one fiber, we need a concentration
                 # so,nrf_shell * self.source_conc = (nrf_shell * self.source_mass) / (porosity*V_shell)
-                self.source_conc[ind,type] = self.source_mass[ind, type] / (self.porosity[ind]*V)
+                self.source_conc[ind,type] = (self.source_mass[ind, type] 
+                                                / (self.porosity[ind]*V) )
                 self.source[ind] += (self.source_conc[ind, type]
                                         * self.nrf_shell[ind] * blend)
-            #self.source[ind] /= timestep
-            self.source[ind] /= 2 * np.pi * timestep
+            self.source[ind] /= timestep
+            #self.source[ind] /= 2 * np.pi * timestep
         ##print 'source', self.source
         ## Note: source must be per second, so divided by the timestep
 
@@ -428,6 +432,14 @@ class Yarn1DModel(object):
         self._set_bound_flux(flux_edge, conc_r)
 
         #calculate flux rate in each edge of the domain
+
+##      In computation Tine : 
+##+        flux_edge[1:self.nr_edge-1] = ((self.diff_coef/self.tortuosity) *
+##+                                        self.grid_edge[1:self.nr_edge-1] *
+##+                                       (conc_r[1:self.nr_cell]/self.grid[1:self.nr_cell]-conc_r[:self.nr_cell-1]/self.grid[:self.nr_cell-1])
+##+                                        /(self.delta_r[:self.nr_cell-1]+self.delta_r[1:self.nr_cell])
+##+                                        * (self.porosity[:self.nr_cell-1] + self.porosity[1:self.nr_cell])
+##+                                        )
         flux_edge[1:self.nr_edge-1] = -(2 * (self.diff_coef/self.tortuosity) *
             self.grid_edge[1:self.nr_edge-1] *
             (conc_r[1:self.nr_cell]-conc_r[:self.nr_cell-1])

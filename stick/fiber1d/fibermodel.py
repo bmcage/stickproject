@@ -319,15 +319,19 @@ class FiberModel(object):
 
     def calc_mass(self, conc_r):
         """calculate the mass of component present given value in cell center
-        This is given by 2 \pi int_r1^r2 C(r)r dr
+        This is given by 2 \pi int_r1^r2 n C(r)r dr
         
         conc_r: concentration in self.grid
         """
         return sp.sum(conc_r * (sp.power(self.grid_edge[1:], 2) - 
                                 sp.power(self.grid_edge[:-1], 2)) 
                            * self.porosity_domain) * sp.pi 
-        
-        #return mass
+
+    def calc_mass_surface(self, surface_conc_r):
+        return surface_conc_r * self.porosity_domain[-1] * sp.pi * \
+                (np.power(self.grid_edge[self.n_edge], 2) 
+                    - np.power(self.grid_edge[self.n_edge-1], 2))
+         
 
     def calc_volume(self):
         """calculate the volume over which the compound can move. We have
@@ -540,6 +544,7 @@ class FiberModel(object):
         
         self.step_old_time = realtime
         self.step_old_sol = self.ret_y
+        self.surface_conc = self.step_old_sol[-1] / self.grid[-1]
         assert np.allclose(realtime, stoptime, atol=1e-6, rtol=1e-6)
         return realtime, self.ret_y / self.grid
 

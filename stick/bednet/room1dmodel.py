@@ -165,7 +165,10 @@ class Room1DModel(object):
             self.volbednet += self.nhoryarns * pi * rad**2 * self.room_W
         print 'volume_bednet space =', (2 * self.maxyarnrad * self.room_H
                                                 * self.room_W)
-        self.totalvolume_net = self.room_H*self.room_W
+        # The total volume of the bednet incl void space is the area of the
+        # net * the tickness of the net.
+        # This thickness is taken to be twice a yarndiameter.
+        self.totalvolume_net = self.room_H * self.room_W * 4 * self.maxyarnrad
         self.voidvolume = self.totalvolume_net - self.volbednet
         self.densitybednet =  self.volbednet / (2 * self.maxyarnrad * self.room_H
                                                 * self.room_W)
@@ -433,7 +436,7 @@ class Room1DModel(object):
         ##massdiff = massoverlapnew - massoverlapold
         massperyarn = (massoverlapnew #- (massoverlapold + concreleased * self.overlapvolume)
             / (self.nhoryarns * self.room_W + self.nvertyarns * self.room_H)
-            #/ len(self.cfg_yarn)
+            / len(self.cfg_yarn)
             )
         for ind, model in enumerate(self.yarn_models):
             #the source mass is what was present in the overlap
@@ -561,7 +564,7 @@ class Room1DModel(object):
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Mass [$\mu$g]')
         plt.title('Mass AC in the bednet')
-        plt.plot([0,],[28.935,], 'r*')
+        #plt.plot([0,],[28.935,], 'r*')
         plt.plot(self.times, self.totyarnmass)
         plt.savefig(utils.OUTPUTDIR + os.sep 
                         + 'AImass_bednet' + const.FIGFILEEXT)
@@ -620,6 +623,8 @@ class Room1DModel(object):
                 % (self.volbednet/1e9, self.fabporosity)
         print " initial mass in bednet", self.totyarnmass[0], "room",\
                 self.totroommass[0]
+        print " number of yarns in fabric", "vertical", self.nvertyarns, \
+                "horizontal", self.nhoryarns
         print " masses in the yarns "
         
         for mind, val in enumerate(self.yarn_mass):
