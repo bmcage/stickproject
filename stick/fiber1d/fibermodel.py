@@ -927,8 +927,6 @@ class FiberModel(object):
                                     title)
         self.viewer.axes.set_xlabel('Radius')
         self.viewer.axes.set_ylabel('Conc')
-        print time, conc
-        print 'fiber_fiberconc_%08.4f_sec_%s.png' % (time, title)
         self.viewer.plot(filename=utils.OUTPUTDIR + os.sep +
                             'fiber_fiberconc_%08.4f_sec_%s.png' % 
                             (time, title.replace(',','').replace(' ','_')))
@@ -961,8 +959,11 @@ class FiberModel(object):
         self.run_init()
         if not self.initialized:
             self.solve_init()
+        mass_start = self.calc_mass(self.step_old_sol / self.grid)
         self.solve()
+        mass_end = self.calc_mass(self.step_old_sol / self.grid)
 
+        print 'mass start:', mass_start, ', mass end:', mass_end
         if output:
             self.dump_solution()
         if wait:

@@ -183,7 +183,7 @@ class Yarn1DModel(object):
         
         #nrf is number of fibers in the shell at that grid position
         # per radial
-        self.nrf_shell = (self.delta_rsquare[:self.nr_cell]\
+        self.nrf_shell = (self.delta_rsquare[:self.nr_cell]
                                 / (self.end_point**2) * self.nr_fibers)
         #create fiber models as needed: one per fibertype and per cell in the yarn model
         self.fiber_models = [0] * (self.nr_edge - 1)
@@ -220,12 +220,12 @@ class Yarn1DModel(object):
             for blend, model in zip(self.blend, self.fiber_models[0]):
                 print 'fiberradius', model.radius(), 'yarnradius', self.end_point   
                 self.volfracfib.append(
-                        blend * self.nr_fibers *  np.power(model.radius(),2)
-                                / np.power(self.end_point,2) )
-                if np.sum(self.volfracfib)>1:
+                        blend * self.nr_fibers *  np.power(model.radius(), 2)
+                                / np.power(self.end_point, 2) )
+                if np.sum(self.volfracfib) > 1:
                     raise ValueError, 'porosity  negative, unrealistic number of fibers in yarn cross section, %f fibers per yarn * Rf^2/Ry^2 = %f' % (self.nr_fibers,np.sum(self.volfracfib))
                     raw_input()
-            self.porosity[:self.nr_cell] = 1- np.sum(self.volfracfib)
+            self.porosity[:self.nr_cell] = 1 - np.sum(self.volfracfib)
             print 'porosity in yarn', self.porosity[:self.nr_cell], 
             #if self.porosity[:self.nr_cell]<0:
                 # raise ValueError, 'porosity  negative'
@@ -313,7 +313,7 @@ class Yarn1DModel(object):
             # flux radial = - D_out * (conc_out - yarn_edge_conc)/dist_conc_out * radius
             if self.use_extend:
                 conright = conc_r[self.nr_cell]
-                bcdist = (self.delta_r[self.nr_cell-1]+self.delta_r[self.nr_cell])/2.
+                bcdist = (self.delta_r[self.nr_cell-1] + self.delta_r[self.nr_cell]) / 2.
             else:
                 conright = self.boundary_conc_out
                 bcdist = self.boundary_dist
@@ -337,7 +337,7 @@ class Yarn1DModel(object):
                        np.power(self.grid_edge[:self.nr_edge-1], 2)) *
                      self.porosity[:self.nr_cell]
                     ) * np.pi
-        print "mass in void space yarn", mass
+##        print "mass in void space yarn", mass
         #now we add the mass in the fibers
         for ind, pos in enumerate(self.grid[:self.nr_cell]):
             for type, blend in enumerate(self.blend):
@@ -539,8 +539,8 @@ class Yarn1DModel(object):
             self.do_fiber_step(t)
             self.set_source(t-self.step_old_time)
             realtime, self.step_old_sol = self.do_ode_step(t)
-            cm1 = self.calc_mass(self.step_old_sol)
-            cm2 = self.calc_mass_overlap(self.step_old_sol)
+##            cm1 = self.calc_mass(self.step_old_sol)
+##            cm2 = self.calc_mass_overlap(self.step_old_sol)
 ##            print 'mass in yarn domain', cm1, cm2, cm1 + cm2
 ##            print 'new sol', self.step_old_sol
 ##            raw_input('')
@@ -558,9 +558,9 @@ class Yarn1DModel(object):
             self.solution_view = CellVariable(name="Yarn radial concentration",
                         mesh=self.mesh_yarn, value=conc[0][:self.nr_cell])
             if isinstance(conc, np.ndarray):
-                maxv = conc.max()+0.20*conc.max()
+                maxv = conc.max()*1.20
             else:
-                maxv = np.max(conc)
+                maxv = np.max(conc) *1.2
             self.viewer =  Matplotlib1DViewer(vars=self.solution_view,
                                 datamin=0., datamax=maxv)
             self.viewerplotcount = 0
