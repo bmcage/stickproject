@@ -317,7 +317,6 @@ class Yarn1DModel(object):
             else:
                 conright = self.boundary_conc_out
                 bcdist = self.boundary_dist
-            ##print 'fluxdiff', conright - conc_r[self.nr_cell-1], self.boundary_conc_out,  conc_r[self.nr_cell-1]
             flux_edge[self.nr_edge-1] = -(diffright * porright * 
                     (conright - conc_r[self.nr_cell-1]) 
                     / bcdist 
@@ -353,7 +352,7 @@ class Yarn1DModel(object):
     def calc_mass_overlap(self, conc):
         """
         calculate current amount of mass of volatile in the overlap region
-        based on data currently stored
+        based on data currently stored. From mol/microm^2 to mol
         """
         #we calculate the mass in the void space:
         mass = np.sum(conc[self.nr_cell:] * 
@@ -405,8 +404,6 @@ class Yarn1DModel(object):
                 self.source[ind] += (self.source_conc[ind, type]
                                         * self.nrf_shell[ind] * blend)
             self.source[ind] /= timestep
-            #self.source[ind] /= 2 * np.pi * timestep
-        ##print 'source', self.source
         ## Note: source must be per second, so divided by the timestep
 
     def f_conc1_ode(self, t, conc_r, diff_u_t):
@@ -432,14 +429,6 @@ class Yarn1DModel(object):
         self._set_bound_flux(flux_edge, conc_r)
 
         #calculate flux rate in each edge of the domain
-
-##      In computation Tine : 
-##+        flux_edge[1:self.nr_edge-1] = ((self.diff_coef/self.tortuosity) *
-##+                                        self.grid_edge[1:self.nr_edge-1] *
-##+                                       (conc_r[1:self.nr_cell]/self.grid[1:self.nr_cell]-conc_r[:self.nr_cell-1]/self.grid[:self.nr_cell-1])
-##+                                        /(self.delta_r[:self.nr_cell-1]+self.delta_r[1:self.nr_cell])
-##+                                        * (self.porosity[:self.nr_cell-1] + self.porosity[1:self.nr_cell])
-##+                                        )
         flux_edge[1:self.nr_edge-1] = -(2 * (self.diff_coef/self.tortuosity) *
             self.grid_edge[1:self.nr_edge-1] *
             (conc_r[1:self.nr_cell]-conc_r[:self.nr_cell-1])
@@ -449,29 +438,24 @@ class Yarn1DModel(object):
         if self.use_extend:
             # diffusion in the outside region
             flux_edge[self.nr_edge:-1] = -(2 * self.boundary_D_out *
-            self.grid_edge[self.nr_edge:-1] *
-            (conc_r[self.nr_cell+1:]-conc_r[self.nr_cell:-1])
-            /(self.delta_r[self.nr_cell:-1]+self.delta_r[self.nr_cell+1:])
-            * (self.porosity[self.nr_cell:-1] + self.porosity[self.nr_cell+1:])/2
-            )
-            ##print 'conc overlap', conc_r[self.nr_cell-1:]
-            ##print 'flux overlap', flux_edge[self.nr_edge-1:]
+              self.grid_edge[self.nr_edge:-1] *
+              (conc_r[self.nr_cell+1:]-conc_r[self.nr_cell:-1])
+              /(self.delta_r[self.nr_cell:-1]+self.delta_r[self.nr_cell+1:])
+              * (self.porosity[self.nr_cell:-1] + self.porosity[self.nr_cell+1:])/2
+              )
         
         diff_u_t[:] = ((flux_edge[:-1]-flux_edge[1:])
                             / self.delta_r[:]/ self.porosity[:]
-                    + self.source[:] / self.porosity[:] * self.delta_rsquare / 2
+                    + self.source[:] * self.delta_rsquare / 2
                       / self.delta_r
                       )
-##        print 'source part', self.source[:] / self.porosity[:] * self.delta_rsquare / 2\
-##                      / self.delta_r / self.grid[:]
-##        print 'flux edges', flux_edge
+
         if self.use_extend and self.source_overlap:
             #porosity assumed 1 in extend!
             diff_u_t[self.nr_cell:] += (self.source_overlap
                             * self.delta_rsquare[self.nr_cell:] / 2
                             / self.delta_r[self.nr_cell:])
         diff_u_t[:] = diff_u_t[:] / self.grid[:]  # still division by r to move from w to C
-        ##print 'u_t overlap', diff_u_t[self.nr_cell-1:]
 
     def solve_ode_init(self):
         """
@@ -488,7 +472,7 @@ class Yarn1DModel(object):
         self.step_old_sol = self.conc1[0]
         
         self.solver = sc_ode('cvode', self.f_conc1_ode,
-                             min_step_size=1e-8, rtol=1e-6, atol=1e-6, 
+                             min_step_size=1e-8, rtol=1e-6, atol=1e-10,
                              max_steps=50000, lband=1, uband=1)
         self.solver.init_step(self.step_old_time, self.init_conc)
         self.initialized = True
@@ -497,10 +481,11 @@ class Yarn1DModel(object):
         """Solve the yarnmodel up to stoptime, continuing from the present
            state, return the time, concentration after step
         """
+        #fix where next to stop
         self.solver.set_options(tstop=stoptime)
         if not self.initialized:
             raise Exception, 'Solver ode not initialized'
-
+        #solve the problem
         flag, realtime = self.solver.step(stoptime, self.ret_y)
         if flag < 0:
             raise Exception, 'could not find solution, flag %d' % flag
@@ -525,12 +510,10 @@ class Yarn1DModel(object):
            3. solve the yarn up to t
         """
         compute = True
+        #we need to reinit as rhs changed
+        self.solver.init_step(self.step_old_time, self.step_old_sol)
         #even is step is large, we don't compute for a longer time than delta_t
         t = self.step_old_time
-##        cm1 = self.calc_mass(self.step_old_sol)
-##        cm2 = self.calc_mass_overlap(self.step_old_sol)
-##        print 'mass in yarn domain', cm1, cm2, cm1 + cm2, 'src', \
-##                self.source_overlap * self.areaextend * 0.1
         while compute:
             t +=  self.delta_t
             if  t >= stoptime - self.delta_t/100.:
@@ -539,11 +522,6 @@ class Yarn1DModel(object):
             self.do_fiber_step(t)
             self.set_source(t-self.step_old_time)
             realtime, self.step_old_sol = self.do_ode_step(t)
-##            cm1 = self.calc_mass(self.step_old_sol)
-##            cm2 = self.calc_mass_overlap(self.step_old_sol)
-##            print 'mass in yarn domain', cm1, cm2, cm1 + cm2
-##            print 'new sol', self.step_old_sol
-##            raw_input('')
             self.tstep += 1
             self.step_old_time = t
 
