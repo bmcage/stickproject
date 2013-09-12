@@ -180,7 +180,7 @@ class FiberConfigManager(ConfigManager):
         self.register("boundary.transfer_right", 0.0)
         self.register("boundary.evap_satconc", "lambda T: 1.",
             "Function to return saturated concentration for the compound"
-            " in terms of temperature T. Unit=??")
+            " in terms of temperature T. Unit=microgram/mm^3")
         self.register("boundary.evap_transfer", 0.,
             "Transfer coefficient for evaporation, so h_lg in the flux eq "
             " flux = S h_lg (C_sat(T) - C_free) H(C - C_bo) ")
