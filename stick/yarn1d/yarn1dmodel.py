@@ -244,6 +244,7 @@ class Yarn1DModel(object):
         for ind, r in enumerate(self.grid[:self.nr_cell]):
             self.init_conc[ind] = self.init_conc_func(r)
         self.init_conc[self.nr_cell:] = self.cfg.get('boundary.conc_out')
+        print 'ini',  self.init_conc[self.nr_cell:]
 
     def get_data(self, cellnr):
         index = cellnr
@@ -285,7 +286,7 @@ class Yarn1DModel(object):
         """
         for ind, models in enumerate(self.fiber_models):
             for type, model in enumerate(models):
-                time, result = model.do_step(stoptime, needreinit=False)
+                time, result = model.do_step(stoptime, needreinit=True)
                 tmp = model.calc_mass(result)
                 self.source_mass[ind, type] = self.fiber_mass[ind, type] - tmp
                 self.fiber_mass[ind, type] = tmp
@@ -443,13 +444,11 @@ class Yarn1DModel(object):
               /(self.delta_r[self.nr_cell:-1]+self.delta_r[self.nr_cell+1:])
               * (self.porosity[self.nr_cell:-1] + self.porosity[self.nr_cell+1:])/2
               )
-        
         diff_u_t[:] = ((flux_edge[:-1]-flux_edge[1:])
                             / self.delta_r[:]/ self.porosity[:]
                     + self.source[:] * self.delta_rsquare / 2
                       / self.delta_r
                       )
-
         if self.use_extend and self.source_overlap:
             #porosity assumed 1 in extend!
             diff_u_t[self.nr_cell:] += (self.source_overlap
@@ -472,7 +471,9 @@ class Yarn1DModel(object):
         self.step_old_sol = self.conc1[0]
         
         self.solver = sc_ode('cvode', self.f_conc1_ode,
-                             min_step_size=1e-8, rtol=1e-6, atol=1e-10,
+                             min_step_size=1e-8,
+                             first_step_size=1e-14,
+                             rtol=1e-6, atol=1e-10,
                              max_steps=50000, lband=1, uband=1)
         self.solver.init_step(self.step_old_time, self.init_conc)
         self.initialized = True

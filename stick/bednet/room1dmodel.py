@@ -87,7 +87,7 @@ class Room1DModel(object):
         self.delta_t = self.times[1]-self.times[0]
         if self.verbose:
             print ("Timestep used in bednet model:", self.delta_t)
-        self.initconc = self.cfg.get('initial.init_conc')
+        self.initconc = eval(self.cfg.get('initial.init_conc'))
 
         self.dx = self.cfg.get('domain.dx')
         self.dy  = self.cfg.get('domain.dy')
@@ -118,7 +118,8 @@ class Room1DModel(object):
             self.cfg_yarn[-1].set("time.time_period", self.time_period)
             self.cfg_yarn[-1].set("boundary.dist_conc_out", float(self.x0[0]))
             self.cfg_yarn[-1].set("boundary.D_out", self.diff_coef)
-            self.cfg_yarn[-1].set("boundary.conc_out", self.initconc)
+            self.cfg_yarn[-1].set("boundary.conc_out", 
+                    float(self.initconc(self.cfg_yarn[-1].get("domain.yarnradius"))))
             self.cfg_yarn[-1].set("domain.useextension", True)
             ##TODO How much overlap region? Take one yarn radius for now
             self.cfg_yarn[-1].set("domain.extensionfraction", EXTFRAC)
@@ -250,7 +251,7 @@ class Room1DModel(object):
         """ initial concentration in the room domain
         """
         self.init_conc = np.empty(self.nr_cell, float)
-        self.init_conc[:] = self.initconc
+        self.init_conc[:] = self.initconc(self.grid[:])
 
     def init_yarn(self):
         self.yarn_mass = [0] * len(self.yarn_models)
@@ -401,7 +402,7 @@ class Room1DModel(object):
             self.yarn_mass_overlap[ttype] = tmp_overlap
             if self.source_mass[ttype, self.tstep] < 0.:
                 print ("source mass", self.source_mass[ttype, self.tstep])
-                if abs(self.source_mass[ttype, self.tstep]) < 1e-7:
+                if abs(self.source_mass[ttype, self.tstep]) < 100:
                     #self.source_mass[ttype, self.tstep] = 0.
                     print ('WARNING: small negative release, reduce timestep fiber/yarn if needed')
                 else:

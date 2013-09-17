@@ -132,7 +132,7 @@ class BednetConfigManager(ConfigManager):
             " in microgram/mm^3")
         
         #initial concentration outside bednet
-        self.register("initial.init_conc", 0.0)
+        self.register("initial.init_conc", 'lambda x: 0.0')
         
         #plotting output
         self.register("plot.plotevery", 10,
