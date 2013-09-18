@@ -67,7 +67,8 @@ def Heaviside_oneside(val, control):
         return 1.
     if val < 0.:
         return 0.
-    return val
+    return 1.
+    #return val
     
 #-------------------------------------------------------------------------
 #
