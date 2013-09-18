@@ -310,7 +310,7 @@ class Room1DModel(object):
             ) - 2 * self.vel_ventilation * (conc_x[1:] + conc_x[:-1]) / 2.
             diff_u_t[:] = ((flux_edge[1:]-flux_edge[:-1])
                         / self.delta_x[:]
-                ) 
+                )
         ## we add a source term in the first cell where the overlap is
         diff_u_t[0] += self.source_room_from_yarn
 
@@ -395,7 +395,7 @@ class Room1DModel(object):
             tmp_overlap = model.calc_mass_overlap(rety)
             # mass that goes into overlap is the mass that disappeared.
             self.source_mass[ttype, self.tstep] = tmp_overlap \
-                - (self.yarn_mass_overlap[ttype] + model.source_overlap 
+                - (self.yarn_mass_overlap[ttype] + model.source_overlap
                                             * self.delta_t * model.areaextend)
             self.yarn_mass[ttype] = tmp
             self.yarn_mass_overlap_old[ttype] = self.yarn_mass_overlap[ttype]
