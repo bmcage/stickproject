@@ -64,6 +64,9 @@ from fipy import *
 # DiffusionModel class 
 #
 #-------------------------------------------------------------------------
+
+REINIT_ALWAYS = True
+
 class Yarn1DModel(object):
     """
     Yarn1DModel is a special diffusion model for a single yarn which is composed 
@@ -511,8 +514,6 @@ class Yarn1DModel(object):
            3. solve the yarn up to t
         """
         compute = True
-        #we need to reinit as rhs changed
-        self.solver.init_step(self.step_old_time, self.step_old_sol)
         #even is step is large, we don't compute for a longer time than delta_t
         t = self.step_old_time
         while compute:
@@ -522,6 +523,9 @@ class Yarn1DModel(object):
                 compute = False
             self.do_fiber_step(t)
             self.set_source(t-self.step_old_time)
+            #we need to reinit as rhs changed
+            if REINIT_ALWAYS:
+                self.solver.init_step(self.step_old_time, self.step_old_sol)
             realtime, self.step_old_sol = self.do_ode_step(t)
             self.tstep += 1
             self.step_old_time = t
@@ -537,11 +541,13 @@ class Yarn1DModel(object):
             self.solution_view = CellVariable(name="Yarn radial concentration",
                         mesh=self.mesh_yarn, value=conc[0][:self.nr_cell])
             if isinstance(conc, np.ndarray):
-                maxv = conc.max()*1.20
+                maxv = conc.max() * 1.2
+                minv = conc.min() * 0.9
             else:
-                maxv = np.max(conc) *1.2
+                maxv = np.max(conc) * 1.2
+                minv = np.min(conc) * 0.9
             self.viewer =  Matplotlib1DViewer(vars=self.solution_view,
-                                datamin=0., datamax=maxv)
+                                datamin=minv, datamax=maxv)
             self.viewerplotcount = 0
             self.viewerwritecount = 0
             for time, con in zip(times, conc):
@@ -551,6 +557,7 @@ class Yarn1DModel(object):
                     self.viewer.axes.set_title('time %s' %str(time))
                     if self.writeevery and self.viewerwritecount == 0:
                         #plot and savefig
+                        print con[:self.nr_cell]
                         self.viewer.plot(filename=utils.OUTPUTDIR + os.sep \
                                                 + 'yarnconc%08.4f.png' % time)
                     else:
