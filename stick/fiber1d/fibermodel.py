@@ -153,7 +153,8 @@ class FiberModel(object):
             self.evap_transfer = self.cfg.get('boundary.evap_transfer')
             self.evap_minbound = self.cfg.get('boundary.evap_minbound')
             self.out_conc = eval(self.cfg.get('boundary.out_conc'))
-            
+
+        self.area_extend = self.cfg.get("fiber.extendarea")
         #data for stepwise operation
         self.initialized = False
         self.__userdata = None
@@ -172,6 +173,13 @@ class FiberModel(object):
 
     def get_userdata(self):
         return self.__userdata
+
+    def set_areaextend(self, area):
+        """
+        Areaextend is based on calculation in the yarn model. With this method
+        yarn model can set the area extend of this fiber model
+        """
+        self.area_extend = area
 
     def radius_pure(self):
         """
@@ -243,6 +251,8 @@ class FiberModel(object):
             self.diff_exp_fact += [self.cfg.get(section + '.diffusion_polymer_exp_factor')]
             self.init_conc += [eval(self.cfg.get(section + '.init_conc')) ]
             self.porosity += [self.cfg.get(section + '.porosity_layer')]
+        #now take extend into account
+        self.use_extend = self.cfg.get("fiber.useextension")
 
         #we now construct the full edge grid
         self.tot_edges = 0
@@ -257,6 +267,24 @@ class FiberModel(object):
                     self.tot_edges += nr - 1
                 else:
                     self.tot_edges = nr
+        if self.use_extend:
+            self.end_extend = np.sqrt(self.area_extend/np.pi + self.surf[-1]**2)
+            sizegrid = (self.surf[-1]-self.surf_begin[-1])/n_edge[-1]
+            self.nr_edge_extend = max(3,
+                    int((self.end_extend - self.surf[-1])/sizegrid))
+            self.nr_edge_extend = min(20, self.nr_edge_extend)
+            n_edge += [self.nr_edge_extend]
+            self.surf_begin += [self.surf[-1]]
+            self.surf += [self.end_extend]
+            self.diff_coef += [self.cfg.get('fiber.extenddiff')]
+            self.diff_exp_fact += [0.]
+            exconval = self.cfg.get('fiber.extendinit_conc')
+            self.init_conc += [lambda x: exconval]
+            self.porosity  += [1.]
+            self.tot_edges_no_extend = self.tot_edges
+            self.tot_edges += self.nr_edge_extend - 1
+        else:
+            self.tot_edges_no_extend = self.tot_edges
         self.grid_edge = sp.empty(self.tot_edges , float)
         left = 0.
         totnr = 0
@@ -301,7 +329,11 @@ class FiberModel(object):
         for i, pos in enumerate(self.grid):
             while pos > surf:
                 st += 1
-                surf = self.surf[st]
+                try:
+                    surf = self.surf[st]
+                except IndexError:
+                    print st, self.surf, pos, surf
+                    raise Exception, 'Index error'
             if st == 0:
                 self.initial_c1[i] = self.init_conc[st](pos) * \
                                             (self.porosity[st]) * \
@@ -316,7 +348,6 @@ class FiberModel(object):
         if self.verbose:
             print 'initial concentration', self.initial_c1
             print 'initial mass = ', self.calc_mass(self.initial_c1)
-            
 
     def calc_mass(self, conc_r):
         """calculate the mass of component present given value in cell center
@@ -324,23 +355,29 @@ class FiberModel(object):
         
         conc_r: concentration in self.grid
         """
-        return sp.sum(conc_r * (sp.power(self.grid_edge[1:], 2) - 
-                                sp.power(self.grid_edge[:-1], 2)) 
-                           * self.porosity_domain) * sp.pi 
+        return sp.sum(conc_r[:self.tot_edges_no_extend-1] * (
+            sp.power(self.grid_edge[1:self.tot_edges_no_extend], 2) -
+                sp.power(self.grid_edge[:self.tot_edges_no_extend-1], 2))
+                * self.porosity_domain[:self.tot_edges_no_extend-1]) * sp.pi
 
     def calc_mass_surface(self, surface_conc_r):
-        return surface_conc_r * self.porosity_domain[-1] * sp.pi * \
-                (np.power(self.grid_edge[self.n_edge], 2) 
-                    - np.power(self.grid_edge[self.n_edge-1], 2))
-         
+        return surface_conc_r * self.porosity_domain[self.tot_edges_no_extend-2] * sp.pi * \
+                (np.power(self.grid_edge[self.tot_edges_no_extend-1], 2)
+                    - np.power(self.grid_edge[self.tot_edges_no_extend-2], 2))
 
     def calc_volume(self):
         """calculate the volume over which the compound can move. We have
            Cavg = mass/volume
         """
-        return sp.sum((sp.power(self.grid_edge[1:],2) - 
-                            sp.power(self.grid_edge[:-1],2)) 
-                        * self.porosity_domain) * sp.pi 
+        return sp.sum((sp.power(self.grid_edge[1:self.tot_edges_no_extend],2) - 
+                        sp.power(self.grid_edge[:self.tot_edges_no_extend-1],2)) 
+                * self.porosity_domain[:self.tot_edges_no_extend-1]) * sp.pi 
+
+    def set_outconc(self, conc):
+        """
+        set concentration in the extend area to a specific value
+        """
+        self.step_old_sol[self.tot_edges_no_extend-1:] = conc
 
     def _set_bound_flux(self, flux_edge, w_rep, t):
         """
@@ -358,60 +395,73 @@ class FiberModel(object):
             else:
                 # a FVM cannot do pure Neumann condition, instead we set the
                 # FVM flux D \partial_x C with the value we want for \partial_x C.
-                # eg: \partial_x C = F, set D \partial_x C = D F. 
+                # eg: \partial_x C = F, set D \partial_x C = D F.
                 # for radial coordinates, this flux times r.
-                flux_edge[0] =  -(self.porosity_domain[0] * self.diffusion_coeff[0] * 
+                flux_edge[0] =  -(self.porosity_domain[0] * self.diffusion_coeff[0] *
                             sp.exp(-self.diffusion_exp_fact[0] * w_rep[0]/self.grid_edge[0]) \
                         ) * self.boundary_fib_left * self.grid_edge[0]
         else:
             print 'ERROR: boundary type left not implemented'
             sys.exit(0)
         #calculate normal val with w_rep = C*r, instead of C:
-        flux_edge[-1] = self._bound_flux_uR(w_rep[-1]/self.grid_edge[-1], t)
+        conc_out = None
+        if self.use_extend:
+            conc_out = w_rep[self.tot_edges_no_extend-1] / \
+                self.grid[self.tot_edges_no_extend-1]
+        flux_edge[self.tot_edges_no_extend-1] = self._bound_flux_uR(
+                w_rep[self.tot_edges_no_extend-2] /
+                self.grid_edge[self.tot_edges_no_extend-1], t, conc_out)
         #and correct, flux needed is r times the x coord flux
-        flux_edge[-1] = flux_edge[-1] * self.grid_edge[-1]
+        flux_edge[self.tot_edges_no_extend-1] = flux_edge[self.tot_edges_no_extend-1]\
+                            * self.grid_edge[self.tot_edges_no_extend-1]
+        if self.use_extend:
+            flux_edge[-1] = 0.
 
-    def _bound_flux_uR(self, conc_r, t):
+    def _bound_flux_uR(self, conc_r, t, conc_out=None):
         """
         Calculate the flux on the surface from concentration on surface with
         the BC
         """
-        
         if self.bound_right == FLUX:
             # a FVM cannot do pure Neumann condition, instead we set the
             # FVM flux - D \partial_x C with the value we want for \partial_x C.
             # eg: \partial_x C = F, set - D \partial_x C = - D F
-            return -(self.porosity_domain[-1] * self.diffusion_coeff[-1] * 
-                            sp.exp(-self.diffusion_exp_fact[-1] * conc_r) \
+            return -(self.porosity_domain[self.tot_edges_no_extend-1] \
+                * self.diffusion_coeff[self.tot_edges_no_extend-1] *
+                sp.exp(-self.diffusion_exp_fact[self.tot_edges_no_extend-1] * conc_r) \
                         ) * self.boundary_fib_right
         elif self.bound_right == TRANSFER:
             # a transfer coeff to the right, which is a given flux of
             # h_tf * C
             return self.boundary_transf_right * conc_r \
-                             * self.porosity_domain[-1]
+                             * self.porosity_domain[self.tot_edges_no_extend-1]
         elif self.bound_right == EVAP:
             # flux S h_lg (C_sat(T) - C_free) H(C - C_bo)
             #print 'the value from the function: out_conc', self.out_conc(0., 0.)
             #self.out_conc = eval(self.cfg.get('boundary.out_conc'))
-            eCy = self.out_conc(t, self.get_userdata())
+            if self.use_extend:
+                eCy = conc_out
+            else:
+                eCy = self.out_conc(t, self.get_userdata())
             eCs = self.evap_satconc(self.temp)
-            return (self.porosity_domain[-1] 
+            return (self.porosity_domain[self.tot_edges_no_extend-1] 
                     * self.evap_transfer * (eCs - eCy)
                     * Heaviside_oneside(conc_r - self.evap_minbound, 
                                         eCs - eCy)
                    )
 
-    def _set_bound_fluxu(self, flux_edge, conc_r, t):
-        """
-        Method that takes BC into account to set flux on edge
-        Data is written to flux_edge, conc_r contains solution in the cell centers
-        """
-        if self.bound_left == FLUX:
-            flux_edge[0] = -self.boundary_fib_left * self.diffusion_coeff[0]
-        else:
-            print 'ERROR: boundary type left not implemented'
-            sys.exit(0)
-        flux_edge[-1] = self._bound_flux_uR(conc_r[-1], t)
+##    NO LONGER SUPPORTED AS EXTENDAREA NOT TAKEN INTO ACCOUNT!
+##    def _set_bound_fluxu(self, flux_edge, conc_r, t):
+##        """
+##        Method that takes BC into account to set flux on edge
+##        Data is written to flux_edge, conc_r contains solution in the cell centers
+##        """
+##        if self.bound_left == FLUX:
+##            flux_edge[0] = -self.boundary_fib_left * self.diffusion_coeff[0]
+##        else:
+##            print 'ERROR: boundary type left not implemented'
+##            sys.exit(0)
+##        flux_edge[-1] = self._bound_flux_uR(conc_r[-1], t)
 
     def f_conc1_ode(self, t, w_rep):
         self.f_conc1_odes(t, w_rep, self.__tmp_diff_w_t)
@@ -426,36 +476,46 @@ class FiberModel(object):
         self._set_bound_flux(flux_edge, w_rep, t)
         #Diffusion coefficient changes with the concentration changing
         #calculate flux rate in each edge of the domain
-        flux_edge[1:-1] = -(self.porosity_domain[:-1] * self.diffusion_coeff[:-1] * 
-                            sp.exp(-self.diffusion_exp_fact[:-1] * w_rep[:-1]/self.grid[:-1]) \
-                         + self.porosity_domain[1:] * self.diffusion_coeff[1:] * 
-                            sp.exp(-self.diffusion_exp_fact[1:] * w_rep[1:]/self.grid[1:]))/2.\
-                        * self.grid_edge[1:-1] \
-                        * (w_rep[1:]/self.grid[1:] - w_rep[:-1]/self.grid[:-1])\
-                        / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
+        flux_edge[1:self.tot_edges_no_extend-1] = (
+        -(self.porosity_domain[:self.tot_edges_no_extend-2] * self.diffusion_coeff[:self.tot_edges_no_extend-2] * 
+                            sp.exp(-self.diffusion_exp_fact[:self.tot_edges_no_extend-2] * w_rep[:self.tot_edges_no_extend-2]/self.grid[:self.tot_edges_no_extend-2]) \
+                         + self.porosity_domain[1:self.tot_edges_no_extend-1] * self.diffusion_coeff[1:self.tot_edges_no_extend-1] * 
+                            sp.exp(-self.diffusion_exp_fact[1:self.tot_edges_no_extend-1] * w_rep[1:self.tot_edges_no_extend-1]/self.grid[1:self.tot_edges_no_extend-1]))/2.\
+                        * self.grid_edge[1:self.tot_edges_no_extend-1] \
+                        * (w_rep[1:self.tot_edges_no_extend-1]/self.grid[1:self.tot_edges_no_extend-1] - w_rep[:self.tot_edges_no_extend-2]/self.grid[:self.tot_edges_no_extend-2])\
+                        / ((self.delta_r[:self.tot_edges_no_extend-2] + self.delta_r[1:self.tot_edges_no_extend-1])/2.)
+                        )
+        if self.use_extend:
+            #also flux in outside part
+            flux_edge[self.tot_edges_no_extend:-1] = -(self.porosity_domain[self.tot_edges_no_extend-1:-1] * self.diffusion_coeff[self.tot_edges_no_extend-1:-1] \
+                             + self.porosity_domain[self.tot_edges_no_extend:] * self.diffusion_coeff[self.tot_edges_no_extend:])/2.\
+                            * self.grid_edge[self.tot_edges_no_extend:-1] \
+                            * (w_rep[self.tot_edges_no_extend:]/self.grid[self.tot_edges_no_extend:] - w_rep[self.tot_edges_no_extend-1:-1]/self.grid[self.tot_edges_no_extend-1:-1])\
+                            / ((self.delta_r[self.tot_edges_no_extend:] + self.delta_r[self.tot_edges_no_extend-1:-1])/2.)
         diff_w_t[:] = (flux_edge[:-1] - flux_edge[1:]) / self.delta_r[:] / self.porosity_domain[:]
+        print 'dw/dt', diff_w_t[:]
 
-    def f_conc1_odeu(self, t, conc_r):
-        grid = self.grid
-        n_cell = len(grid)
-        #Initialize the left side of ODE equations
-        diff_u_t = self.__tmp_diff_w_t
-        #initialize the flux rate on the edge with replace 'w'
-        flux_edge = self.__tmp_flux_edge
-        self._set_bound_fluxu(flux_edge, conc_r, t)
-        #Diffusion coefficient changes with the concentration changing
-        #calculate flux rate in each edge of the domain
-        flux_edge[1:-1] = -(self.porosity_domain[:-1] * self.diffusion_coeff[:-1] * 
-                            sp.exp(-self.diffusion_exp_fact[:-1] * conc_r[:-1]) \
-                         + self.porosity_domain[1:] * self.diffusion_coeff[1:] * 
-                            sp.exp(-self.diffusion_exp_fact[1:] * conc_r[1:]))/2.\
-                        * self.grid_edge[1:-1] \
-                        * (conc_r[1:] - conc_r[:-1])\
-                        / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
-        diff_u_t[:] = 2.*((flux_edge[:-1]-flux_edge[1:])
-                        /(self.grid_edge[1:]**2-self.grid_edge[:-1]**2)
-                        / self.porosity_domain[:])
-        return diff_u_t
+##    def f_conc1_odeu(self, t, conc_r):
+##        grid = self.grid
+##        n_cell = len(grid)
+##        #Initialize the left side of ODE equations
+##        diff_u_t = self.__tmp_diff_w_t
+##        #initialize the flux rate on the edge with replace 'w'
+##        flux_edge = self.__tmp_flux_edge
+##        self._set_bound_fluxu(flux_edge, conc_r, t)
+##        #Diffusion coefficient changes with the concentration changing
+##        #calculate flux rate in each edge of the domain
+##        flux_edge[1:-1] = -(self.porosity_domain[:-1] * self.diffusion_coeff[:-1] * 
+##                            sp.exp(-self.diffusion_exp_fact[:-1] * conc_r[:-1]) \
+##                         + self.porosity_domain[1:] * self.diffusion_coeff[1:] * 
+##                            sp.exp(-self.diffusion_exp_fact[1:] * conc_r[1:]))/2.\
+##                        * self.grid_edge[1:-1] \
+##                        * (conc_r[1:] - conc_r[:-1])\
+##                        / ((self.delta_r[:-1] + self.delta_r[1:])/2.)
+##        diff_u_t[:] = 2.*((flux_edge[:-1]-flux_edge[1:])
+##                        /(self.grid_edge[1:]**2-self.grid_edge[:-1]**2)
+##                        / self.porosity_domain[:])
+##        return diff_u_t
 
     def solve_odes_init(self):
         """
@@ -488,7 +548,6 @@ class FiberModel(object):
         self.solver.init_step(self.step_old_time, self.step_old_sol)
 
     def solve_odes(self, run_per_step = None, viewend = True):
-        #self.solve_odes_init()
         endT = self.times[-1]
         self.initial_w1 = self.initial_c1 * self.grid
         tstep = 0
@@ -502,9 +561,12 @@ class FiberModel(object):
                 print 'INFO: fibermodel at t = ', realtime
             tstep += 1
             self.conc1[tstep][:] = self.conc1[tstep][:] / self.grid[:]
-            self.fiber_surface[tstep] = self.conc1[tstep][-1]
+            conc_out = None
+            if self.use_extend:
+                conc_out = self.conc1[tstep][self.tot_edges_no_extend-1] 
+            self.fiber_surface[tstep] = self.conc1[tstep][self.tot_edges_no_extend-2]
             self.flux_at_surface[tstep] = self._bound_flux_uR(
-                        self.conc1[tstep][-1], time)
+                        self.conc1[tstep][self.tot_edges_no_extend-2], time, conc_out)
             if run_per_step:
                 run_per_step(self, time, self.conc1[tstep])
 
@@ -545,37 +607,38 @@ class FiberModel(object):
         
         self.step_old_time = realtime
         self.step_old_sol = self.ret_y
-        self.surface_conc = self.step_old_sol[-1] / self.grid[-1]
+        self.surface_conc = self.step_old_sol[self.tot_edges_no_extend-2] / \
+                                self.grid[self.tot_edges_no_extend-2]
         assert np.allclose(realtime, stoptime, atol=1e-6, rtol=1e-6)
         return realtime, self.ret_y / self.grid
 
-    def solve_ode_init(self):
-        """
-        Initialize the ode solver
-        """
-        self.initial_t = self.times[0]
-        self.step_old_time = self.initial_t
-        self.step_old_sol = self.initial_w1
-        #data storage
-        self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
-        self.conc1[0][:] = self.initial_c1
-        n_cell = len(self.grid)
-        self.__tmp_diff_w_t = sp.empty(n_cell, float)
-        self.__tmp_flux_edge = sp.empty(n_cell+1, float)
-        
-        self.tstep = 0
-        self.solve_ode_reinit()
-        self.initialized = True
-
-    def solve_ode_reinit(self):
-        """
-        Reinitialize the ode solver to start again
-        """
-        self.initial_t = self.times[0]
-        self.solver = ode(self.f_conc1_ode).set_integrator('vode', 
-                            method = 'bdf',
-                            nsteps=50000)
-        self.solver.set_initial_value(self.step_old_sol, self.step_old_time)
+##    def solve_ode_init(self):
+##        """
+##        Initialize the ode solver
+##        """
+##        self.initial_t = self.times[0]
+##        self.step_old_time = self.initial_t
+##        self.step_old_sol = self.initial_w1
+##        #data storage
+##        self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
+##        self.conc1[0][:] = self.initial_c1
+##        n_cell = len(self.grid)
+##        self.__tmp_diff_w_t = sp.empty(n_cell, float)
+##        self.__tmp_flux_edge = sp.empty(n_cell+1, float)
+##        
+##        self.tstep = 0
+##        self.solve_ode_reinit()
+##        self.initialized = True
+##
+##    def solve_ode_reinit(self):
+##        """
+##        Reinitialize the ode solver to start again
+##        """
+##        self.initial_t = self.times[0]
+##        self.solver = ode(self.f_conc1_ode).set_integrator('vode', 
+##                            method = 'bdf',
+##                            nsteps=50000)
+##        self.solver.set_initial_value(self.step_old_sol, self.step_old_time)
 
 ##    def do_step_ode(self, step, needreinit=True):
 ##        """
@@ -608,26 +671,29 @@ class FiberModel(object):
 ##        assert abs(self.solver.t - self.step_old_time) < 1e-15, "%f %f %g" % (self.solver.t, self.step_old_time, self.solver.t- self.step_old_time)
 ##        return self.solver.t, self.solver.y
         
-    def solve_ode(self, run_per_step = None, viewend = True):
-        self.solve_ode_init()
-        endT = self.times[-1]
-        self.initial_w1 = self.initial_c1 * self.grid
-        tstep = 0
-        self.conc1[tstep][:] = self.initial_c1
-        while self.solver.successful() and self.solver.t < endT - self.delta_t /10.:
-            self.solver.integrate(self.solver.t + self.delta_t)
-            if self.verbose:
-                print 'INFO: fibermodel at t = ', self.solver.t
-            tstep += 1
-            self.conc1[tstep][:] = self.solver.y / self.grid
-            self.fiber_surface[tstep] = self.conc1[tstep][-1]
-            self.flux_at_surface[tstep] = self._bound_flux_uR(
-                        self.conc1[tstep][-1], self.solver.t + self.delta_t)
-            #print 'mass = ', self.calc_mass(self.conc1[tstep])
-            if run_per_step:
-                run_per_step(self, self.solver.t, self.conc1[tstep])
-        if viewend:
-            self.view_sol(self.times, self.conc1)
+##    def solve_ode(self, run_per_step = None, viewend = True):
+##        self.solve_ode_init()
+##        endT = self.times[-1]
+##        self.initial_w1 = self.initial_c1 * self.grid
+##        tstep = 0
+##        self.conc1[tstep][:] = self.initial_c1
+##        while self.solver.successful() and self.solver.t < endT - self.delta_t /10.:
+##            self.solver.integrate(self.solver.t + self.delta_t)
+##            if self.verbose:
+##                print 'INFO: fibermodel at t = ', self.solver.t
+##            tstep += 1
+##            self.conc1[tstep][:] = self.solver.y / self.grid
+##            self.fiber_surface[tstep] = self.conc1[tstep][self.tot_edges_no_extend-2]
+##            conc_out = None
+##            if self.use_extend:
+##                conc_out = self.conc1[tstep][self.tot_edges_no_extend-1] 
+##            self.flux_at_surface[tstep] = self._bound_flux_uR(
+##                        self.conc1[tstep][-1], self.solver.t + self.delta_t, conc_out)
+##            #print 'mass = ', self.calc_mass(self.conc1[tstep])
+##            if run_per_step:
+##                run_per_step(self, self.solver.t, self.conc1[tstep])
+##        if viewend:
+##            self.view_sol(self.times, self.conc1)
 
     def solve_simple(self):
         """
@@ -697,83 +763,86 @@ class FiberModel(object):
         
             #convert the mass to the average concentration valid over domain
             self.fiber_surface[tstep] = self.simple_sol[tstep] / V
+            conc_out = None
+            if self.use_extend:
+                raise NotImplementedError, 'out conc needed, not known'
             self.flux_at_surface[tstep] = self._bound_flux_uR(
-                                            self.fiber_surface[tstep], time)
+                                            self.fiber_surface[tstep], time, conc_out)
         if self.cfg.get('plot.plotmass'):
             self.view_time(self.times, self.simple_sol, 'Mass in cross section fiber')
 
-    def solve_odeu(self):
-        self.initial_t = self.times[0]
-        endT = self.times[-1]
-        self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
-        r = ode(self.f_conc1_odeu).set_integrator('vode', method = 'bdf',nsteps = 10000)
-        r.set_initial_value(self.initial_c1, self.initial_t)#.set_f_params(2.0)
-        tstep = 0
-        self.conc1[tstep][:] = self.initial_c1
-        while r.successful() and r.t < endT - self.delta_t /10.:
-            r.integrate(r.t + self.delta_t)
-            tstep += 1
-            self.conc1[tstep][:] = r.y 
-            self.fiber_surface[tstep] = self.conc1[tstep][-1]
-            self.flux_at_surface[tstep] = self._bound_flux_uR(
-                                    self.conc1[tstep][-1], r.t + self.delta_t)
-            #print 'mass = ', self.calc_mass(self.conc1[tstep])
-        self.view_sol(self.times, self.conc1)
+##    def solve_odeu(self):
+##        self.initial_t = self.times[0]
+##        endT = self.times[-1]
+##        self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
+##        r = ode(self.f_conc1_odeu).set_integrator('vode', method = 'bdf',nsteps = 10000)
+##        r.set_initial_value(self.initial_c1, self.initial_t)#.set_f_params(2.0)
+##        tstep = 0
+##        self.conc1[tstep][:] = self.initial_c1
+##        while r.successful() and r.t < endT - self.delta_t /10.:
+##            r.integrate(r.t + self.delta_t)
+##            tstep += 1
+##            self.conc1[tstep][:] = r.y 
+##            self.fiber_surface[tstep] = self.conc1[tstep][-1]
+##            self.flux_at_surface[tstep] = self._bound_flux_uR(
+##                                    self.conc1[tstep][-1], r.t + self.delta_t)
+##            #print 'mass = ', self.calc_mass(self.conc1[tstep])
+##        self.view_sol(self.times, self.conc1)
 
-    def solve_fipy(self):
-        #using fipy to solve 1D problem in fiber
-        self.solution_fiber = CellVariable(name = "fiber concentration", 
-                                mesh = self.mesh_fiber,
-                                value = self.initial_c1 * self.porosity_domain, hasOld = 1)
-        if self.plotevery:
-            self.viewer =  Viewer(vars = self.solution_fiber / self.porosity_domain, datamin=0., datamax= 1.1)
-        self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
-
-        if self.bound_left == FLUX and self.bound_right == FLUX:
-            self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
-                                    value = self.boundary_fib_right),
-                              FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
-                                    value = -self.boundary_fib_left))
-        elif self.bound_left == FLUX and self.bound_right == TRANSFER:
-            self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
-                                       value = self.boundary_transf_right \
-                                            * self.solution_fiber.getFaceValue()),
-                              FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
-                                    value = -self.boundary_fib_left))
-        else:
-            print 'ERROR: boundary type left not implemented'
-            sys.exit(0)
-        ## TODO: in following diffusion is given as cellvariable, would a 
-        ##      FaceVariable already not be better?
-        self.eqX_fiber = TransientTerm() == DiffusionTerm(coeff = 
-                            self.diffusion_coeff * 
-                            sp.exp(-self.diffusion_exp_fact * self.solution_fiber / self.porosity_domain)*
-                            self.porosity_domain) 
-        tstep = 0
-        self.conc1[tstep][:] = self.initial_c1[:]
-        for time in self.times[1:]:
-            self.solve_fipy_sweep()
-##            if self.viewer is not None:
-##                self.viewer.plot()
-                #raw_input("please<return>.....")
-            tstep += 1
-            self.conc1[tstep][:] = self.solution_fiber.getValue()
-            self.fiber_surface[tstep] = self.conc1[tstep][-1]
-            self.flux_at_surface[tstep] = self._bound_flux_uR(
-                                                self.conc1[tstep][-1], time)
-            #if time == 200.0:
-            #    dump.write({'space_position': self.grid, 'conc1': self.conc1[tstep][:]},
-            #            filename = utils.OUTPUTDIR + os.sep + 'fipy_t1.gz', extension = '.gz')
-            #    print 'finish file'
-            #print 'mass = ', self.calc_mass(self.conc1[tstep])
-
-    def solve_fipy_sweep(self):
-        res = 1e+1
-        while res > 1e-8:
-            res = self.eqX_fiber.sweep(var = self.solution_fiber,
-                                        dt = self.delta_t,
-                                        boundaryConditions = self.BCs_fiber)
-        self.solution_fiber.updateOld()
+##    def solve_fipy(self):
+##        #using fipy to solve 1D problem in fiber
+##        self.solution_fiber = CellVariable(name = "fiber concentration", 
+##                                mesh = self.mesh_fiber,
+##                                value = self.initial_c1 * self.porosity_domain, hasOld = 1)
+##        if self.plotevery:
+##            self.viewer =  Viewer(vars = self.solution_fiber / self.porosity_domain, datamin=0., datamax= 1.1)
+##        self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
+##
+##        if self.bound_left == FLUX and self.bound_right == FLUX:
+##            self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
+##                                    value = self.boundary_fib_right),
+##                              FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
+##                                    value = -self.boundary_fib_left))
+##        elif self.bound_left == FLUX and self.bound_right == TRANSFER:
+##            self.BCs_fiber = (FixedFlux(faces = self.mesh_fiber.getFacesRight(), 
+##                                       value = self.boundary_transf_right \
+##                                            * self.solution_fiber.getFaceValue()),
+##                              FixedFlux(faces = self.mesh_fiber.getFacesLeft(), 
+##                                    value = -self.boundary_fib_left))
+##        else:
+##            print 'ERROR: boundary type left not implemented'
+##            sys.exit(0)
+##        ## TODO: in following diffusion is given as cellvariable, would a 
+##        ##      FaceVariable already not be better?
+##        self.eqX_fiber = TransientTerm() == DiffusionTerm(coeff = 
+##                            self.diffusion_coeff * 
+##                            sp.exp(-self.diffusion_exp_fact * self.solution_fiber / self.porosity_domain)*
+##                            self.porosity_domain) 
+##        tstep = 0
+##        self.conc1[tstep][:] = self.initial_c1[:]
+##        for time in self.times[1:]:
+##            self.solve_fipy_sweep()
+####            if self.viewer is not None:
+####                self.viewer.plot()
+##                #raw_input("please<return>.....")
+##            tstep += 1
+##            self.conc1[tstep][:] = self.solution_fiber.getValue()
+##            self.fiber_surface[tstep] = self.conc1[tstep][-1]
+##            self.flux_at_surface[tstep] = self._bound_flux_uR(
+##                                                self.conc1[tstep][-1], time)
+##            #if time == 200.0:
+##            #    dump.write({'space_position': self.grid, 'conc1': self.conc1[tstep][:]},
+##            #            filename = utils.OUTPUTDIR + os.sep + 'fipy_t1.gz', extension = '.gz')
+##            #    print 'finish file'
+##            #print 'mass = ', self.calc_mass(self.conc1[tstep])
+##
+##    def solve_fipy_sweep(self):
+##        res = 1e+1
+##        while res > 1e-8:
+##            res = self.eqX_fiber.sweep(var = self.solution_fiber,
+##                                        dt = self.delta_t,
+##                                        boundaryConditions = self.BCs_fiber)
+##        self.solution_fiber.updateOld()
 
     def solve_simple_init(self):
         """
@@ -799,7 +868,7 @@ class FiberModel(object):
         def run_every_step(object, time, conc):
             if self.plotevery:
                 if object.viewerplotcount == 0:
-                    object.solution_view.setValue(conc)
+                    object.solution_view.setValue(conc[:self.tot_edges_no_extend-1])
                     object.viewer.axes.set_title('time %s' %str(time))
                     object.viewer.plot(filename=utils.OUTPUTDIR + os.sep + 'conc%s.png' % str(int(10*time)))
                 object.viewerplotcount += 1
@@ -807,6 +876,7 @@ class FiberModel(object):
 
         if self.method == 'FVM':
             if self.submethod == 'fipy':
+                raise NotImplementedError, 'this option %s is no longer supported' % self.submethod
                 self.solve_fipy()
             elif self.submethod == 'cvode':
                 self.solve_odes()
@@ -815,18 +885,20 @@ class FiberModel(object):
                 if self.plotevery:
                     self.solution_view = CellVariable(name = "fiber concentration", 
                             mesh = self.mesh_fiber,
-                            value = self.conc1[0][:])
+                            value = self.conc1[0][:self.tot_edges_no_extend-1])
                     self.viewer =  Matplotlib1DViewer(vars = self.solution_view, 
                                         datamin=0., 
-                                        datamax=1.2 * self.conc1[0].max())
+                                        datamax=1.2 * self.conc1[0][:self.tot_edges_no_extend-1].max())
                     self.viewer.axes.set_title('time 0.0')
                     self.viewer.plot()
                     self.viewerplotcount = 1
                 self.solve_odes(run_per_step =run_every_step, viewend=False)
 
             elif  self.submethod == 'odew':
+                raise NotImplementedError, 'this option %s is no longer supported' % self.submethod
                 self.solve_ode()
             elif  self.submethod == 'odew_step':
+                raise NotImplementedError, 'this option %s is no longer supported' % self.submethod
                 self.solve_ode_init()
                 if self.plotevery:
                     self.solution_view = CellVariable(name = "fiber concentration", 
@@ -840,6 +912,7 @@ class FiberModel(object):
                     self.viewerplotcount = 1
                 self.solve_ode(run_per_step =run_every_step, viewend=False)
             elif self.submethod == 'odeu':
+                raise NotImplementedError, 'this option %s is no longer supported' % self.submethod
                 self.solve_odeu()
             if self.verbose:
                 print 'end mass = ', self.calc_mass(self.conc1[-1])
@@ -865,7 +938,7 @@ class FiberModel(object):
         #elif  self.submethod in ['odew', 'odew_step']:
         #    res = self.do_step_ode(step)
         else:
-            raise Exception, 'Not supported'
+            raise Exception, 'Not supported option %s' % self.submethod
 
     def solve_init(self):
         """
@@ -873,12 +946,15 @@ class FiberModel(object):
         """
         if self.method == 'FVM':
             if self.submethod == 'fipy':
+                raise NotImplementedError, 'this option %s is no longer supported' % self.submethod
                 self.solve_fipy()
             elif  self.submethod in ['cvode', 'cvode_step']:
                 self.solve_odes_init()
             elif  self.submethod in ['odew', 'odew_step']:
+                raise NotImplementedError, 'this option %s is no longer supported' % self.submethod
                 self.solve_ode_init()
             elif self.submethod == 'odeu':
+                raise NotImplementedError, 'this option %s is no longer supported' % self.submethod
                 self.solve_ode_init()
             else:
                 raise NotImplementedError
@@ -893,14 +969,14 @@ class FiberModel(object):
         conc[i][:] contains solution at time times[i]
         """
         self.solution_view = CellVariable(name = "fiber concentration", 
-                            mesh = self.mesh_fiber,
-                            value = conc[0][:])
+                            mesh = self.mesh_fiber[:self.tot_edges_no_extend-1],
+                            value = conc[0][:self.tot_edges_no_extend-1])
         name = self.solution_view.name                    
         if self.plotevery:
             self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0.,
                                 datamax=conc.max()+0.20*conc.max())
         self.viewerplotcount = 0
-        for time, con in zip(times[1:], conc[1:][:]):
+        for time, con in zip(times[1:], conc[1:][:self.tot_edges_no_extend-1]):
             self.solution_view.setValue(con)
             if self.plotevery:
                 self.viewer.axes.set_title('Fiber Conc vs radius at time %s' %str(time))
@@ -920,8 +996,8 @@ class FiberModel(object):
         if time is None:
             time = self.step_old_time
         self.solution_view = CellVariable(name = "fiber concentration", 
-                            mesh = self.mesh_fiber,
-                            value = conc)
+                            mesh = self.mesh_fiber[:self.tot_edges_no_extend-1],
+                            value = conc[:self.tot_edges_no_extend-1])
         self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0.,
                                 datamax=conc.max()+0.20*conc.max())
         self.viewer.axes.set_title('Fiber Conc vs radius at time %s' %str(time) + 
@@ -931,7 +1007,6 @@ class FiberModel(object):
         self.viewer.plot(filename=utils.OUTPUTDIR + os.sep +
                             'fiber_fiberconc_%08.4f_sec_%s.png' % 
                             (time, title.replace(',','').replace(' ','_')))
-        
 
     def view_time(self, times, conc, title=None):
         draw_time = times/(3600.*24.*30.) # convert seconds to months

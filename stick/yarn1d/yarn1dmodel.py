@@ -102,6 +102,9 @@ class Yarn1DModel(object):
         self.nr_models = self.cfg.get('fiber.number_type')
         assert self.nr_models == len(self.blend) == len(self.cfg.get('fiber.fiber_config'))
 
+        #Initialize the tortuosity
+        self.tortuosity = self.cfg.get('yarn.tortuosity')
+        
         #construct the config for the fibers
         self.cfg_fiber = []
         for filename in self.cfg.get('fiber.fiber_config'):
@@ -122,13 +125,13 @@ class Yarn1DModel(object):
                 raise ValueError, 'Boundary type for a fiber should be evaporation or transfer'
             if self.verbose:
                 print 'NOTE: Fiber has boundary out of type %s' %  bty
+            #set data in case fiber with extension area is used
+            self.cfg_fiber[-1].set("fiber.extenddiff", self.diff_coef/self.tortuosity)
 
         #some memory
         self.step_old_time = None
         self.step_old_sol = None
         
-        #Initialize the tortuosity
-        self.tortuosity= self.cfg.get('yarn.tortuosity')
         #use the area function for calculating porosity
         self.prob_area = eval(self.cfg.get('fiber.prob_area'))
         # boundary data
@@ -183,11 +186,7 @@ class Yarn1DModel(object):
         self.delta_r = self.grid_edge[1:] - self.grid_edge[:-1]
         grid_square = np.power(self.grid_edge, 2)
         self.delta_rsquare = grid_square[1:] - grid_square[:-1]
-        
-        #nrf is number of fibers in the shell at that grid position
-        # per radial
-        self.nrf_shell = (self.delta_rsquare[:self.nr_cell]
-                                / (self.end_point**2) * self.nr_fibers)
+
         #create fiber models as needed: one per fibertype and per cell in the yarn model
         self.fiber_models = [0] * (self.nr_edge - 1)
         self.fiber_mass = np.empty((self.nr_edge - 1, self.nr_models), float)
@@ -197,8 +196,9 @@ class Yarn1DModel(object):
         for ind in range(self.nr_edge-1):
             self.fiber_models[ind] = []
             for cfg in self.cfg_fiber:
+                cfg.set("fiber.extendinit_conc",  self.init_conc_func(self.grid[ind]))
                 self.fiber_models[ind].append(FiberModel(cfg))
-        
+
         #calculate the porosity as n=(pi Ry^2-nr_fibers pi Rf^2) / pi Ry^2
         #porosity in the yarn
         self.porosity = np.ones(self.nr_cell_tot, float)
@@ -218,8 +218,7 @@ class Yarn1DModel(object):
                 plt.ylim(0., 1.0)
                 plt.show()
             self.porosity[:self.nr_cell] = 1. - value_from_areafunction[:self.nr_cell]
-            
-        else:        
+        else:
             for blend, model in zip(self.blend, self.fiber_models[0]):
                 print 'fiberradius', model.radius(), 'yarnradius', self.end_point   
                 self.volfracfib.append(
@@ -230,8 +229,22 @@ class Yarn1DModel(object):
                     raw_input()
             self.porosity[:self.nr_cell] = 1 - np.sum(self.volfracfib)
             print 'porosity in yarn', self.porosity[:self.nr_cell], 
-            #if self.porosity[:self.nr_cell]<0:
-                # raise ValueError, 'porosity  negative'
+
+        #nrf is number of fibers in the shell at that grid position
+        # per radial
+        if not self.fiberlayout_method == 'virtlocoverlap':
+            self.nrf_shell = (self.delta_rsquare[:self.nr_cell]
+                                / (self.end_point**2) * self.nr_fibers)
+        else:
+            raise NotImplementedError, 'nrfibers per shell still to determine'
+
+        #we now have porosity and fiber models, we can calculate area extend available
+        for ind in range(self.nr_edge-1):
+            for fibmod in self.fiber_models[ind]:
+                area_extend = np.pi * self.delta_rsquare[ind] \
+                                    * self.porosity[ind] / self.nrf_shell[ind]
+                fibmod.set_areaextend(area_extend)
+
         #create cylindrical 1D grid over domain for using fipy to view.
         if self.plotevery:
             self.mesh_yarn = CylindricalGrid1D(dr=tuple(self.delta_r[:self.nr_cell]))
@@ -247,7 +260,6 @@ class Yarn1DModel(object):
         for ind, r in enumerate(self.grid[:self.nr_cell]):
             self.init_conc[ind] = self.init_conc_func(r)
         self.init_conc[self.nr_cell:] = self.cfg.get('boundary.conc_out')
-        print 'ini',  self.init_conc[self.nr_cell:]
 
     def get_data(self, cellnr):
         index = cellnr
@@ -277,8 +289,11 @@ class Yarn1DModel(object):
                 model.run_init()
                 model.solve_init()
                 #rebind the out_conc method to a call to yarn1d
-                model.set_userdata(self.get_data(ind))
-                model.out_conc = lambda t, data: self.out_conc(data, t)
+                if model.use_extend:
+                    model.set_outconc(self.out_conc(ind, 0))
+                else:
+                    model.set_userdata(self.get_data(ind))
+                    model.out_conc = lambda t, data: self.out_conc(data, t)
                 self.fiber_mass[ind, type] = model.calc_mass(model.initial_c1)
 
     def do_fiber_step(self, stoptime):
@@ -289,6 +304,8 @@ class Yarn1DModel(object):
         """
         for ind, models in enumerate(self.fiber_models):
             for type, model in enumerate(models):
+                if model.use_extend:
+                    model.set_outconc(self.out_conc(ind, self.step_old_time))
                 time, result = model.do_step(stoptime, needreinit=True)
                 tmp = model.calc_mass(result)
                 self.source_mass[ind, type] = self.fiber_mass[ind, type] - tmp
@@ -502,9 +519,9 @@ class Yarn1DModel(object):
         """
         self.create_mesh()
         self.initial_yarn1d()
-        self.solve_fiber_init()
         if not self.initialized:
             self.solve_ode_init()
+        self.solve_fiber_init()
 
     def do_yarn_step(self, stoptime):
         """

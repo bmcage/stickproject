@@ -152,6 +152,14 @@ class FiberConfigManager(ConfigManager):
             "Example: 0.1 for viscose at 60% relative humidity outside")
 
         self.register("fiber.n_edge", 41)
+        self.register("fiber.useextension", False,
+            "extend the fiber domain with an extension outside the fiber")
+        self.register("fiber.extendarea", 0.,
+            "area in mm^3 that must be used to extend the fiber")
+        self.register("fiber.extenddiff", 0.,
+            "diffusion coefficient in extension area")
+        self.register('fiber.extendinit_conc', 0.,
+            "initial concentration in extension area")
         self.register("fiber.init_conc", 'lambda x: 0.',
                         'initial concentration in the layer in terms '
                         'of radius, unit microg/mm**3')
