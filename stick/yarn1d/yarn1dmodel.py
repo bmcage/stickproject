@@ -557,7 +557,6 @@ class Yarn1DModel(object):
                     self.viewer.axes.set_title('time %s' %str(time))
                     if self.writeevery and self.viewerwritecount == 0:
                         #plot and savefig
-                        print con[:self.nr_cell]
                         self.viewer.plot(filename=utils.OUTPUTDIR + os.sep \
                                                 + 'yarnconc%08.4f.png' % time)
                     else:
