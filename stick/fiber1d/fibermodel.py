@@ -311,8 +311,12 @@ class FiberModel(object):
 
         #create a fipy mesh for visualization and fipy computation
         self.mesh_fiber = CylindricalGrid1D(dx=tuple(self.delta_r))
+        self.mesh_fiber_plot = CylindricalGrid1D(dx=tuple(self.delta_r[:self.tot_edges_no_extend-1]))
         self.mesh_fiber.periodicBC = False
         self.mesh_fiber = self.mesh_fiber + \
+                        ((self.surf_begin[self.ind_first_zone],),)
+        self.mesh_fiber_plot.periodicBC = False
+        self.mesh_fiber_plot = self.mesh_fiber_plot + \
                         ((self.surf_begin[self.ind_first_zone],),)
 
     def initial_fiber(self):
@@ -376,8 +380,9 @@ class FiberModel(object):
     def set_outconc(self, conc):
         """
         set concentration in the extend area to a specific value
+        Conc is C, solution stored is w = C*r
         """
-        self.step_old_sol[self.tot_edges_no_extend-1:] = conc
+        self.step_old_sol[self.tot_edges_no_extend-1:] = conc * self.grid[self.tot_edges_no_extend-1:]
 
     def _set_bound_flux(self, flux_edge, w_rep, t):
         """
@@ -444,7 +449,7 @@ class FiberModel(object):
             else:
                 eCy = self.out_conc(t, self.get_userdata())
             eCs = self.evap_satconc(self.temp)
-            return (self.porosity_domain[self.tot_edges_no_extend-1]
+            return (self.porosity_domain[self.tot_edges_no_extend-2]
                     * self.evap_transfer * (eCs - eCy)
                     * Heaviside_oneside(conc_r - self.evap_minbound, 
                                         eCs - eCy)
@@ -493,7 +498,6 @@ class FiberModel(object):
                             * (w_rep[self.tot_edges_no_extend:]/self.grid[self.tot_edges_no_extend:] - w_rep[self.tot_edges_no_extend-1:-1]/self.grid[self.tot_edges_no_extend-1:-1])\
                             / ((self.delta_r[self.tot_edges_no_extend:] + self.delta_r[self.tot_edges_no_extend-1:-1])/2.)
         diff_w_t[:] = (flux_edge[:-1] - flux_edge[1:]) / self.delta_r[:] / self.porosity_domain[:]
-        print 'dw/dt', diff_w_t[:]
 
 ##    def f_conc1_odeu(self, t, conc_r):
 ##        grid = self.grid
@@ -969,7 +973,7 @@ class FiberModel(object):
         conc[i][:] contains solution at time times[i]
         """
         self.solution_view = CellVariable(name = "fiber concentration", 
-                            mesh = self.mesh_fiber[:self.tot_edges_no_extend-1],
+                            mesh = self.mesh_fiber_plot,
                             value = conc[0][:self.tot_edges_no_extend-1])
         name = self.solution_view.name                    
         if self.plotevery:
@@ -996,7 +1000,7 @@ class FiberModel(object):
         if time is None:
             time = self.step_old_time
         self.solution_view = CellVariable(name = "fiber concentration", 
-                            mesh = self.mesh_fiber[:self.tot_edges_no_extend-1],
+                            mesh = self.mesh_fiber_plot,
                             value = conc[:self.tot_edges_no_extend-1])
         self.viewer =  Matplotlib1DViewer(vars = self.solution_view, datamin=0.,
                                 datamax=conc.max()+0.20*conc.max())
