@@ -444,7 +444,7 @@ class FiberModel(object):
             else:
                 eCy = self.out_conc(t, self.get_userdata())
             eCs = self.evap_satconc(self.temp)
-            return (self.porosity_domain[self.tot_edges_no_extend-1] 
+            return (self.porosity_domain[self.tot_edges_no_extend-1]
                     * self.evap_transfer * (eCs - eCy)
                     * Heaviside_oneside(conc_r - self.evap_minbound, 
                                         eCs - eCy)
