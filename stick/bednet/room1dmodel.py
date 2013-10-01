@@ -299,18 +299,19 @@ class Room1DModel(object):
         flux_edge[1:self.nr_edge-1] = (2 * self.diff_coef *
             (conc_x[1:]-conc_x[:-1]) / (self.delta_x[:-1]+self.delta_x[1:])
             )
-        diff_u_t[:] = ((flux_edge[1:]-flux_edge[:-1])
-                            / self.delta_x[:]
-                      )	
         if self.ventilation == 'advection':
             test # needs testing before activating this!
             flux_edge[-1] = - self.vel_ventilation * conc_x[-1] * self.delta_t
-            flux_edge[1:self.nr_edge-1] = (2 * self.diff_coef *
-            (conc_x[1:]-conc_x[:-1]) / (self.delta_x[:-1]+self.delta_x[1:])
-            ) - 2 * self.vel_ventilation * (conc_x[1:] + conc_x[:-1]) / 2.
-            diff_u_t[:] = ((flux_edge[1:]-flux_edge[:-1])
-                        / self.delta_x[:]
-                )
+            flux_edge[1:self.nr_edge-1] += - 2 * self.vel_ventilation \
+                            * (conc_x[1:] + conc_x[:-1]) / 2.
+        elif self.ventilation == "zero_on_edge":
+            #we assume always 0 outside the edge, this means outside is refreshed
+            flux_edge[self.nr_edge-1] = (self.diff_coef *
+                                        (0-conc_x[-1]) / self.delta_x[-1] )
+
+        diff_u_t[:] = ((flux_edge[1:]-flux_edge[:-1])
+                            / self.delta_x[:]
+                      )
         ## we add a source term in the first cell where the overlap is
         diff_u_t[0] += self.source_room_from_yarn
 
