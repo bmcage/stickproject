@@ -531,10 +531,8 @@ class FiberModel(object):
         self.step_old_time = self.initial_t
         self.step_old_sol = self.initial_w1
         #data storage
-        self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
         self.ret_y = sp.empty(len(self.initial_c1), float)
 
-        self.conc1[0][:] = self.initial_c1
         n_cell = len(self.grid)
         self.__tmp_diff_w_t = sp.empty(n_cell, float)
         self.__tmp_flux_edge = sp.empty(n_cell+1, float)
@@ -554,6 +552,8 @@ class FiberModel(object):
     def solve_odes(self, run_per_step = None, viewend = True):
         endT = self.times[-1]
         self.initial_w1 = self.initial_c1 * self.grid
+        #data storage, will give outofmem for long times!
+        self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
         tstep = 0
         self.conc1[tstep][:] = self.initial_c1
         for time in self.times[1:]:

@@ -483,12 +483,11 @@ class Yarn1DModel(object):
         self.initial_t = self.times[0]
         self.step_old_time = self.initial_t
         n_cells = len(self.init_conc)
-        self.conc1 = np.empty((len(self.times), n_cells), float)
         self.ret_y = np.empty(n_cells, float)
         self.__tmp_flux_edge = np.empty(n_cells+1, float)
         self.tstep = 0
-        self.conc1[0][:] = self.init_conc[:]
-        self.step_old_sol = self.conc1[0]
+        self.step_old_sol = np.empty(n_cells, float)
+        self.step_old_sol[:] = self.init_conc[:]
         
         self.solver = sc_ode('cvode', self.f_conc1_ode,
                              min_step_size=1e-8,
@@ -587,6 +586,9 @@ class Yarn1DModel(object):
 
     def run(self, wait=False):
         self.do_yarn_init()
+        #data storage, will lead to memerror if many times !
+        self.conc1 = np.empty((len(self.times), n_cells), float)
+        self.conc1[0][:] = self.init_conc[:]
         
         print 'Start mass of DEET per grid cell per fiber type'
         for ind, masses in enumerate(self.fiber_mass):
