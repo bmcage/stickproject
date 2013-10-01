@@ -203,7 +203,9 @@ class Room1DModel(object):
         
         self.plotdata = []
         for xplot in self.x0:
-            assert self.grid[0] < xplot < self.grid[-1]
+            assert self.grid[0] < xplot < self.grid[-1], "%f < %f < %f "\
+                "Not satisfied, observer out of domain" % (self.grid[0], 
+                                                    xplot, self.grid[-1])
             for ind, xcell in enumerate(self.grid):
                 if xcell >= xplot:
                     interpol_start = (xcell-xplot)/(self.grid[ind]-self.grid[ind-1])
