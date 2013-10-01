@@ -243,7 +243,7 @@ class Yarn1DModel(object):
             for fibmod in self.fiber_models[ind]:
                 area_extend = np.pi * self.delta_rsquare[ind] \
                                     * self.porosity[ind] / self.nrf_shell[ind]
-                fibmod.set_areaextend(area_extend)
+                fibmod.set_areaextend(area_extend) # set fiber.extendarea in the fiber model!
 
         #create cylindrical 1D grid over domain for using fipy to view.
         if self.plotevery:
