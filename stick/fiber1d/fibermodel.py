@@ -69,7 +69,25 @@ def Heaviside_oneside(val, control):
         return 0.
     return 1.
     #return val
-    
+
+def Heaviside_oneside_smoothed(val, control):
+    """
+    a smoothed Heaviside function of val, if control is positive, otherwise identity
+    Smoothed in the sense:
+    If val<0: 0
+    if val-smoothwidth<0: val/smoothwidth
+    if val> smoothwidth: 1
+    """
+    smoothwidth = 1e-6  #what would be good value here??
+    if control < 0.:
+        return 1.
+    if val < 0.:
+        return 0.
+    if val < smoothwidth:
+        #smoothing to avoid problems in ode solver
+        return val/smoothwidth
+    return 1.
+
 #-------------------------------------------------------------------------
 #
 # DiffusionModel class 
@@ -451,7 +469,7 @@ class FiberModel(object):
             eCs = self.evap_satconc(self.temp)
             return (self.porosity_domain[self.tot_edges_no_extend-2]
                     * self.evap_transfer * (eCs - eCy)
-                    * Heaviside_oneside(conc_r - self.evap_minbound, 
+                    * Heaviside_oneside_smoothed(conc_r - self.evap_minbound, 
                                         eCs - eCy)
                    )
 
@@ -497,6 +515,7 @@ class FiberModel(object):
                             * self.grid_edge[self.tot_edges_no_extend:-1] \
                             * (w_rep[self.tot_edges_no_extend:]/self.grid[self.tot_edges_no_extend:] - w_rep[self.tot_edges_no_extend-1:-1]/self.grid[self.tot_edges_no_extend-1:-1])\
                             / ((self.delta_r[self.tot_edges_no_extend:] + self.delta_r[self.tot_edges_no_extend-1:-1])/2.)
+
         diff_w_t[:] = (flux_edge[:-1] - flux_edge[1:]) / self.delta_r[:] / self.porosity_domain[:]
 
 ##    def f_conc1_odeu(self, t, conc_r):
@@ -607,7 +626,7 @@ class FiberModel(object):
                 compute = False
             flag, realtime = self.solver.step(t, self.ret_y)
             if flag < 0:
-                raise Exception, 'could not find solution'
+                raise Exception, 'could not find solution, flag %d' % flag
         
         self.step_old_time = realtime
         self.step_old_sol = self.ret_y
