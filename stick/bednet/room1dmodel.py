@@ -310,6 +310,7 @@ class Room1DModel(object):
             #we assume always 0 outside the edge, this means outside is refreshed
             flux_edge[self.nr_edge-1] = (self.diff_coef *
                                         (0-conc_x[-1]) / self.delta_x[-1] )
+            ##print ('flux edge room', flux_edge[self.nr_edge-1])
 
         diff_u_t[:] = ((flux_edge[1:]-flux_edge[:-1])
                             / self.delta_x[:]
@@ -529,6 +530,35 @@ class Room1DModel(object):
                     lines.pop(0).remove()
                 self.viewerplotcount += 1 
                 self.viewerplotcount = self.viewerplotcount % self.plotevery
+        else:
+            #plot last
+            time = times[-1]
+            ssol = sol[-1]
+            print ('plotting for time', time)
+            plt.rc("font", family="serif")
+            plt.rc("font", size=10)
+            width = 4.5  #width in inches
+            height = 1.4 #height in inches
+            plt.rc("figure.subplot", left=(50/72.27)/width)
+            plt.rc("figure.subplot", right=(width-10/72.27)/width)
+            plt.rc("figure.subplot", bottom=(14/72.27)/height)
+            plt.rc("figure.subplot", top=(height-7/72.27)/height)
+            fig = plt.figure(ind)
+            plt.gca().set_xlabel('Position [mm]')
+            plt.gca().set_ylabel('Concentration [$\mu$g/mm$^3$]')
+            plt.gca().set_ylim(minval, maxval)
+            #plt.gca().yaxis.set_major_formatter(pylab.FormatStrFormatter('%e'))
+            plt.title('Concentration in the room at t = %g s' % time)
+            plt.ioff()
+            lines = plt.plot(self.grid, ssol, 'r')
+            plt.draw()
+            try:
+                fig.canvas.flush_events()
+            except NotImplementedError:
+                pass
+            plt.ion()
+            plt.savefig(utils.OUTPUTDIR + os.sep 
+                            + 'AIconc_%08.1f_sec' % time + const.FIGFILEEXT)
 
     def view_sol_mass(self, ind):
         """
