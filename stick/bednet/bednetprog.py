@@ -71,6 +71,7 @@ def main(argv=None):
 
     inifile = conf.INIFILE_DEFAULT
     outputdir = const.DATA_DIR
+    outputdir_ext = ''
     analytic = False
     writeini = False
     for opt_ix in range(len(options)):
@@ -79,11 +80,12 @@ def main(argv=None):
             inifile = value
         elif option in ('-o', '--outputdir'):
             outputdir = value
+        elif option in ('-e', '--outputdir-ext'):
+            outputdir_ext = value
         elif option in ('-a', '--analytic'):
             analytic = True
         elif option in ('--write-ini',):
             writeini = True
-    
     #Parse ini file to obtain parameters.
     cfg = conf.BednetConfigManager.get_instance(inifile)
     
@@ -91,7 +93,7 @@ def main(argv=None):
     if not os.path.isdir(outputdir):
         os.mkdir(outputdir)
     #create outputdir for this run, remove if existing
-    outputdir = outputdir + os.sep + os.path.basename(inifile)
+    outputdir = outputdir + os.sep + os.path.basename(inifile) + outputdir_ext
     if not os.path.isdir(outputdir):
         os.mkdir(outputdir)
     else:

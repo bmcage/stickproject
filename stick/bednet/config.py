@@ -41,8 +41,8 @@ from stick.lib.config import ConfigManager
 #---------------------------------------------------------------
 INIFILE_DEFAULT = const.INI_DIR + os.sep + 'fabric' + os.sep + 'defaultfabric.ini'
 
-LONGOPTS = ["inifile", 'outputdir', 'analytic', 'write-ini']
-SHORTOPTS = "i:o:a" 
+LONGOPTS = ["inifile", 'outputdir', 'analytic', 'write-ini', 'ouputdir-ext']
+SHORTOPTS = "i:o:a:e:" 
 
 #---------------------------------------------------------------
 #
