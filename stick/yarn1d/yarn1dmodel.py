@@ -228,7 +228,7 @@ class Yarn1DModel(object):
                     raise ValueError, 'porosity  negative, unrealistic number of fibers in yarn cross section, %f fibers per yarn * Rf^2/Ry^2 = %f' % (self.nr_fibers,np.sum(self.volfracfib))
                     raw_input()
             self.porosity[:self.nr_cell] = 1 - np.sum(self.volfracfib)
-            print 'porosity in yarn', self.porosity[:self.nr_cell], 
+            #print 'porosity in yarn', self.porosity[:self.nr_cell], 
 
         #nrf is number of fibers in the shell at that grid position
         # per radial
@@ -251,7 +251,7 @@ class Yarn1DModel(object):
             self.mesh_yarn.periodicBC = False
             self.mesh_yarn = self.mesh_yarn
 
-        print 'mesh yarn', self.grid_edge, ', delta_r yarn', self.delta_r
+        #print 'mesh yarn', self.grid_edge, ', delta_r yarn', self.delta_r
 
     def initial_yarn1d(self):
         """ initial concentration over the domain"""

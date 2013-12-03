@@ -162,8 +162,8 @@ class Room1DModel(object):
         self.volbednet = 0.
         self.surfbednet = self.room_H * self.room_W
         for rad in self.radius_yarn:
-            print ('vert vol', self.nvertyarns * pi * rad**2 * self.room_H, 'mm3')
-            print ('horz vol', self.nhoryarns * pi * rad**2 * self.room_W, 'mm3')
+            print ('vert vol yarns', self.nvertyarns * pi * rad**2 * self.room_H, 'mm3')
+            print ('horz vol yarns', self.nhoryarns * pi * rad**2 * self.room_W, 'mm3')
             self.volbednet += self.nvertyarns * pi * rad**2 * self.room_H
             self.volbednet += self.nhoryarns * pi * rad**2 * self.room_W
         print ('volume_bednet space =', (2 * self.maxyarnrad * self.room_H
