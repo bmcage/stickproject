@@ -671,7 +671,18 @@ class Room1DModel(object):
         self.write_info()
         for t in self.times[1:]:
             self.solve_timestep(t)
-          
+            
+        #save solution to output file
+        np.savez(utils.OUTPUTDIR + os.sep + 'bednetroom1d_sol.npz',
+                 times=self.times,
+                 sol = self.sol,
+                 tresh_sat = [self.saturation_conc, self.treshold],
+                 grid_cellcenters = self.grid,
+                 yarnmass = self.yarnmass,
+                 totyarnmass = self.totyarnmass,
+                 totroommass = self.totroommass
+                 )
+    
         fignr = self.view_sol(self.times, self.sol)
         fignr = self.view_sol_mass(fignr+1)
         self.plot_room_sol(fignr+1, self.times, self.sol)
