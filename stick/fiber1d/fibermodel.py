@@ -468,7 +468,11 @@ class FiberModel(object):
             else:
                 eCy = self.out_conc(t, self.get_userdata())
             eCs = self.evap_satconc(self.temp)
-            return (self.porosity_domain[self.tot_edges_no_extend-2]
+            #determine effective surface for evaporation: S=n C_Boundary/rho_compound
+            S = self.porosity_domain[self.tot_edges_no_extend-2] \
+                    * conc_r / self.density_compound
+            #return evaporative law
+            return (S 
                     * self.evap_transfer * (eCs - eCy)
                     * Heaviside_oneside_smoothed(conc_r - self.evap_minbound, 
                                         eCs - eCy)
