@@ -360,10 +360,9 @@ class FiberModel(object):
                     raise Exception, 'Index error'
             if st == 0:
                 self.initial_c1[i] = self.init_conc[st](pos) * \
-                                            (self.porosity[st]) * \
                                             (self.percentage_active / 100.)
             else:
-                self.initial_c1[i] = self.init_conc[st](pos) * self.porosity[st]
+                self.initial_c1[i] = self.init_conc[st](pos) 
             self.diffusion_coeff[i] = self.diff_coef[st]
             self.diffusion_exp_fact[i] = self.diff_exp_fact[st]
             self.porosity_domain[i] = self.porosity[st]
