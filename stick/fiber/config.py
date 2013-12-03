@@ -164,7 +164,10 @@ class FiberConfigManager(ConfigManager):
                         'initial concentration in the layer in terms '
                         'of radius, unit microg/mm**3')
         self.register("fiber.porosity_in", 0.2)
-        self.register("fiber.percentage_active", 1.0)
+        self.register("fiber.percentage_active", 100.0,
+                      "For internal part, how much percent of the compound"
+                      " is available. Rest is considered permanently bound and"
+                      " will be neglected")
         self.register("fiber.mean_deviation", 0.00355,
             "Mean deviation of the fiber radius in mm")
         self.register("fiber.density", 1.4,
@@ -200,6 +203,9 @@ class FiberConfigManager(ConfigManager):
             " the fiber in terms of the time. So C_free in the eq "
             " flux = S h_lg (C_sat(T) - C_free) H(C - C_bo) ")
         
+        self.register("compound.density", 0.998, "Density of the tracked"
+            " compound in g/cm^3")
+
         self.register("time.time_period", 500.)
         self.register("time.dt", 5.0)
         #plot section
