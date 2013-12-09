@@ -47,6 +47,7 @@ from copy import copy
 # Local Imports
 #
 #-------------------------------------------------------------------------
+
 import stick.const as const
 import stick.lib.utils.utils as utils
 import stick.yarn.config as conf
@@ -276,7 +277,7 @@ class Yarn1DModel(object):
             return self.step_old_sol[data]
         raise ValueError, 'out concentration should only be requested at a later time'
 
-    def solve_fiber_init(self):
+    def solve_fiber_init(self, clearmem = False):
         """
         Solve the diffusion process for a repellent on the fiber at radial position r in the yarn.
         &C/&t = 1/r * &(Dr&C/&r) / &r
@@ -287,7 +288,7 @@ class Yarn1DModel(object):
         for ind, models in enumerate(self.fiber_models):
             for type, model in enumerate(models):
                 model.run_init()
-                model.solve_init()
+                model.solve_init(clearmem=clearmem)
                 #rebind the out_conc method to a call to yarn1d
                 if model.use_extend:
                     model.set_outconc(self.out_conc(ind, 0))
@@ -512,7 +513,7 @@ class Yarn1DModel(object):
         assert np.allclose(realtime, stoptime), "%f %f" % (realtime, stoptime)
         return stoptime, self.ret_y
 
-    def do_yarn_init(self):
+    def do_yarn_init(self, clearmem = False):
         """
         generic initialization needed before yarn can be solved
         """
@@ -520,7 +521,9 @@ class Yarn1DModel(object):
         self.initial_yarn1d()
         if not self.initialized:
             self.solve_ode_init()
-        self.solve_fiber_init()
+        if clearmem:
+            del self.times
+        self.solve_fiber_init(clearmem=clearmem)
 
     def do_yarn_step(self, stoptime):
         """

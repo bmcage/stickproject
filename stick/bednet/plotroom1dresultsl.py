@@ -33,25 +33,47 @@ import matplotlib.pyplot as plt
 import math
 from numpy import pi
 
-FILETOLOAD = '/home/benny/stickproject/fabricmuslin_Deet.initest/bednetroom1d_sol.npz'
+FILETOLOAD = '/home/benny/stickproject/fabricmuslin_Deet.ini/bednetroom1d_solpart_'
+ARG = '%05d.npz'
+INDEX = [0,1,2] # what dumped data to load
+EVERY = 2    # what time data to skip to reduce plotting time
 
-if not os.path.isfile(FILETOLOAD):
-    print ('Unexisting file %s' % FILETOLOAD)
-    sys.exit()
-else:
-    print ('Loading file %s'% FILETOLOAD)
+times = np.empty(0, float)
+sol = None
+yarnmass = None
+totyarnmass = np.empty(0, float)
+totroommass = np.empty(0, float)
 
-with np.load(FILETOLOAD) as data:
-    times = data['times']  #self.times
-    sol = data['sol']  #self.sol
-    tresh_sat = data['tresh_sat'] 
-    saturation_conc = tresh_sat[0]
-    treshold = tresh_sat[1]
-    grid = data['grid_cellcenters'] #self.grid
-    yarnmass = data['yarnmass']    #self.yarnmass
-    totyarnmass = data['totyarnmass'] #self.totyarnmass
-    totroommass = data['totroommass'] #self.totroommass
+for index in INDEX:
+    firstfile = FILETOLOAD + ARG % index
+    if not os.path.isfile(firstfile):
+        print ('Unexisting file %s' % firstfile)
+        sys.exit()
+    else:
+        print ('Loading file %s'% firstfile)
+    
+    with np.load(firstfile) as data:
+        times = np.append(times, data['times'][::EVERY])  #self.times
+        if sol is None:
+            sol = data['sol'][::EVERY]
+        else:
+            sol = np.append(sol, data['sol'][::EVERY], axis=0)  #self.sol
+        tresh_sat = data['tresh_sat'] 
+        saturation_conc = tresh_sat[0]
+        treshold = tresh_sat[1]
+        grid = data['grid_cellcenters'] #self.grid
+        print (data['yarnmass'])
+            
+        if yarnmass is None:
+            yarnmass = [0] * len(data['yarnmass'])
+            for ind in range(len(data['yarnmass'])):
+                yarnmass[ind] = np.empty(0, float)
+        for ind, dt in enumerate(data['yarnmass']):
+            yarnmass[ind] = np.append(yarnmass[ind], dt[::EVERY])  #self.yarnmass
+        totyarnmass = np.append(totyarnmass, data['totyarnmass'][::EVERY]) #self.totyarnmass
+        totroommass = np.append(totroommass, data['totroommass'][::EVERY]) #self.totroommass
 
+print (times, yarnmass)
 #determine at what distance in mm to plot concentration over time: 
 x0 = [1]
 

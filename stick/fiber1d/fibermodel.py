@@ -171,6 +171,7 @@ class FiberModel(object):
             self.evap_transfer = self.cfg.get('boundary.evap_transfer')
             self.evap_minbound = self.cfg.get('boundary.evap_minbound')
             self.out_conc = eval(self.cfg.get('boundary.out_conc'))
+            self.only_compound = self.cfg.get('boundary.only_compound')
         #density in g/mm^3
         self.density_compound = self.cfg.get('compound.density') * 1e-3
 
@@ -469,7 +470,10 @@ class FiberModel(object):
                 eCy = self.out_conc(t, self.get_userdata())
             eCs = self.evap_satconc(self.temp)
             #determine effective surface for evaporation: S=n C_Boundary/rho_compound
-            S = self.porosity_domain[self.tot_edges_no_extend-2] \
+            S = 1.
+            if not self.only_compound:
+                # compound in a matrix, we need to correct effective surface. 
+                S = self.porosity_domain[self.tot_edges_no_extend-2] \
                     * conc_r / self.density_compound
             #return evaporative law
             return (S 
@@ -545,13 +549,15 @@ class FiberModel(object):
 ##                        / self.porosity_domain[:])
 ##        return diff_u_t
 
-    def solve_odes_init(self):
+    def solve_odes_init(self, clearmem = False):
         """
         Initialize the cvode solver
         """
         if not HAVE_ODES:
             raise Exception, 'Not possible to solve with given method, scikits.odes not available'
         self.initial_t = self.times[0]
+        if clearmem:
+            del self.times
         self.step_old_time = self.initial_t
         self.step_old_sol = self.initial_w1
         #data storage
@@ -568,7 +574,7 @@ class FiberModel(object):
         """
         Reinitialize the cvode solver to start again
         """
-        self.initial_t = self.times[0]
+        #self.initial_t = self.times[0]
         self.solver = sc_ode('cvode', self.f_conc1_odes,
                              max_steps=50000, lband=1, uband=1)
         self.solver.init_step(self.step_old_time, self.step_old_sol)
@@ -850,8 +856,8 @@ class FiberModel(object):
 ##        self.conc1[tstep][:] = self.initial_c1[:]
 ##        for time in self.times[1:]:
 ##            self.solve_fipy_sweep()
-####            if self.viewer is not None:
-####                self.viewer.plot()
+## ##           if self.viewer is not None:
+## ##               self.viewer.plot()
 ##                #raw_input("please<return>.....")
 ##            tstep += 1
 ##            self.conc1[tstep][:] = self.solution_fiber.getValue()
@@ -968,7 +974,7 @@ class FiberModel(object):
         else:
             raise Exception, 'Not supported option %s' % self.submethod
 
-    def solve_init(self):
+    def solve_init(self, clearmem = False):
         """
         Initialize the solvers so they can be solved stepwize
         """
@@ -977,7 +983,7 @@ class FiberModel(object):
                 raise NotImplementedError, 'this option %s is no longer supported' % self.submethod
                 self.solve_fipy()
             elif  self.submethod in ['cvode', 'cvode_step']:
-                self.solve_odes_init()
+                self.solve_odes_init(clearmem=clearmem)
             elif  self.submethod in ['odew', 'odew_step']:
                 raise NotImplementedError, 'this option %s is no longer supported' % self.submethod
                 self.solve_ode_init()

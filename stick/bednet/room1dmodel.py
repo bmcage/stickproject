@@ -39,6 +39,8 @@ import matplotlib.pyplot as plt
 import math
 from numpy import pi
 
+MAX_STORE_LENGTH = 2000
+
 HAVE_ODES = False
 try:
     from scikits.odes import ode as sc_ode
@@ -360,12 +362,17 @@ class Room1DModel(object):
         self.initial_t = self.times[0]
         self.step_old_time = self.initial_t
         #storage for solution
-        self.sol = np.empty((self.timesteps+1, self.nr_cell), float)
-        self.sol[0, :] = self.init_conc[:]
+        self.solstoreind = 0
+        if self.timesteps+1 > MAX_STORE_LENGTH:
+            self.solpart = np.empty((MAX_STORE_LENGTH, self.nr_cell), float)
+        else:
+            self.sol = np.empty((self.timesteps+1, self.nr_cell), float)
+            self.solpart = self.sol
+        self.solpart[0, :] = self.init_conc[:]
         self.ret_y = np.empty(self.nr_cell, float)
         self.__tmp_flux_edge = np.zeros(self.nr_cell+1, float)
         self.tstep = 0
-        self.step_old_sol = self.sol[0]
+        self.step_old_sol = self.solpart[0]
         
         self.solver = sc_ode('cvode', self.f_conc_ode,
                              min_step_size=1e-8, rtol=1e-6, atol=1e-6, 
@@ -426,7 +433,11 @@ class Room1DModel(object):
         
         # 2.b solve the room model
         self.step_old_time, self.step_old_sol = self.do_ode_step(t)
-        self.sol[self.tstep, :] = self.step_old_sol[:]
+        if self.tstep % MAX_STORE_LENGTH == 0 :
+            #dump to file, and restart
+            self.dump_sol(self.solstoreind)
+            self.solstoreind += 1
+        self.solpart[self.tstep % MAX_STORE_LENGTH, :] = self.step_old_sol[:]
         # 3. for next timestep, we need to set correct boundary condition
         #    on the yarn level, so downscale the mass to keep mass balance
         ##massdiff = massoverlapnew - massoverlapold
@@ -446,12 +457,14 @@ class Room1DModel(object):
         #store masses
         self.__store_masses(self.tstep)
 
-    def view_sol(self, times, sol):
+    def view_sol(self, timesall, solpart):
         #maxv = np.max(self.sol)
         #minv = np.min(self.sol)
         #print 'max', maxv, minv
         #self.plottimes = np.arange(self.times[0],self.times[-1]+1,self.plotevery)
         plotextra = False
+        times = timesall[len(timesall)-(self.tstep % MAX_STORE_LENGTH+1):]
+        sol = solpart[:self.tstep % MAX_STORE_LENGTH+1]
         extravals = self.cfg.get("plot.extra_time_room")
         if extravals:
             extravals = extravals.split("|")
@@ -462,7 +475,7 @@ class Room1DModel(object):
         for ind, interpdat in enumerate(self.plotdata):
             xval = self.x0[ind]
             cellstart, interpval = interpdat
-            conc_in_point = interpval * self.sol[:, ind] + (1-interpval) * self.sol[:, ind+1]
+            conc_in_point = interpval * sol[:, ind] + (1-interpval) * sol[:, ind+1]
             print ('conc in end point', conc_in_point[-1])
             plt.rc("font", family="serif")
             plt.rc("font", size=10)
@@ -479,18 +492,20 @@ class Room1DModel(object):
             plt.title('Concentration at position %g mm' % xval)
             if plotextra:
                 plt.plot(eval(extravals[1]), eval(extravals[2]), extravals[0])
-            plt.plot(self.times, conc_in_point)
+            plt.plot(times, conc_in_point)
             #plt.ylim(0, maxv*1.1)
-            plt.plot(self.times, np.ones(len(self.times)) * self.saturation_conc, 'k--')
-            plt.plot(self.times, np.ones(len(self.times)) * self.treshold, 'b--')
+            plt.plot(times, np.ones(len(times)) * self.saturation_conc, 'k--')
+            plt.plot(times, np.ones(len(times)) * self.treshold, 'b--')
             plt.show()
-            plt.savefig(utils.OUTPUTDIR + os.sep 
+            plt.savefig(utils.OUTPUTDIR + os.sep
                         + 'AIconc_%03.1f_mm' % xval + const.FIGFILEEXT)
         return ind
 
-    def plot_room_sol(self, ind, times, sol):
+    def plot_room_sol(self, ind, timesall, solpart):
         print ('Generating fig of solution over the room domain')
         self.viewerplotcount = 0
+        times = timesall[len(timesall)-(self.tstep % MAX_STORE_LENGTH+1):]
+        sol = solpart[:self.tstep % MAX_STORE_LENGTH+1]
         minval = np.min(sol)
         maxv = np.max(sol)
         try:
@@ -563,7 +578,8 @@ class Room1DModel(object):
     def view_sol_mass(self, ind):
         """
         Plot the evolution of the mass at current state of the solution
-        """
+        """        
+        times = self.times[len(self.times)-(self.tstep % MAX_STORE_LENGTH+1):]
         fignr = ind
         plt.ion()
         for ind, ymass in enumerate(self.yarnmass):
@@ -579,7 +595,7 @@ class Room1DModel(object):
             plt.gca().set_xlabel('Time [s]')
             plt.gca().set_ylabel('Mass [$\mu$g]')
             plt.title('Mass AC in yarn type %d' % ind)
-            plt.plot(self.times, ymass)
+            plt.plot(times, ymass[:self.tstep % MAX_STORE_LENGTH+1])
             plt.savefig(utils.OUTPUTDIR + os.sep 
                         + 'AImass_yarn_%d' % ind + const.FIGFILEEXT)
             fignr += 1
@@ -589,7 +605,7 @@ class Room1DModel(object):
         plt.gca().set_ylabel('Mass [$\mu$g]')
         plt.title('Mass AC in the bednet')
         #plt.plot([0,],[28.935,], 'r*')
-        plt.plot(self.times, self.totyarnmass)
+        plt.plot(times, self.totyarnmass[:self.tstep % MAX_STORE_LENGTH+1])
         plt.savefig(utils.OUTPUTDIR + os.sep 
                         + 'AImass_bednet' + const.FIGFILEEXT)
         fignr += 1
@@ -597,7 +613,7 @@ class Room1DModel(object):
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Mass [$\mu$g]')
         plt.title('Mass AC in the room')
-        plt.plot(self.times, self.totroommass)
+        plt.plot(times, self.totroommass[:self.tstep % MAX_STORE_LENGTH+1])
         plt.savefig(utils.OUTPUTDIR + os.sep 
                         + 'AImass_in_room' + const.FIGFILEEXT)
         fignr += 1
@@ -606,7 +622,7 @@ class Room1DModel(object):
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Mass [$\mu$g]')
         plt.title('Total Mass AC')
-        plt.plot(self.times, self.totroommass+self.totyarnmass)
+        plt.plot(times, self.totroommass[:self.tstep % MAX_STORE_LENGTH+1]+self.totyarnmass[:self.tstep % MAX_STORE_LENGTH+1])
         plt.savefig(utils.OUTPUTDIR + os.sep 
                         + 'AImass_total' + const.FIGFILEEXT)
         return fignr
@@ -621,9 +637,9 @@ class Room1DModel(object):
         #storage for mass values
         self.yarnmass = [None] * len(self.yarn_models)
         for ind in range(len(self.yarn_models)):
-            self.yarnmass[ind] = np.empty(len(self.times), float)
-        self.totyarnmass = np.empty(len(self.times), float)
-        self.totroommass = np.empty(len(self.times), float)
+            self.yarnmass[ind] = np.empty(MAX_STORE_LENGTH, float)
+        self.totyarnmass = np.empty(MAX_STORE_LENGTH, float)
+        self.totroommass = np.empty(MAX_STORE_LENGTH, float)
         #compute the initial masses
         self.__store_masses(0)
 
@@ -632,9 +648,9 @@ class Room1DModel(object):
                 roommass, roomoverlapmass) = self.calc_mass()
         #compute initial values
         for mind, val in enumerate(yarnmass):
-            self.yarnmass[mind][ind] = val
-        self.totyarnmass[ind] = np.sum(totyarnmass) #+ np.sum(totyarnmassoverlap)
-        self.totroommass[ind] = roommass + roomoverlapmass
+            self.yarnmass[mind][ind%MAX_STORE_LENGTH] = val
+        self.totyarnmass[ind%MAX_STORE_LENGTH] = np.sum(totyarnmass) #+ np.sum(totyarnmassoverlap)
+        self.totroommass[ind%MAX_STORE_LENGTH] = roommass + roomoverlapmass
 
     def write_info(self):
         """
@@ -666,6 +682,22 @@ class Room1DModel(object):
         print ("**************\n\n")
         raw_input("Press key to start")
 
+    def dump_sol(self, index):
+        """ Dump solpart to file with extension index """
+        times = self.times[index*MAX_STORE_LENGTH:(index+1)*MAX_STORE_LENGTH]
+        newyarnmass = [0] * len(self.yarnmass)
+        for ind in range(len(self.yarnmass)):
+            newyarnmass[ind] = self.yarnmass[ind][:len(times)]
+        np.savez(utils.OUTPUTDIR + os.sep + 'bednetroom1d_solpart_%05d.npz' % index,
+                 times=times,
+                 sol = self.solpart[:len(times)],
+                 tresh_sat = [self.saturation_conc, self.treshold],
+                 grid_cellcenters = self.grid,
+                 yarnmass = newyarnmass,
+                 totyarnmass = self.totyarnmass[:len(times)],
+                 totroommass = self.totroommass[:len(times)]
+                 )
+
     def run(self, wait=False):
         self.init_room()
         self.write_info()
@@ -673,19 +705,11 @@ class Room1DModel(object):
             self.solve_timestep(t)
             
         #save solution to output file
-        np.savez(utils.OUTPUTDIR + os.sep + 'bednetroom1d_sol.npz',
-                 times=self.times,
-                 sol = self.sol,
-                 tresh_sat = [self.saturation_conc, self.treshold],
-                 grid_cellcenters = self.grid,
-                 yarnmass = self.yarnmass,
-                 totyarnmass = self.totyarnmass,
-                 totroommass = self.totroommass
-                 )
+        self.dump_sol(self.solstoreind)
     
-        fignr = self.view_sol(self.times, self.sol)
+        fignr = self.view_sol(self.times, self.solpart)
         fignr = self.view_sol_mass(fignr+1)
-        self.plot_room_sol(fignr+1, self.times, self.sol)
+        self.plot_room_sol(fignr+1, self.times, self.solpart)
 
         for ymod in self.yarn_models:
             ymod.view_sol([ymod.step_old_time], [ymod.step_old_sol])
