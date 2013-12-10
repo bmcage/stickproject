@@ -29,9 +29,7 @@ import os.path
 import sys
 import numpy as np
 import scipy as sp
-from scipy.integrate import ode, trapz
 import matplotlib.pyplot as plt
-import time
 
 HAVE_ODES = False
 try:
@@ -45,9 +43,7 @@ except:
 # Local Imports
 #
 #-------------------------------------------------------------------------
-import stick.const as const
 import stick.lib.utils.utils as utils
-import stick.lib.utils.gridutils as GridUtils
 from stick.fiber.config import (METHOD, FLUX, TRANSFER, EVAP, EVAPYARN,
                     BOUND_TYPE, FIBER_FORM,
                     CIRCLE, ELLIPSE)
@@ -57,7 +53,8 @@ from stick.fiber.config import (METHOD, FLUX, TRANSFER, EVAP, EVAPYARN,
 #Fipy Imports
 #
 #-------------------------------------------------------------------------
-from fipy import *
+from fipy import CylindricalGrid1D, Matplotlib1DViewer, CellVariable
+from fipy.tools.dump import write as fipywrite
 
 def Heaviside_oneside(val, control):
     """
@@ -575,12 +572,12 @@ class FiberModel(object):
         Reinitialize the cvode solver to start again
         """
         #self.initial_t = self.times[0]
-        self.solver = sc_ode('cvode', self.f_conc1_odes,
-                             max_steps=50000, lband=1, uband=1)
+        if self. solver is None:
+            self.solver = sc_ode('cvode', self.f_conc1_odes,
+                            max_steps=50000, lband=1, uband=1)
         self.solver.init_step(self.step_old_time, self.step_old_sol)
 
     def solve_odes(self, run_per_step = None, viewend = True):
-        endT = self.times[-1]
         self.initial_w1 = self.initial_c1 * self.grid
         #data storage, will give outofmem for long times!
         self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
@@ -761,7 +758,6 @@ class FiberModel(object):
             k = 2 * sp.pi * self.boundary_transf_right * self.grid_edge[-1] \
                     * self.porosity_domain[-1] / V
         elif self.bound_right == EVAP:
-            evap = True
             coeffevap = 2 * sp.pi * self.grid_edge[-1] \
                         * self.porosity_domain[-1] \
                         * self.evap_transfer
@@ -791,7 +787,7 @@ class FiberModel(object):
                                     + flux_out)
             else:
                 if k:
-                    self.simple_sol[tstep] = flux_out/k+(M0-flux_out/k)*exp(-k*time)
+                    self.simple_sol[tstep] = flux_out/k+(M0-flux_out/k)*np.exp(-k*time)
                 else:
                     self.simple_sol[tstep] = flux_out * time + M0
         
@@ -1054,10 +1050,10 @@ class FiberModel(object):
     def dump_solution(self): 
         """write out the solution to disk for future use"""
         if self.method == 'FVM':
-            dump.write({'space_position': self.grid, 'conc': self.conc1},
+            fipywrite({'space_position': self.grid, 'conc': self.conc1},
                 filename = utils.OUTPUTDIR + os.sep + 'sol_%s.gz' % self.submethod,
                 extension = '.gz')
-        dump.write({'time_step':self.times, 'flux': self.flux_at_surface},
+        fipywrite({'time_step':self.times, 'flux': self.flux_at_surface},
             filename = utils.OUTPUTDIR + os.sep + 'flux_boundary', 
             extension = '.gz')
 

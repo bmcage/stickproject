@@ -27,7 +27,6 @@ Module holding a 1D cylindrical diffusion model for a yarn.
 #-------------------------------------------------------------------------
 from __future__ import division
 import os.path
-import sys
 import numpy as np
 
 HAVE_ODES = False
@@ -38,9 +37,6 @@ except:
     print 'Could not load scikits.odes, odes solver not available'
 
 import matplotlib.pyplot as plt
-import sets
-import time
-from copy import copy
 
 #-------------------------------------------------------------------------
 #
@@ -48,7 +44,6 @@ from copy import copy
 #
 #-------------------------------------------------------------------------
 
-import stick.const as const
 import stick.lib.utils.utils as utils
 import stick.yarn.config as conf
 from stick.fiber.config import FiberConfigManager
@@ -58,7 +53,7 @@ from stick.fiber1d.fibermodel import FiberModel
 #
 #Fipy Imports
 #-------------------------------------------------------------------------
-from fipy import *
+from fipy import CylindricalGrid1D, Matplotlib1DViewer, CellVariable
 
 #-------------------------------------------------------------------------
 #
@@ -439,12 +434,11 @@ class Yarn1DModel(object):
         
          n \delta r d_t (r C) = flux_right - flux_left + Source (\delta r^2 /2)
         
-        so 
+        so
         
          n d_t C = 1 / (r \delta r) * (flux_right - flux_left + Source (\delta r^2 /2) )
         """
         grid = self.grid
-        n_cellcenters = len(grid)
         #Initialize the flux rate on the edges
         flux_edge = self.__tmp_flux_edge
         #set flux on edge 0, self.nr_edge-1 and -1
@@ -590,6 +584,7 @@ class Yarn1DModel(object):
     def run(self, wait=False):
         self.do_yarn_init()
         #data storage, will lead to memerror if many times !
+        n_cells = len(self.init_conc)
         self.conc1 = np.empty((len(self.times), n_cells), float)
         self.conc1[0][:] = self.init_conc[:]
         

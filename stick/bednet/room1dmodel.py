@@ -32,14 +32,13 @@
 #-------------------------------------------------------------------------
 from __future__ import division, print_function
 import os.path
-import sys
 import numpy as np
-import scipy as sp
 import matplotlib.pyplot as plt
 import math
 from numpy import pi
 
-MAX_STORE_LENGTH = 2000
+MAX_STORE_LENGTH = 1000
+INSPECT_MEM = False
 
 HAVE_ODES = False
 try:
@@ -55,7 +54,6 @@ except:
 #-------------------------------------------------------------------------
 import stick.const as const
 import stick.lib.utils.utils as utils
-import stick.lib.utils.gridutils as GridUtils
 from stick.yarn.config import YarnConfigManager
 from stick.yarn1d.yarn1dmodel import Yarn1DModel
 
@@ -123,7 +121,7 @@ class Room1DModel(object):
             self.cfg_yarn[-1].set("boundary.conc_out", 
                     float(self.initconc(self.cfg_yarn[-1].get("domain.yarnradius"))))
             self.cfg_yarn[-1].set("domain.useextension", True)
-            ##TODO How much overlap region? Take one yarn radius for now
+            ## How much overlap region? Take one yarn radius for now
             self.cfg_yarn[-1].set("domain.extensionfraction", EXTFRAC)
             self.radius_yarn.append(self.cfg_yarn[-1].get("domain.yarnradius"))
             assert self.radius_yarn[-1] == self.radius_yarn[0], 'ERROR, yarns'\
@@ -152,7 +150,7 @@ class Room1DModel(object):
             self.yarn_models.append(Yarn1DModel(cfg))
         self.nr_models = len(self.yarn_models)
         #some memory
-        self.source_mass = np.empty((self.nr_models, self.timesteps + 1), float)
+        self.source_mass = np.empty(self.nr_models, float)
         #self.mass_build =  [0.,]
         
         #plot the result every few seconds so outcome becomes visible during calculations
@@ -272,7 +270,7 @@ class Room1DModel(object):
             self.yarn_mass[ind] = model.calc_mass(model.init_conc)
             self.yarn_mass_overlap[ind] = model.calc_mass_overlap(model.init_conc)
             # no mass released at start time
-            self.source_mass[ind, self.tstep] = 0.
+            self.source_mass[ind] = 0.
 
     def f_conc_ode(self, t, conc_x, diff_u_t):
         """
@@ -304,7 +302,7 @@ class Room1DModel(object):
             (conc_x[1:]-conc_x[:-1]) / (self.delta_x[:-1]+self.delta_x[1:])
             )
         if self.ventilation == 'advection':
-            test # needs testing before activating this!
+            raise NotImplementedError, 'This piece needs testing before use!' # needs testing before activating this!
             flux_edge[-1] = - self.vel_ventilation * conc_x[-1] * self.delta_t
             flux_edge[1:self.nr_edge-1] += - 2 * self.vel_ventilation \
                             * (conc_x[1:] + conc_x[:-1]) / 2.
@@ -405,15 +403,15 @@ class Room1DModel(object):
             tmp = model.calc_mass(rety)
             tmp_overlap = model.calc_mass_overlap(rety)
             # mass that goes into overlap is the mass that disappeared.
-            self.source_mass[ttype, self.tstep] = tmp_overlap \
+            self.source_mass[ttype] = tmp_overlap \
                 - (self.yarn_mass_overlap[ttype] + model.source_overlap
                                             * self.delta_t * model.areaextend)
             self.yarn_mass[ttype] = tmp
             self.yarn_mass_overlap_old[ttype] = self.yarn_mass_overlap[ttype]
             self.yarn_mass_overlap[ttype] = tmp_overlap
-            if self.source_mass[ttype, self.tstep] < 0.:
-                print ("source mass", self.source_mass[ttype, self.tstep])
-                if abs(self.source_mass[ttype, self.tstep]) < 100:
+            if self.source_mass[ttype] < 0.:
+                print ("source mass", self.source_mass[ttype])
+                if abs(self.source_mass[ttype]) < 100:
                     #self.source_mass[ttype, self.tstep] = 0.
                     print ('WARNING: small negative release, reduce timestep fiber/yarn if needed')
                 else:
@@ -427,7 +425,7 @@ class Room1DModel(object):
         # concentration is a consequence of all yarn types, so sum 
         # over yarn types, and compute contribution of that moment.
         concreleased = (self.nhoryarns * self.room_W + self.nvertyarns * self.room_H) \
-                        * np.sum(self.source_mass[:, self.tstep]) / self.overlapvolume
+                        * np.sum(self.source_mass[:]) / self.overlapvolume
 
         self.source_room_from_yarn = concreleased / self.delta_t
         
@@ -703,6 +701,19 @@ class Room1DModel(object):
         self.write_info()
         for t in self.times[1:]:
             self.solve_timestep(t)
+
+        if INSPECT_MEM:
+            import gc
+            notr =gc.collect()
+            print ('unreachable objects:')
+            print (notr)
+            notr =gc.collect()
+            print ('unreachable objects:')
+            print (notr)
+            raw_input('press key')
+            print ("Remaining Garbage")
+            print (gc.garbage)
+            raw_input('press key')
             
         #save solution to output file
         self.dump_sol(self.solstoreind)
@@ -714,7 +725,9 @@ class Room1DModel(object):
         for ymod in self.yarn_models:
             ymod.view_sol([ymod.step_old_time], [ymod.step_old_sol])
             for ind_cell, models in enumerate(ymod.fiber_models):
-                for type, model in enumerate(models):
-                    model.view_last_sol(" cell %d, type %d" % (ind_cell, type))
+                for ftype, model in enumerate(models):
+                    model.view_last_sol(" cell %d, type %d" % (ind_cell, ftype))
+                break
+
         if wait:
             raw_input("Finished bednet run")
