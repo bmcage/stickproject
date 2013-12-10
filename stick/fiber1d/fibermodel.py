@@ -142,17 +142,12 @@ class FiberModel(object):
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
         self.steps = int((self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t)
-        self.times = sp.linspace(0, self.time_period, self.steps + 1)
-        self.initial_t = self.times[0]
+        self.initial_t = 0.
         self.step_old_time = self.initial_t
         #set correct delta_t
-        self.delta_t = self.times[1]-self.times[0]
+        self.delta_t = self.time_period / self.steps
         if self.verbose:
             print "Timestep used in fiber model:", self.delta_t
-        #storage for output
-        self.fiber_surface = sp.empty(len(self.times), float)
-        #the radial flux at surface. Do times 2 pi radius() to obtain all flux
-        self.flux_at_surface = sp.empty(len(self.times), float)
         
         #print 'the times', self.times
         #self.delta_t = 0.1#self.times[1] - self.times[0]
@@ -181,6 +176,18 @@ class FiberModel(object):
         self.__Rf = None
 
         self.plotevery = self.cfg.get("plot.plotevery")
+
+    def times(self, timestep, end=None):
+        """ Compute the time at one of our steps
+        If end is given, all times between step timestep and step end are 
+        returned as a list, with end included
+        """
+        if end is None:
+            return timestep * self.delta_t
+        else:
+            begin = timestep * self.delta_t
+            end = end * self.delta_t
+            return np.linspace(begin, end, end-begin + 1)
 
     def set_userdata(self, data):
         """
@@ -546,15 +553,13 @@ class FiberModel(object):
 ##                        / self.porosity_domain[:])
 ##        return diff_u_t
 
-    def solve_odes_init(self, clearmem = False):
+    def solve_odes_init(self):
         """
         Initialize the cvode solver
         """
         if not HAVE_ODES:
             raise Exception, 'Not possible to solve with given method, scikits.odes not available'
-        self.initial_t = self.times[0]
-        if clearmem:
-            del self.times
+        self.initial_t = 0.
         self.step_old_time = self.initial_t
         self.step_old_sol = self.initial_w1
         #data storage
@@ -571,7 +576,6 @@ class FiberModel(object):
         """
         Reinitialize the cvode solver to start again
         """
-        #self.initial_t = self.times[0]
         if self. solver is None:
             self.solver = sc_ode('cvode', self.f_conc1_odes,
                             max_steps=50000, lband=1, uband=1)
@@ -580,10 +584,15 @@ class FiberModel(object):
     def solve_odes(self, run_per_step = None, viewend = True):
         self.initial_w1 = self.initial_c1 * self.grid
         #data storage, will give outofmem for long times!
-        self.conc1 = np.empty((len(self.times), len(self.initial_c1)), float)
+        self.conc1 = np.empty((self.steps+1, len(self.initial_c1)), float)
+        #storage for output
+        self.fiber_surface = sp.empty(self.steps+1, float)
+        #the radial flux at surface. Do times 2 pi radius() to obtain all flux
+        self.flux_at_surface = sp.empty(self.steps+1, float)
         tstep = 0
         self.conc1[tstep][:] = self.initial_c1
-        for time in self.times[1:]:
+        time = self.times(tstep+1)
+        while time <= self.time_period+self.delta_t/10:
             flag, realtime = self.solver.step(time, self.conc1[tstep+1])
             if flag != 0:
                 print 'ERROR: unable to compute solution, flag', flag
@@ -600,10 +609,11 @@ class FiberModel(object):
                         self.conc1[tstep][self.tot_edges_no_extend-2], time, conc_out)
             if run_per_step:
                 run_per_step(self, time, self.conc1[tstep])
+            time = self.times(tstep+1)
 
             #print 'mass = ', self.calc_mass(self.conc1[tstep])
         if viewend:
-            self.view_sol(self.times, self.conc1)
+            self.view_sol(self.times(0,tstep), self.conc1)
 
     def do_step_odes(self, stoptime, needreinit=True):
         """
@@ -772,12 +782,13 @@ class FiberModel(object):
         #a check to avoid errors by too large timestep!
         if self.bound_right == EVAP:
             first_step = self.delta_t * (flux_outevap(self.simple_sol[0], 
-                                            self.times[0]) + flux_out)
+                                            0.) + flux_out)
             if abs(first_step/self.simple_sol[0]) > 0.05:
                 print 'start mass:', self.simple_sol[0], 'change:', first_step
                 raise Exception, 'ERROR, reduce time step of fiber model!' +\
                             ' Change is mass over first time step > 5%'
-        for time in self.times[1:]:
+        time = self.times(tstep+1)
+        while time <= self.time_period+self.delta_t/10:
             tstep += 1
             if self.bound_right == EVAP:
                 #forward Euler on the dM/dt = -fluxout equation
@@ -798,8 +809,9 @@ class FiberModel(object):
                 raise NotImplementedError, 'out conc needed, not known'
             self.flux_at_surface[tstep] = self._bound_flux_uR(
                                             self.fiber_surface[tstep], time, conc_out)
+            time = self.times(tstep+1)
         if self.cfg.get('plot.plotmass'):
-            self.view_time(self.times, self.simple_sol, 'Mass in cross section fiber')
+            self.view_time(self.times(0, tstep), self.simple_sol, 'Mass in cross section fiber')
 
 ##    def solve_odeu(self):
 ##        self.initial_t = self.times[0]
@@ -878,10 +890,14 @@ class FiberModel(object):
         """
         Initialize the simple solver
         """
-        self.initial_t = self.times[0]
+        self.initial_t = 0.
         self.step_old_time = self.initial_t
         self.step_old_sol = self.initial_w1
-        self.simple_sol = np.empty(len(self.times), float)
+        self.simple_sol = np.empty(self.steps+1, float)
+        #storage for output
+        self.fiber_surface = sp.empty(self.steps+1, float)
+        #the radial flux at surface. Do times 2 pi radius() to obtain all flux
+        self.flux_at_surface = sp.empty(self.steps+1, float)
         self.simple_sol[0] = self.calc_mass(self.initial_c1)
         self.tstep = 0
         self.initialized = True
@@ -953,7 +969,7 @@ class FiberModel(object):
         if self.verbose:
             print 'Finished the fiber calculation'
         if self.cfg.get('plot.plotflux'):
-            self.view_time(self.times, self.flux_at_surface, 'Flux of DEET ($\mathrm{mg\cdot cm/s}$)')
+            self.view_time(self.times(0, self.step), self.flux_at_surface, 'Flux of DEET ($\mathrm{mg\cdot cm/s}$)')
 
     def do_step(self, stoptime, needreinit=True):
         """
@@ -970,7 +986,7 @@ class FiberModel(object):
         else:
             raise Exception, 'Not supported option %s' % self.submethod
 
-    def solve_init(self, clearmem = False):
+    def solve_init(self):
         """
         Initialize the solvers so they can be solved stepwize
         """
@@ -979,7 +995,7 @@ class FiberModel(object):
                 raise NotImplementedError, 'this option %s is no longer supported' % self.submethod
                 self.solve_fipy()
             elif  self.submethod in ['cvode', 'cvode_step']:
-                self.solve_odes_init(clearmem=clearmem)
+                self.solve_odes_init()
             elif  self.submethod in ['odew', 'odew_step']:
                 raise NotImplementedError, 'this option %s is no longer supported' % self.submethod
                 self.solve_ode_init()
@@ -1053,7 +1069,7 @@ class FiberModel(object):
             fipywrite({'space_position': self.grid, 'conc': self.conc1},
                 filename = utils.OUTPUTDIR + os.sep + 'sol_%s.gz' % self.submethod,
                 extension = '.gz')
-        fipywrite({'time_step':self.times, 'flux': self.flux_at_surface},
+        fipywrite({'time_step':self.times(0,self.steps), 'flux': self.flux_at_surface},
             filename = utils.OUTPUTDIR + os.sep + 'flux_boundary', 
             extension = '.gz')
 

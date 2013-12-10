@@ -84,8 +84,8 @@ class Yarn1DModel(object):
         self.time_period = self.cfg.get('time.time_period')
         self.delta_t = self.cfg.get('time.dt')
         self.steps = int((self.time_period*(1.+self.delta_t*1e-6)) // self.delta_t)
-        self.times = np.linspace(0., self.time_period, num=self.steps+1)
-        self.delta_t = self.times[1] - self.times[0]
+        #set correct delta_t
+        self.delta_t = self.time_period / self.steps
         if self.verbose:
             print "Timestep used in yarn1d model:", self.delta_t
         
@@ -145,6 +145,18 @@ class Yarn1DModel(object):
         self.source_overlap = 0.
 
         self.initialized = False
+
+    def times(self, timestep, end=None):
+        """ Compute the time at one of our steps
+        If end is given, all times between step timestep and step end are 
+        returned as a list, with end included
+        """
+        if end is None:
+            return timestep * self.delta_t
+        else:
+            begin = timestep * self.delta_t
+            end = end * self.delta_t
+            return np.linspace(begin, end, end-begin + 1)
 
     def create_mesh(self):
         """
@@ -272,7 +284,7 @@ class Yarn1DModel(object):
             return self.step_old_sol[data]
         raise ValueError, 'out concentration should only be requested at a later time'
 
-    def solve_fiber_init(self, clearmem = False):
+    def solve_fiber_init(self):
         """
         Solve the diffusion process for a repellent on the fiber at radial position r in the yarn.
         &C/&t = 1/r * &(Dr&C/&r) / &r
@@ -283,7 +295,7 @@ class Yarn1DModel(object):
         for ind, models in enumerate(self.fiber_models):
             for type, model in enumerate(models):
                 model.run_init()
-                model.solve_init(clearmem=clearmem)
+                model.solve_init()
                 #rebind the out_conc method to a call to yarn1d
                 if model.use_extend:
                     model.set_outconc(self.out_conc(ind, 0))
@@ -475,7 +487,7 @@ class Yarn1DModel(object):
         """
         Initialize the ode solver
         """
-        self.initial_t = self.times[0]
+        self.initial_t = 0.
         self.step_old_time = self.initial_t
         n_cells = len(self.init_conc)
         self.ret_y = np.empty(n_cells, float)
@@ -507,7 +519,7 @@ class Yarn1DModel(object):
         assert np.allclose(realtime, stoptime), "%f %f" % (realtime, stoptime)
         return stoptime, self.ret_y
 
-    def do_yarn_init(self, clearmem = False):
+    def do_yarn_init(self):
         """
         generic initialization needed before yarn can be solved
         """
@@ -515,9 +527,7 @@ class Yarn1DModel(object):
         self.initial_yarn1d()
         if not self.initialized:
             self.solve_ode_init()
-        if clearmem:
-            del self.times
-        self.solve_fiber_init(clearmem=clearmem)
+        self.solve_fiber_init()
 
     def do_yarn_step(self, stoptime):
         """
@@ -585,7 +595,7 @@ class Yarn1DModel(object):
         self.do_yarn_init()
         #data storage, will lead to memerror if many times !
         n_cells = len(self.init_conc)
-        self.conc1 = np.empty((len(self.times), n_cells), float)
+        self.conc1 = np.empty((self.steps+1, n_cells), float)
         self.conc1[0][:] = self.init_conc[:]
         
         print 'Start mass of DEET per grid cell per fiber type'
@@ -599,10 +609,15 @@ class Yarn1DModel(object):
         print 'Total mass in yarn', mc1, ', mass in overlap zone:', mc2, \
                 'Sum', mc1 + mc2
 
-        for t in self.times[1:]:
+        tstep = 0
+        t = self.times(tstep+1)
+        while t <= self.time_period+self.delta_t/10:
+            tstep += 1
             #print 'solving t', t
             rt, rety = self.do_yarn_step(t)
             self.conc1[self.tstep][:] = self.ret_y[:]
+            t = self.times(tstep+1)
+            
 
         print 'Final mass of DEET per grid cell per fiber type'
         for ind, masses in enumerate(self.fiber_mass):
@@ -615,7 +630,7 @@ class Yarn1DModel(object):
         print 'Total mass in yarn', mc1, ', mass in overlap zone:', mc2, \
                 'Sum', mc1 + mc2
 
-        self.view_sol(self.times, self.conc1)
+        self.view_sol(self.times(0,self.steps), self.conc1)
 
         if wait:
             raw_input("Finished yarn1d run")
