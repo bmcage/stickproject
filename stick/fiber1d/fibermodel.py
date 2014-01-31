@@ -164,8 +164,8 @@ class FiberModel(object):
             self.evap_minbound = self.cfg.get('boundary.evap_minbound')
             self.out_conc = eval(self.cfg.get('boundary.out_conc'))
             self.only_compound = self.cfg.get('boundary.only_compound')
-        #density in g/mm^3
-        self.density_compound = self.cfg.get('compound.density') * 1e-3
+        #density in microg/mm^3, convert from g / cm^3
+        self.density_compound = self.cfg.get('compound.density') * 1e3
 
         self.area_extend = self.cfg.get("fiber.extendarea")
         #data for stepwise operation
