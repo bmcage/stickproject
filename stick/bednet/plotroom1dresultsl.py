@@ -33,9 +33,9 @@ import matplotlib.pyplot as plt
 import math
 from numpy import pi
 
-BASEDIR = '/home/benny/stickproject/'
-PROBS = True  #set tot False if only one problem
-PROBTOLOAD = 'fabricmuslin_Deet.ini_25nmol1day'
+BASEDIR = '/Users/Tine/stickproject/'
+PROBS = False  #set tot False if only one problem
+PROBTOLOAD = 'bednet_Deet_test.ini'
 #PROBTOLOAD = 'fabricbednetY335_Deet.ini_50nmol8hour'
 #all problems must be over the same grid !
 PROBSTOLOAD = ['fabricbednetY335_Deet.ini_50nmol8hour', 
@@ -48,11 +48,11 @@ LABELS = ['50 nmol', '100 nmol', '200 nmol', '400 nmol']
 #    'fabricmuslin_Deet.ini_10nmol2min_b', 'fabricmuslin_Deet.ini_05nmol2min_b']
 ##LABELS = ['25 nmol', '20 nmol', '15 nmol', '10 nmol', '5 nmol']
 ARG = '/bednetroom1d_solpart_%05d.npz'
-INDEX = range(29) #range(4) # what dumped data to load
+INDEX = range(1) #range(4) # what dumped data to load
 EVERY = 60 #1    # what time data to skip to reduce plotting time
 
 #determine at what distance in mm to plot concentration over time: 
-x0 = [1, 5, 1000]
+x0 = [1, 5, 10, 500]
 
 double = True
 
@@ -147,7 +147,7 @@ def view_sol(times, sol, label=None):
         #plt.ylim(0, maxv*1.1)
         plt.plot(times, np.ones(len(times)) * saturation_conc, 'k--')
         plt.plot(times, np.ones(len(times)) * treshold, 'b--')
-        plt.legend()
+        #plt.legend()
         plt.draw()
         ind += 1
         #same plot in unit minutes !
@@ -165,12 +165,12 @@ def view_sol(times, sol, label=None):
         #plt.gca().yaxis.set_major_formatter(pylab.FormatStrFormatter('%e'))
         plt.title('Concentration at position %g mm' % xval)
         plt.plot(times/60, conc_in_point, usecolor, label=label)
-        if double:
-            plt.plot(times/60, 2*conc_in_point, usecolor+'--', label='2 x '+label)
+            #if double:
+            #plt.plot(times/60, 2*conc_in_point, usecolor+'--', label='2 x '+label)
         #plt.ylim(0,  treshold*1.1)
         ##plt.plot(times/60, np.ones(len(times)) * saturation_conc, 'k--')
         plt.plot(times/60, np.ones(len(times)) * treshold, 'b--')
-        plt.legend()
+        #plt.legend()
         plt.draw()
         ind +=1
         #same plot in unit hour !
@@ -190,7 +190,7 @@ def view_sol(times, sol, label=None):
         plt.plot(times/60/60, conc_in_point, label=label)
         plt.plot(times/60/60, np.ones(len(times)) * saturation_conc, 'k--')
         plt.plot(times/60/60, np.ones(len(times)) * treshold, 'b--')
-        plt.legend()
+        #plt.legend()
         plt.draw()
         ind +=1
         

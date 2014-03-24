@@ -145,7 +145,11 @@ class Yarn1DModel(object):
         self.source_overlap = 0.
 
         self.initialized = False
-
+    
+        self.fiberconc_center = np.empty((self.steps, 2),float)
+        self.fiberconc_middle = np.empty((self.steps, 2),float)
+        self.fiberconc_surface = np.empty((self.steps, 2),float)
+    
     def times(self, timestep, end=None):
         """ Compute the time at one of our steps
         If end is given, all times between step timestep and step end are 
@@ -315,6 +319,16 @@ class Yarn1DModel(object):
                 if model.use_extend:
                     model.set_outconc(self.out_conc(ind, self.step_old_time))
                 time, result = model.do_step(stoptime, needreinit=True)
+                self.fiberconc_center[self.tstep-1,0] = time
+                self.fiberconc_center[self.tstep-1,1] = result[0]
+                self.fiberconc_middle[self.tstep-1,0] = time
+                n = int(model.n_edge/2)
+                self.fiberconc_middle[self.tstep-1,1] = result[n]
+                self.fiberconc_surface[self.tstep-1,0] = time
+                self.fiberconc_surface[self.tstep-1,1] = result[-1]
+                filedata= open(utils.OUTPUTDIR + os.sep + "fiberconc_%05d" %stoptime + ".txt",'w')
+                filedata.write("conc on %.10f is %s" % (stoptime,result))
+                filedata.close()
                 tmp = model.calc_mass(result)
                 self.source_mass[ind, type] = self.fiber_mass[ind, type] - tmp
                 self.fiber_mass[ind, type] = tmp
@@ -552,7 +566,16 @@ class Yarn1DModel(object):
             realtime, self.step_old_sol = self.do_ode_step(t)
             self.tstep += 1
             self.step_old_time = t
-
+        filedata= open(utils.OUTPUTDIR + os.sep + "fiberconccenter" + ".txt",'w')
+        filedata.write("%s" % (self.fiberconc_center))
+        filedata.close()
+        filedata= open(utils.OUTPUTDIR + os.sep + "fiberconcmiddle" + ".txt",'w')
+        filedata.write("%s" % (self.fiberconc_middle))
+        filedata.close()
+        filedata= open(utils.OUTPUTDIR + os.sep + "fiberconcsurface" + ".txt",'w')
+        filedata.write("%s" % (self.fiberconc_surface))
+        filedata.close()
+        
         return realtime, self.step_old_sol
 
     def view_sol(self, times, conc):
@@ -617,7 +640,7 @@ class Yarn1DModel(object):
             rt, rety = self.do_yarn_step(t)
             self.conc1[self.tstep][:] = self.ret_y[:]
             t = self.times(tstep+1)
-            
+        
 
         print 'Final mass of DEET per grid cell per fiber type'
         for ind, masses in enumerate(self.fiber_mass):

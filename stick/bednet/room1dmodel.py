@@ -177,6 +177,9 @@ class Room1DModel(object):
         self.fabporosity = self.voidvolume / self.totalvolume_net
         
         self.initialized = False
+    
+        self.yarnconc_center = np.empty((self.timesteps, 2),float)
+        self.yarnconc_surface = np.empty((self.timesteps, 2),float)
 
     def times(self, timestep, end=None):
         """ Compute the time at one of our steps
@@ -412,6 +415,19 @@ class Room1DModel(object):
         # the corresponding concentration by dividing by the volume of a yarn pi Ry^2
         for ttype, model in enumerate(self.yarn_models):
             rt, rety = model.do_yarn_step(t)
+            self.yarnconc_center[self.tstep-1,0] = t
+            self.yarnconc_center[self.tstep-1,1] = rety[0]
+            self.yarnconc_surface[self.tstep-1,0] = t
+            self.yarnconc_surface[self.tstep-1,1] = rety[-1]
+            filedata= open(utils.OUTPUTDIR + os.sep + "yarnconc_%05d" %t + ".txt",'w')
+            filedata.write("conc on %.10f is %s" % (t,rety))
+            filedata.close()
+            filedata= open(utils.OUTPUTDIR + os.sep + "yarnconc_center%05d" %t + ".txt",'w')
+            filedata.write("conc on %.10f is %s" % (t,rety[0]))
+            filedata.close()
+            filedata= open(utils.OUTPUTDIR + os.sep + "yarnconc_surface_%05d" %t + ".txt",'w')
+            filedata.write("conc on %.10f is %s" % (t,rety[-1]))
+            filedata.close()
             tmp = model.calc_mass(rety)
             tmp_overlap = model.calc_mass_overlap(rety)
             # mass that goes into overlap is the mass that disappeared.
@@ -694,7 +710,7 @@ class Room1DModel(object):
                 print (' ')
             print ("Blend in yarn is", self.yarn_models[mind].blend)
         print ("**************\n\n")
-        raw_input("Press key to start")
+            #raw_input("Press key to start")
 
     def dump_sol(self, index):
         """ Dump solpart to file with extension index """
@@ -711,6 +727,35 @@ class Room1DModel(object):
                  totyarnmass = self.totyarnmass[:len(times)],
                  totroommass = self.totroommass[:len(times)]
                  )
+        #roomconc over time to textfile
+        filedata= open(utils.OUTPUTDIR + os.sep + "roomconc" + ".txt",'w')
+        filedata.write("conc in the room is %s" %(self.solpart[:len(times)]) )
+        filedata.close()
+        #roomconc at the outermost left position over time to textfile
+        self.roomconcleft = np.empty((len(times),2),float)
+        self.roomconcleft[:,0] = times
+        self.roomconcleft[:,1] = self.solpart[:len(times),0]
+        
+        self.roomconcmiddle  = np.empty((len(times),2),float)
+        self.roomconcmiddle[:,0] = times
+        self.roomconcmiddle[:,1] = self.solpart[:len(times),int(self.nr_cell/2)]
+        
+        self.roomconcright = np.empty((len(times),2),float)
+        self.roomconcright[:,0] = times
+        self.roomconcright[:,1] = self.solpart[:len(times),-1]
+        
+        filedata= open(utils.OUTPUTDIR + os.sep + "roomconcLEFT" + ".txt",'w')
+        #filedata.write("conc at outermost LEFT in the room is %s" %(self.solpart[:len(times),0]) )
+        filedata.write("%s" %self.roomconcleft)
+        filedata.close()
+        #roomconc at the middle of the room over time to textfile
+        filedata= open(utils.OUTPUTDIR + os.sep + "roomconcMIDDLE" + ".txt",'w')
+        filedata.write("%s" %(self.roomconcmiddle) )
+        filedata.close()
+        #roomconc at the outermost right position over time to textfile
+        filedata= open(utils.OUTPUTDIR + os.sep + "roomconcRIGHT" + ".txt",'w')
+        filedata.write("%s" %(self.roomconcright))
+        filedata.close()
 
     def run(self, wait=False):
         self.init_room()
@@ -737,7 +782,12 @@ class Room1DModel(object):
             
         #save solution to output file
         self.dump_sol(self.solstoreind)
-    
+        filedata= open(utils.OUTPUTDIR + os.sep + "yarnconccenter" + ".txt",'w')
+        filedata.write("%s" % (self.yarnconc_center))
+        filedata.close()
+        filedata= open(utils.OUTPUTDIR + os.sep + "yarnconcsurface" + ".txt",'w')
+        filedata.write("%s" % (self.yarnconc_surface))
+        filedata.close()
         fignr = self.view_sol()
         fignr = self.view_sol_mass(fignr+1)
         self.plot_room_sol(fignr+1)
