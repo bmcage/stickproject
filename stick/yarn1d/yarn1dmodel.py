@@ -567,13 +567,16 @@ class Yarn1DModel(object):
             self.tstep += 1
             self.step_old_time = t
         filedata= open(utils.OUTPUTDIR + os.sep + "fiberconccenter" + ".txt",'w')
-        filedata.write("%s" % (self.fiberconc_center))
+        for i in range(0,len(self.fiberconc_center)):
+            filedata.write("%.5f %.5f\n" % (self.fiberconc_center[i,0],self.fiberconc_center[i,1]))
         filedata.close()
         filedata= open(utils.OUTPUTDIR + os.sep + "fiberconcmiddle" + ".txt",'w')
-        filedata.write("%s" % (self.fiberconc_middle))
+        for i in range(0,len(self.fiberconc_middle)):
+            filedata.write("%.5f %.5f\n" % (self.fiberconc_middle[i,0],self.fiberconc_middle[i,1]))
         filedata.close()
         filedata= open(utils.OUTPUTDIR + os.sep + "fiberconcsurface" + ".txt",'w')
-        filedata.write("%s" % (self.fiberconc_surface))
+        for i in range(0,len(self.fiberconc_surface)):
+            filedata.write("%.5f %.5f\n" % (self.fiberconc_surface[i,0],self.fiberconc_surface[i,1]))
         filedata.close()
         
         return realtime, self.step_old_sol

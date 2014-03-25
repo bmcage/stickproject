@@ -745,16 +745,20 @@ class Room1DModel(object):
         self.roomconcright[:,1] = self.solpart[:len(times),-1]
         
         filedata= open(utils.OUTPUTDIR + os.sep + "roomconcLEFT" + ".txt",'w')
+        for i in range(0,len(self.roomconcleft)):
+            filedata.write("%.5f %.5f\n" % (self.roomconcleft[i,0],self.roomconcleft[i,1]))
         #filedata.write("conc at outermost LEFT in the room is %s" %(self.solpart[:len(times),0]) )
-        filedata.write("%s" %self.roomconcleft)
         filedata.close()
         #roomconc at the middle of the room over time to textfile
         filedata= open(utils.OUTPUTDIR + os.sep + "roomconcMIDDLE" + ".txt",'w')
-        filedata.write("%s" %(self.roomconcmiddle) )
+        for i in range(0,len(self.roomconcmiddle)):
+            filedata.write("%.5f %.5f\n" % (self.roomconcmiddle[i,0],self.roomconcmiddle[i,1]))
+        #filedata.write("conc at outermost LEFT in the room is %s" %(self.solpart[:len(times),0]) )
         filedata.close()
         #roomconc at the outermost right position over time to textfile
         filedata= open(utils.OUTPUTDIR + os.sep + "roomconcRIGHT" + ".txt",'w')
-        filedata.write("%s" %(self.roomconcright))
+        for i in range(0,len(self.roomconcright)):
+            filedata.write("%.5f %.5f\n" % (self.roomconcright[i,0],self.roomconcright[i,1]))
         filedata.close()
 
     def run(self, wait=False):
@@ -783,10 +787,12 @@ class Room1DModel(object):
         #save solution to output file
         self.dump_sol(self.solstoreind)
         filedata= open(utils.OUTPUTDIR + os.sep + "yarnconccenter" + ".txt",'w')
-        filedata.write("%s" % (self.yarnconc_center))
+        for i in range(len(self.yarnconc_center)):
+            filedata.write("%.8f %.8f\n" % (self.yarnconc_center[i,0],self.yarnconc_center[i,1]))
         filedata.close()
         filedata= open(utils.OUTPUTDIR + os.sep + "yarnconcsurface" + ".txt",'w')
-        filedata.write("%s" % (self.yarnconc_surface))
+        for i in range(len(self.yarnconc_surface)):
+            filedata.write("%.8f %.8f\n" % (self.yarnconc_surface[i,0],self.yarnconc_surface[i,1]))
         filedata.close()
         fignr = self.view_sol()
         fignr = self.view_sol_mass(fignr+1)
