@@ -35,7 +35,7 @@ from numpy import pi
 
 BASEDIR = '/Users/Tine/stickproject/'
 PROBS = False  #set tot False if only one problem
-PROBTOLOAD = 'bednet_Deet_test.ini'
+PROBTOLOAD = 'artikeltest.ini'
 #PROBTOLOAD = 'fabricbednetY335_Deet.ini_50nmol8hour'
 #all problems must be over the same grid !
 PROBSTOLOAD = ['fabricbednetY335_Deet.ini_50nmol8hour', 
@@ -48,7 +48,7 @@ LABELS = ['50 nmol', '100 nmol', '200 nmol', '400 nmol']
 #    'fabricmuslin_Deet.ini_10nmol2min_b', 'fabricmuslin_Deet.ini_05nmol2min_b']
 ##LABELS = ['25 nmol', '20 nmol', '15 nmol', '10 nmol', '5 nmol']
 ARG = '/bednetroom1d_solpart_%05d.npz'
-INDEX = range(1) #range(4) # what dumped data to load
+INDEX = range(2) #range(4) # what dumped data to load
 EVERY = 60 #1    # what time data to skip to reduce plotting time
 
 #determine at what distance in mm to plot concentration over time: 

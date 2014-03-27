@@ -35,7 +35,7 @@ from numpy import pi
 
 BASEDIR = '/Users/Tine/stickproject/'
 #PROBS = False  #set tot False if only one problem
-PROBTOLOAD = 'bednet_Deet_test.ini'
+PROBTOLOAD = 'artikeltest.ini'
 #PROBTOLOAD = 'fabricbednetY335_Deet.ini_50nmol8hour'
 #all problems must be over the same grid !
 #PROBSTOLOAD = ['fabricbednetY335_Deet.ini_50nmol8hour',
@@ -87,7 +87,6 @@ for ARG in ARGS:
     globals()['logconc%s' % j]= np.sort(globals()['logconc%s' % j])
     j+=1
 
-print (times2,sol2, logconc2)
 plotdata = []
 colors = 'bgrkmy'
 lencolors = len(colors)
@@ -105,7 +104,7 @@ def view_sol(time, concentration):
     color += 1
     plt.rc("font", family="serif")
     plt.rc("font", size=10)
-    width = 4.5  #width in inches
+    #width = 4.5  #width in inches
     height = 1.4 #height in inches
     plt.gca().set_xlabel('Time [s]')
     plt.gca().set_ylabel('Concentration [$\mu$g/mm$^3$]')
@@ -119,7 +118,8 @@ def view_sol(time, concentration):
                       "roomconcLEFT.txt",
                       "roomconcMIDDLE.txt",
                       "roomconcRIGHT.txt"
-                      ]
+                 ],bbox_to_anchor=(0.05, 0.5),loc=2
+
 )
     plt.draw()
 

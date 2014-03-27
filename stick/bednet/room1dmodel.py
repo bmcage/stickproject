@@ -419,15 +419,15 @@ class Room1DModel(object):
             self.yarnconc_center[self.tstep-1,1] = rety[0]
             self.yarnconc_surface[self.tstep-1,0] = t
             self.yarnconc_surface[self.tstep-1,1] = rety[-1]
-            filedata= open(utils.OUTPUTDIR + os.sep + "yarnconc_%05d" %t + ".txt",'w')
-            filedata.write("conc on %.10f is %s" % (t,rety))
-            filedata.close()
-            filedata= open(utils.OUTPUTDIR + os.sep + "yarnconc_center%05d" %t + ".txt",'w')
-            filedata.write("conc on %.10f is %s" % (t,rety[0]))
-            filedata.close()
-            filedata= open(utils.OUTPUTDIR + os.sep + "yarnconc_surface_%05d" %t + ".txt",'w')
-            filedata.write("conc on %.10f is %s" % (t,rety[-1]))
-            filedata.close()
+            #filedata= open(utils.OUTPUTDIR + os.sep + "yarnconc_%05d" %t + ".txt",'w')
+            #filedata.write("conc on %.10f is %s" % (t,rety))
+            #filedata.close()
+            #filedata= open(utils.OUTPUTDIR + os.sep + "yarnconc_center%05d" %t + ".txt",'w')
+            #filedata.write("conc on %.10f is %s" % (t,rety[0]))
+            #filedata.close()
+            #filedata= open(utils.OUTPUTDIR + os.sep + "yarnconc_surface_%05d" %t + ".txt",'w')
+            #filedata.write("conc on %.10f is %s" % (t,rety[-1]))
+            #filedata.close()
             tmp = model.calc_mass(rety)
             tmp_overlap = model.calc_mass_overlap(rety)
             # mass that goes into overlap is the mass that disappeared.

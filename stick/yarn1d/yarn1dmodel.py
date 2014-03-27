@@ -326,9 +326,9 @@ class Yarn1DModel(object):
                 self.fiberconc_middle[self.tstep-1,1] = result[n]
                 self.fiberconc_surface[self.tstep-1,0] = time
                 self.fiberconc_surface[self.tstep-1,1] = result[-1]
-                filedata= open(utils.OUTPUTDIR + os.sep + "fiberconc_%05d" %stoptime + ".txt",'w')
-                filedata.write("conc on %.10f is %s" % (stoptime,result))
-                filedata.close()
+                #filedata= open(utils.OUTPUTDIR + os.sep + "fiberconc_%05d" %stoptime + ".txt",'w')
+                #filedata.write("conc on %.10f is %s" % (stoptime,result))
+                #filedata.close()
                 tmp = model.calc_mass(result)
                 self.source_mass[ind, type] = self.fiber_mass[ind, type] - tmp
                 self.fiber_mass[ind, type] = tmp
