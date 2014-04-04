@@ -37,7 +37,7 @@ import matplotlib.pyplot as plt
 import math
 from numpy import pi
 
-MAX_STORE_LENGTH = 1000
+MAX_STORE_LENGTH = 10000
 INSPECT_MEM = False
 
 HAVE_ODES = False

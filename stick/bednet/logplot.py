@@ -35,7 +35,7 @@ from numpy import pi
 
 BASEDIR = '/Users/Tine/stickproject/'
 #PROBS = False  #set tot False if only one problem
-PROBTOLOAD = 'artikeltest.ini'
+PROBTOLOAD = 'fabric.ini'
 #PROBTOLOAD = 'fabricbednetY335_Deet.ini_50nmol8hour'
 #all problems must be over the same grid !
 #PROBSTOLOAD = ['fabricbednetY335_Deet.ini_50nmol8hour',
@@ -104,8 +104,7 @@ def view_sol(time, concentration):
     color += 1
     plt.rc("font", family="serif")
     plt.rc("font", size=10)
-    #width = 4.5  #width in inches
-    height = 1.4 #height in inches
+    plt.figure(figsize=(8, 5))
     plt.gca().set_xlabel('Time [s]')
     plt.gca().set_ylabel('Concentration [$\mu$g/mm$^3$]')
     plt.title('Log(concentration) vs time')
@@ -118,8 +117,8 @@ def view_sol(time, concentration):
                       "roomconcLEFT.txt",
                       "roomconcMIDDLE.txt",
                       "roomconcRIGHT.txt"
-                 ],bbox_to_anchor=(0.05, 0.5),loc=2
-
+                 ],loc='upper center', bbox_to_anchor=(0.5, 0.85),
+               ncol=3, fancybox=True, shadow=True
 )
     plt.draw()
 
