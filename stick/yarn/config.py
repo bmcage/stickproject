@@ -178,7 +178,7 @@ class YarnConfigManager(ConfigManager):
         self.register("boundary.conc_out", 0.,
             "outside concentration, so if type diff_flux, "
             "flux = - D_out * (conc_out - yarn_edge_conc)/dist_conc_out")
-        self.register("boundary.D_out", 25.,
+        self.register("boundary.D_out", 7.77,
             "outside diffusion coef [unit mm2/s], so if type diff_flux, "
             "flux = - D_out * (conc_out - yarn_edge_conc)/dist_conc_out")
         self.register("boundary.dist_conc_out", 0.1,

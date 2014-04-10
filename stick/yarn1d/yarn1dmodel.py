@@ -332,7 +332,13 @@ class Yarn1DModel(object):
                 tmp = model.calc_mass(result)
                 self.source_mass[ind, type] = self.fiber_mass[ind, type] - tmp
                 self.fiber_mass[ind, type] = tmp
-
+                                
+    def get_fiber_mass(self):
+        """
+        method for reading fiberconcentrations from roommodel
+        """
+        return self.fiberconc_center, self.fiberconc_middle, self.fiberconc_surface
+                
     def _set_bound_flux(self, flux_edge, conc_r):
         """
         Method that takes BC into account to set flux on edge

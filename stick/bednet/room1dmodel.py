@@ -37,7 +37,8 @@ import matplotlib.pyplot as plt
 import math
 from numpy import pi
 
-MAX_STORE_LENGTH = 10000
+MAX_STORE_LENGTH = 1000
+MAX_PLOT_LENGTH = 500000
 INSPECT_MEM = False
 
 HAVE_ODES = False
@@ -273,6 +274,7 @@ class Room1DModel(object):
         self.yarn_mass = [0] * len(self.yarn_models)
         self.yarn_mass_overlap = [0] * len(self.yarn_models)
         self.yarn_mass_overlap_old = [0] * len(self.yarn_models)
+        #self.fibermass = [0] * len(self.yarn_models)
         self.tstep = 0
         for ind, model in enumerate(self.yarn_models):
             model.do_yarn_init()
@@ -285,6 +287,8 @@ class Room1DModel(object):
             self.yarn_mass_overlap[ind] = model.calc_mass_overlap(model.init_conc)
             # no mass released at start time
             self.source_mass[ind] = 0.
+            #self.fibermass = model.get_fiber_mass()
+            #print(self.fibermass)
 
     def f_conc_ode(self, t, conc_x, diff_u_t):
         """
@@ -714,7 +718,12 @@ class Room1DModel(object):
 
     def dump_sol(self, index):
         """ Dump solpart to file with extension index """
+        for mind, val in enumerate(self.yarn_mass):
+            for ind, models in enumerate(self.yarn_models[mind].fiber_models):
+                for type, model in enumerate(models):
+                   self.fibermass = self.yarn_models[mind].get_fiber_mass()
         times = self.times(index*MAX_STORE_LENGTH, self.tstep-1)
+        timestxt = self.times(index*MAX_PLOT_LENGTH,self.tstep-1)
         newyarnmass = [0] * len(self.yarnmass)
         for ind in range(len(self.yarnmass)):
             newyarnmass[ind] = self.yarnmass[ind][:len(times)]
@@ -723,26 +732,27 @@ class Room1DModel(object):
                  sol = self.solpart[:len(times)],
                  tresh_sat = [self.saturation_conc, self.treshold],
                  grid_cellcenters = self.grid,
+                 fibermass = self.fibermass,
                  yarnmass = newyarnmass,
                  totyarnmass = self.totyarnmass[:len(times)],
                  totroommass = self.totroommass[:len(times)]
                  )
         #roomconc over time to textfile
         filedata= open(utils.OUTPUTDIR + os.sep + "roomconc" + ".txt",'w')
-        filedata.write("conc in the room is %s" %(self.solpart[:len(times)]) )
+        filedata.write("conc in the room is %s" %(self.solpart[:len(timestxt)]) )
         filedata.close()
         #roomconc at the outermost left position over time to textfile
-        self.roomconcleft = np.empty((len(times),2),float)
-        self.roomconcleft[:,0] = times
-        self.roomconcleft[:,1] = self.solpart[:len(times),0]
+        self.roomconcleft = np.empty((len(timestxt),2),float)
+        self.roomconcleft[:,0] = timestxt
+        self.roomconcleft[:,1] = self.solpart[:len(timestxt),0]
         
-        self.roomconcmiddle  = np.empty((len(times),2),float)
-        self.roomconcmiddle[:,0] = times
-        self.roomconcmiddle[:,1] = self.solpart[:len(times),int(self.nr_cell/2)]
+        self.roomconcmiddle  = np.empty((len(timestxt),2),float)
+        self.roomconcmiddle[:,0] = timestxt
+        self.roomconcmiddle[:,1] = self.solpart[:len(timestxt),int(self.nr_cell/2)]
         
-        self.roomconcright = np.empty((len(times),2),float)
-        self.roomconcright[:,0] = times
-        self.roomconcright[:,1] = self.solpart[:len(times),-1]
+        self.roomconcright = np.empty((len(timestxt),2),float)
+        self.roomconcright[:,0] = timestxt
+        self.roomconcright[:,1] = self.solpart[:len(timestxt),-1]
         
         filedata= open(utils.OUTPUTDIR + os.sep + "roomconcLEFT" + ".txt",'w')
         for i in range(0,len(self.roomconcleft)):

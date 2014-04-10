@@ -35,7 +35,7 @@ from numpy import pi
 
 BASEDIR = '/Users/Tine/stickproject/'
 #PROBS = False  #set tot False if only one problem
-PROBTOLOAD = 'fabric.ini'
+PROBTOLOAD = 'BlockingZone.ini'
 #PROBTOLOAD = 'fabricbednetY335_Deet.ini_50nmol8hour'
 #all problems must be over the same grid !
 #PROBSTOLOAD = ['fabricbednetY335_Deet.ini_50nmol8hour',
