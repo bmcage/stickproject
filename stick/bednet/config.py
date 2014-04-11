@@ -116,7 +116,7 @@ class BednetConfigManager(ConfigManager):
         self.register("domain.n_edge", 40, "When modeling a room, number of "
             "edges to take into account to divide the domain")
         self.register("domain.ventilation", 'None', "A ventilation to the room."
-            "Select one of 'None', 'zero_on_edge'and 'advection'")
+            "Select one of 'None', 'zero_on_edge' and 'advection'")
         self.register("domain.vel_ventilation", 0.2,
             "If ventilation is 'advection', give here the velocity of air flow"
             " in the room in units m/s")
