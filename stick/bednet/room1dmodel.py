@@ -48,6 +48,9 @@ try:
 except:
     print ('Could not load scikits.odes, odes solver not available')
 
+#consider absorption problem possible or not?
+ABSORPTION = True
+
 #-------------------------------------------------------------------------
 #
 # Local Imports
@@ -441,13 +444,15 @@ class Room1DModel(object):
             self.yarn_mass[ttype] = tmp
             self.yarn_mass_overlap_old[ttype] = self.yarn_mass_overlap[ttype]
             self.yarn_mass_overlap[ttype] = tmp_overlap
-            if self.source_mass[ttype] < 0.:
-                print ("source mass", self.source_mass[ttype])
-                if abs(self.source_mass[ttype]) < 100:
-                    #self.source_mass[ttype, self.tstep] = 0.
-                    print ('WARNING: small negative release, reduce timestep fiber/yarn if needed')
-                else:
-                    raise NotImplementedError, 'source must be positive, negative not supported'
+            if (ABSORPTION != True):
+                # we check on absorption, and give error if too big
+                if self.source_mass[ttype] < 0.:
+                    print ("source mass", self.source_mass[ttype])
+                    if abs(self.source_mass[ttype]) < 100:
+                        #self.source_mass[ttype, self.tstep] = 0.
+                        print ('WARNING: small negative release, reduce timestep fiber/yarn if needed')
+                    else:
+                        raise NotImplementedError, 'source must be positive, negative not supported'
 
         # 2. step two, solve the room model
         #    to obtain new concentration value near yarn.

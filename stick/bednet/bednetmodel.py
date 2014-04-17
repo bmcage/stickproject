@@ -48,6 +48,7 @@ import stick.lib.utils.gridutils as GridUtils
 from stick.yarn.config import YarnConfigManager
 from stick.yarn1d.yarn1dmodel import Yarn1DModel
 
+ABSORPTION = False
 #-------------------------------------------------------------------------
 #
 # DiffusionModel-fabric1d class 
@@ -203,12 +204,13 @@ class Bednet(object):
             #self.source_mass[ttype, self.tstep] /= V
             print 'mass yarn now', tmp, 'prev', self.yarn_mass[ttype], 'release', self.source_mass[ttype, self.tstep]
             self.yarn_mass[ttype] = tmp
-            if self.source_mass[ttype, self.tstep] < 0.:
-                if abs(self.source_mass[ttype, self.tstep]) < 1e-7:
-                    self.source_mass[ttype, self.tstep] = 0.
-                    print 'WARNING: small negative release, set to 0'
-                else:
-                    raise NotImplementedError, 'source must be positive, negative not supported'
+            if ABSORPTION != True:
+                if self.source_mass[ttype, self.tstep] < 0.:
+                    if abs(self.source_mass[ttype, self.tstep]) < 1e-7:
+                        self.source_mass[ttype, self.tstep] = 0.
+                        print 'WARNING: small negative release, set to 0'
+                    else:
+                        raise NotImplementedError, 'source must be positive, negative not supported'
         ##raw_input('Continue press ENTER')
 
         # 2. step two, solve the bednet model
