@@ -33,10 +33,12 @@ import matplotlib.pyplot as plt
 import math
 from numpy import pi
 
-BASEDIR = '/Users/Tine/stickproject/'
+#BASEDIR = '/Users/Tine/stickproject/'
+BASEDIR = '/home/benny/stickproject/'
 PROBS = False  #set tot False if only one problem
-PROBTOLOAD = 'fabric.ini'
+#PROBTOLOAD = 'fabric.ini'
 #PROBTOLOAD = 'fabricbednetY335_Deet.ini_50nmol8hour'
+PROBTOLOAD = 'fabricbednetY335_replenish.ini'
 #all problems must be over the same grid !
 PROBSTOLOAD = ['fabricbednetY335_Deet.ini_50nmol8hour', 
     'fabricbednetY335_Deet.ini_100nmol8hour', 
@@ -48,11 +50,12 @@ LABELS = ['50 nmol', '100 nmol', '200 nmol', '400 nmol']
 #    'fabricmuslin_Deet.ini_10nmol2min_b', 'fabricmuslin_Deet.ini_05nmol2min_b']
 ##LABELS = ['25 nmol', '20 nmol', '15 nmol', '10 nmol', '5 nmol']
 ARG = '/bednetroom1d_solpart_%05d.npz'
-INDEX = range(1) #range(4) # what dumped data to load
+INDEX = range(15) #range(4) # what dumped data to load
 EVERY = 60 #1    # what time data to skip to reduce plotting time
 
 #determine at what distance in mm to plot concentration over time: 
-x0 = [1, 5, 10, 500]
+#x0 = [1, 5, 10, 500]
+x0 = [1, 4]
 
 double = True
 
