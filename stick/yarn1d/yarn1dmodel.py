@@ -323,10 +323,10 @@ class Yarn1DModel(object):
                 if model.use_extend:
                     model.set_outconc(self.out_conc(ind, self.step_old_time))
                 time, result = model.do_step(stoptime, needreinit=True)
-                self.fiberconc_center = result[0]/model.grid[0]
+                self.fiberconc_center = result[0]
                 n = int((model.tot_edges_no_extend-2)/2)
-                self.fiberconc_middle = result[n]/model.grid[n]
-                self.fiberconc_surface = result[model.tot_edges_no_extend-2]/model.grid[model.tot_edges_no_extend-2]
+                self.fiberconc_middle = result[n]
+                self.fiberconc_surface = result[model.tot_edges_no_extend-2]
                 #filedata= open(utils.OUTPUTDIR + os.sep + "fiberconc_%05d" %stoptime + ".txt",'w')
                 #filedata.write("conc on %.10f is %s" % (stoptime,result))
                 #filedata.close()
