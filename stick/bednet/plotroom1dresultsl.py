@@ -38,7 +38,7 @@ BASEDIR = '/home/benny/stickproject/'
 PROBS = False  #set tot False if only one problem
 #PROBTOLOAD = 'fabric.ini'
 #PROBTOLOAD = 'fabricbednetY335_Deet.ini_50nmol8hour'
-PROBTOLOAD = 'fabricbednetY335_replenish.ini'
+PROBTOLOAD = 'fabricbednetY335_replenishtest.ini'
 #all problems must be over the same grid !
 PROBSTOLOAD = ['fabricbednetY335_Deet.ini_50nmol8hour', 
     'fabricbednetY335_Deet.ini_100nmol8hour', 
@@ -50,8 +50,8 @@ LABELS = ['50 nmol', '100 nmol', '200 nmol', '400 nmol']
 #    'fabricmuslin_Deet.ini_10nmol2min_b', 'fabricmuslin_Deet.ini_05nmol2min_b']
 ##LABELS = ['25 nmol', '20 nmol', '15 nmol', '10 nmol', '5 nmol']
 ARG = '/bednetroom1d_solpart_%05d.npz'
-INDEX = range(15) #range(4) # what dumped data to load
-EVERY = 60 #1    # what time data to skip to reduce plotting time
+INDEX = range(1) #range(4) # what dumped data to load
+EVERY = 1 #1    # what time data to skip to reduce plotting time
 
 #determine at what distance in mm to plot concentration over time: 
 #x0 = [1, 5, 10, 500]
@@ -67,6 +67,9 @@ ltimes = []
 ltotyarnmass = []
 ltotroommass = []
 lyarnmass = []
+lfconc_sta = []
+lfconc_mid = []
+lfconc_end = []
 lsol = []
 for PROBTOLOAD in PROBSTOLOAD:
   times = np.empty(0, float)
@@ -99,27 +102,31 @@ for PROBTOLOAD in PROBSTOLOAD:
             
         if yarnmass is None:
             yarnmass = [0] * len(data['yarnmass'])
+            fconc_sta = [0] * len(data['yarnmass'])
+            fconc_mid = [0] * len(data['yarnmass'])
+            fconc_end = [0] * len(data['yarnmass'])
             for ind in range(len(data['yarnmass'])):
                 yarnmass[ind] = np.empty(0, float)
+                fconc_sta[ind] =  np.empty(0, float)
+                fconc_mid[ind] =  np.empty(0, float)
+                fconc_end[ind] =  np.empty(0, float)
         for ind, dt in enumerate(data['yarnmass']):
             yarnmass[ind] = np.append(yarnmass[ind], dt[::EVERY])  #self.yarnmass
+            fconc_sta[ind] = np.append(fconc_sta[ind], data['fconc_sta'][::EVERY])
+            fconc_mid[ind] = np.append(fconc_mid[ind], data['fconc_mid'][::EVERY])
+            fconc_end[ind] = np.append(fconc_end[ind], data['fconc_end'][::EVERY])
         totyarnmass = np.append(totyarnmass, data['totyarnmass'][::EVERY]) #self.totyarnmass
         totroommass = np.append(totroommass, data['totroommass'][::EVERY]) #self.totroommass
-        #for ind, dt in enumerate(data['fibermass']])
-        fiberconc_center = np.append(fiberconc_center, data['fibermass'][0,:,1])
-        fiberconc_middle = np.append(fiberconc_middle, data['fibermass'][1,:,1])
-        fiberconc_surface = np.append(fiberconc_surface, data['fibermass'][2,:,1])
-        fibertimes = np.append(fibertimes, data['fibermass'][0,:,0])
-        fiberconc_center = np.sort(fiberconc_center)
-        fiberconc_middle = np.sort(fiberconc_middle)
-        fiberconc_surface = np.sort(fiberconc_surface)
-        fibertimes = np.sort(fibertimes)
+        
   #times are up to max time, not up to end of simulation, so trim
   ltimes += [times]
   lsol += [sol]
   ltotyarnmass += [totyarnmass]
   ltotroommass += [totroommass]
   lyarnmass += [yarnmass]
+  lfconc_sta += [fconc_sta]
+  lfconc_mid += [fconc_mid]
+  lfconc_end += [fconc_end]
   prob += 1
 #now we determine how to interpolate over the grid for x0
 plotdata = []
@@ -212,38 +219,43 @@ def view_sol(times, sol, label=None):
         #plt.savefig('AIconc_%03.1f_mm' % xval + '.png')
     return ind
 
-def view_fiberconc(fibertimes, fiberconc_center, fiberconc_middle, fiberconc_surface, label=None):
+def view_fiberconc(ind, fibertimes, yfiberconc_center, yfiberconc_middle, yfiberconc_surf, label=None):
+    fignr = ind
     plt.ion()
-    plt.figure()
-    #center of fiber
-    plt.rc("font", family="serif")
-    plt.rc("font", size=10)
+    for fiberconc_center, fiberconc_middle, fiberconc_surf in zip(yfiberconc_center, yfiberconc_middle, yfiberconc_surf):
+        plt.figure(fignr)
+        fignr += 1
+        #center of fiber
+        plt.rc("font", family="serif")
+        plt.rc("font", size=10)
         #width = 4.5  #width in inches
         #height = 1.4 #height in inches
-    plt.gca().set_xlabel('Time [s]')
-    plt.gca().set_ylabel('Conc [$\mu$g]')
-    plt.title('Conc AC in fiber center')
-    plt.plot(fibertimes, fiberconc_center, label=label)
-    plt.figure()
-    #middle of fiber    
-    plt.rc("font", family="serif")
-    plt.rc("font", size=10)
+        plt.gca().set_xlabel('Time [s]')
+        plt.gca().set_ylabel('Conc [$\mu$g/mm$^3$]')
+        plt.title('Conc AI in fiber center')
+        plt.plot(fibertimes, fiberconc_center, '.', label=label)
+        plt.figure(fignr)
+        fignr += 1
+        #middle of fiber    
+        plt.rc("font", family="serif")
+        plt.rc("font", size=10)
         #width = 4.5  #width in inches
         #height = 1.4 #height in inches
-    plt.gca().set_xlabel('Time [s]')
-    plt.gca().set_ylabel('Conc [$\mu$g]')
-    plt.title('Conc AC in middle of fiber coating')
-    plt.plot(fibertimes, fiberconc_middle, label=label)
-    plt.figure()
-    #surface of fiber
-    plt.rc("font", family="serif")
-    plt.rc("font", size=10)
+        plt.gca().set_xlabel('Time [s]')
+        plt.gca().set_ylabel('Conc [$\mu$g/mm$^3$]')
+        plt.title('Conc AI in middle of fiber coating')
+        plt.plot(fibertimes, fiberconc_middle, '.', label=label)
+        plt.figure(fignr)
+        fignr += 1
+        #surface of fiber
+        plt.rc("font", family="serif")
+        plt.rc("font", size=10)
         #width = 4.5  #width in inches
         #height = 1.4 #height in inches
-    plt.gca().set_xlabel('Time [s]')
-    plt.gca().set_ylabel('Conc [$\mu$g]')
-    plt.title('Conc AC on fiber surface')
-    plt.plot(fibertimes, fiberconc_surface, label=label)    
+        plt.gca().set_xlabel('Time [s]')
+        plt.gca().set_ylabel('Conc [$\mu$g/mm$^3$]')
+        plt.title('Conc AI on fiber surface')
+        plt.plot(fibertimes, fiberconc_surf, '.', label=label)    
 
 def view_sol_mass(ind, times, yarnmass, totyarnmass, totroommass, label=None):
     """
@@ -301,7 +313,10 @@ for times, sol, label in zip(ltimes, lsol, LABELS):
     
 for times, yarnmass, totyarnmass, totroommass, label in zip(ltimes, lyarnmass,
                                         ltotyarnmass, ltotroommass, LABELS):
-    view_sol_mass(ind, times, yarnmass, totyarnmass, totroommass, label)
+    newind = view_sol_mass(ind, times, yarnmass, totyarnmass, totroommass, label)
 
-view_fiberconc(fibertimes,fiberconc_center,fiberconc_middle,fiberconc_surface)
+for times, fconc_sta, fconc_mid, fconc_end in zip(ltimes, lfconc_sta, 
+                                                  lfconc_mid, lfconc_end):
+    view_fiberconc(newind, times,fconc_sta,fconc_mid,fconc_end)
+
 plt.show(block=True) #block=True)

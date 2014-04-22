@@ -244,10 +244,14 @@ class Room1DModel(object):
         """
         #First, the mass in the yarns
         yarnmass = [None] * len(self.yarn_models)
+        fiberconc_sta = [None] * len(self.yarn_models)
+        fiberconc_mid = [None] * len(self.yarn_models)
+        fiberconc_end = [None] * len(self.yarn_models)
         yarnmassoverlap = [None] * len(self.yarn_models)
         for ttype, model in enumerate(self.yarn_models):
             yarnmass[ttype] = model.calc_mass(model.step_old_sol) 
             yarnmassoverlap[ttype] = model.calc_mass_overlap(model.step_old_sol)
+            fiberconc_sta[ttype], fiberconc_mid[ttype], fiberconc_end[ttype] = model.get_fiber_conc()
         #Next, the upscaled mass in the yarns
         totyarnmass = [None] * len(self.yarn_models)
         totyarnmassoverlap = [None] * len(self.yarn_models)
@@ -265,7 +269,7 @@ class Room1DModel(object):
             roommass = 2*np.sum(self.delta_x[1:] * self.room_H * self.room_W * self.step_old_sol[1:])
 
         return (yarnmass, yarnmassoverlap, totyarnmass, totyarnmassoverlap,
-                roommass, roomoverlapmass)
+                roommass, roomoverlapmass, fiberconc_sta, fiberconc_mid, fiberconc_end)
 
     def initial_room(self):
         """ initial concentration in the room domain
@@ -277,7 +281,6 @@ class Room1DModel(object):
         self.yarn_mass = [0] * len(self.yarn_models)
         self.yarn_mass_overlap = [0] * len(self.yarn_models)
         self.yarn_mass_overlap_old = [0] * len(self.yarn_models)
-        #self.fibermass = [0] * len(self.yarn_models)
         self.tstep = 0
         for ind, model in enumerate(self.yarn_models):
             model.do_yarn_init()
@@ -637,6 +640,31 @@ class Room1DModel(object):
             plt.savefig(utils.OUTPUTDIR + os.sep 
                         + 'AImass_yarn_%d' % ind + const.FIGFILEEXT)
             fignr += 1
+            #now show evolution of fiber conc in center
+            plt.figure(fignr)
+            plt.gca().set_xlabel('Time [s]')
+            plt.gca().set_ylabel('Conc [$\mu$g/mm$^3$]')
+            plt.title('Conc center fiber in yarn type %d' % ind)
+            plt.plot(times, self.fconc_sta[ind][:(self.tstep-1) % MAX_STORE_LENGTH+1])
+            plt.savefig(utils.OUTPUTDIR + os.sep 
+                        + 'AIconc_fibstart_%d' % ind + const.FIGFILEEXT)
+            fignr += 1
+            plt.figure(fignr)
+            plt.gca().set_xlabel('Time [s]')
+            plt.gca().set_ylabel('Conc [$\mu$g/mm$^3$]')
+            plt.title('Conc middle fiber in yarn type %d' % ind)
+            plt.plot(times, self.fconc_mid[ind][:(self.tstep-1) % MAX_STORE_LENGTH+1])
+            plt.savefig(utils.OUTPUTDIR + os.sep 
+                        + 'AIconc_fibmid_%d' % ind + const.FIGFILEEXT)
+            fignr += 1
+            plt.figure(fignr)
+            plt.gca().set_xlabel('Time [s]')
+            plt.gca().set_ylabel('Conc [$\mu$g/mm$^3$]')
+            plt.title('Conc surface fiber in yarn type %d' % ind)
+            plt.plot(times, self.fconc_end[ind][:(self.tstep-1) % MAX_STORE_LENGTH+1])
+            plt.savefig(utils.OUTPUTDIR + os.sep 
+                        + 'AIconc_fibend_%d' % ind + const.FIGFILEEXT)
+            fignr += 1
 
         plt.figure(fignr)
         plt.gca().set_xlabel('Time [s]')
@@ -675,8 +703,14 @@ class Room1DModel(object):
             self.solve_ode_init()
         #storage for mass values
         self.yarnmass = [None] * len(self.yarn_models)
+        self.fconc_sta = [None] * len(self.yarn_models)
+        self.fconc_mid = [None] * len(self.yarn_models)
+        self.fconc_end = [None] * len(self.yarn_models)
         for ind in range(len(self.yarn_models)):
             self.yarnmass[ind] = np.empty(MAX_STORE_LENGTH, float)
+            self.fconc_sta[ind] = np.empty(MAX_STORE_LENGTH, float)
+            self.fconc_mid[ind] = np.empty(MAX_STORE_LENGTH, float)
+            self.fconc_end[ind] = np.empty(MAX_STORE_LENGTH, float)
         self.totyarnmass = np.empty(MAX_STORE_LENGTH, float)
         self.totroommass = np.empty(MAX_STORE_LENGTH, float)
         #compute the initial masses
@@ -684,10 +718,14 @@ class Room1DModel(object):
 
     def __store_masses(self, ind):
         (yarnmass, yarnmassoverlap, totyarnmass, totyarnmassoverlap,
-                roommass, roomoverlapmass) = self.calc_mass()
+                roommass, roomoverlapmass, fconc_sta, fconc_mid, fconc_end) \
+                = self.calc_mass()
         #compute initial values
         for mind, val in enumerate(yarnmass):
             self.yarnmass[mind][ind%MAX_STORE_LENGTH] = val
+            self.fconc_sta[mind][ind%MAX_STORE_LENGTH] = fconc_sta[mind]
+            self.fconc_mid[mind][ind%MAX_STORE_LENGTH] = fconc_mid[mind]
+            self.fconc_end[mind][ind%MAX_STORE_LENGTH] = fconc_end[mind]
         self.totyarnmass[ind%MAX_STORE_LENGTH] = np.sum(totyarnmass) #+ np.sum(totyarnmassoverlap)
         self.totroommass[ind%MAX_STORE_LENGTH] = roommass + roomoverlapmass
 
@@ -723,24 +761,29 @@ class Room1DModel(object):
 
     def dump_sol(self, index):
         """ Dump solpart to file with extension index """
-        for mind, val in enumerate(self.yarn_mass):
-            for ind, models in enumerate(self.yarn_models[mind].fiber_models):
-                for type, model in enumerate(models):
-                   self.fibermass = self.yarn_models[mind].get_fiber_mass()
         times = self.times(index*MAX_STORE_LENGTH, self.tstep-1)
         timestxt = self.times(index*MAX_PLOT_LENGTH,self.tstep-1)
         newyarnmass = [0] * len(self.yarnmass)
+        newfconc_sta = [0] * len(self.fconc_sta)
+        newfconc_mid = [0] * len(self.fconc_mid)
+        newfconc_end = [0] * len(self.fconc_end)
+        nr = len(times)
         for ind in range(len(self.yarnmass)):
-            newyarnmass[ind] = self.yarnmass[ind][:len(times)]
+            newyarnmass[ind] = self.yarnmass[ind][:nr]
+            newfconc_sta[ind] = self.fconc_sta[ind][:nr]
+            newfconc_mid[ind] = self.fconc_mid[ind][:nr]
+            newfconc_end[ind] = self.fconc_end[ind][:nr]
         np.savez(utils.OUTPUTDIR + os.sep + 'bednetroom1d_solpart_%05d.npz' % index,
                  times=times,
                  sol = self.solpart[:len(times)],
                  tresh_sat = [self.saturation_conc, self.treshold],
                  grid_cellcenters = self.grid,
-                 fibermass = self.fibermass,
                  yarnmass = newyarnmass,
                  totyarnmass = self.totyarnmass[:len(times)],
-                 totroommass = self.totroommass[:len(times)]
+                 totroommass = self.totroommass[:len(times)],
+                 fconc_sta = newfconc_sta,
+                 fconc_mid = newfconc_mid,
+                 fconc_end = newfconc_end
                  )
         #roomconc over time to textfile
         filedata= open(utils.OUTPUTDIR + os.sep + "roomconc" + ".txt",'w')

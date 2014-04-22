@@ -146,9 +146,9 @@ class Yarn1DModel(object):
 
         self.initialized = False
     
-        self.fiberconc_center = np.empty((self.steps, 2),float)
-        self.fiberconc_middle = np.empty((self.steps, 2),float)
-        self.fiberconc_surface = np.empty((self.steps, 2),float)
+        self.fiberconc_center = 0
+        self.fiberconc_middle = 0
+        self.fiberconc_surface = 0
     
     def times(self, timestep, end=None):
         """ Compute the time at one of our steps
@@ -271,7 +271,7 @@ class Yarn1DModel(object):
         #zero to the outside
         for ind, r in enumerate(self.grid[:self.nr_cell]):
             self.init_conc[ind] = self.init_conc_func(r)
-        self.init_conc[self.nr_cell:] = self.cfg.get('boundary.conc_out')
+        self.init_conc[self.nr_cell:] = self.boundary_conc_out
 
     def get_data(self, cellnr):
         index = cellnr
@@ -307,6 +307,10 @@ class Yarn1DModel(object):
                     model.set_userdata(self.get_data(ind))
                     model.out_conc = lambda t, data: self.out_conc(data, t)
                 self.fiber_mass[ind, type] = model.calc_mass(model.initial_c1)
+                self.fiberconc_center = model.initial_c1[0]
+                n = int((model.tot_edges_no_extend-2)/2)
+                self.fiberconc_middle = model.initial_c1[n]
+                self.fiberconc_surface = model.initial_c1[model.tot_edges_no_extend-2]
 
     def do_fiber_step(self, stoptime):
         """
@@ -319,13 +323,10 @@ class Yarn1DModel(object):
                 if model.use_extend:
                     model.set_outconc(self.out_conc(ind, self.step_old_time))
                 time, result = model.do_step(stoptime, needreinit=True)
-                self.fiberconc_center[self.tstep-1,0] = time
-                self.fiberconc_center[self.tstep-1,1] = result[0]
-                self.fiberconc_middle[self.tstep-1,0] = time
-                n = int(model.n_edge/2)
-                self.fiberconc_middle[self.tstep-1,1] = result[n]
-                self.fiberconc_surface[self.tstep-1,0] = time
-                self.fiberconc_surface[self.tstep-1,1] = result[-1]
+                self.fiberconc_center = result[0]/model.grid[0]
+                n = int((model.tot_edges_no_extend-2)/2)
+                self.fiberconc_middle = result[n]/model.grid[n]
+                self.fiberconc_surface = result[model.tot_edges_no_extend-2]/model.grid[model.tot_edges_no_extend-2]
                 #filedata= open(utils.OUTPUTDIR + os.sep + "fiberconc_%05d" %stoptime + ".txt",'w')
                 #filedata.write("conc on %.10f is %s" % (stoptime,result))
                 #filedata.close()
@@ -333,9 +334,10 @@ class Yarn1DModel(object):
                 self.source_mass[ind, type] = self.fiber_mass[ind, type] - tmp
                 self.fiber_mass[ind, type] = tmp
                                 
-    def get_fiber_mass(self):
+    def get_fiber_conc(self):
         """
-        method for reading fiberconcentrations from roommodel
+        method for reading fiberconcentrations from roommodel for last computed
+        fiber in the yarn
         """
         return self.fiberconc_center, self.fiberconc_middle, self.fiberconc_surface
                 
@@ -517,8 +519,8 @@ class Yarn1DModel(object):
         self.step_old_sol[:] = self.init_conc[:]
         
         self.solver = sc_ode('cvode', self.f_conc1_ode,
-                             min_step_size=1e-8,
-                             first_step_size=1e-14,
+                             min_step_size=1e-9,
+                             first_step_size=1e-16,
                              rtol=1e-6, atol=1e-10,
                              max_steps=50000, lband=1, uband=1)
         self.solver.init_step(self.step_old_time, self.init_conc)
@@ -572,18 +574,18 @@ class Yarn1DModel(object):
             realtime, self.step_old_sol = self.do_ode_step(t)
             self.tstep += 1
             self.step_old_time = t
-        filedata= open(utils.OUTPUTDIR + os.sep + "fiberconccenter" + ".txt",'w')
-        for i in range(0,len(self.fiberconc_center)):
-            filedata.write("%.5f %.5f\n" % (self.fiberconc_center[i,0],self.fiberconc_center[i,1]))
-        filedata.close()
-        filedata= open(utils.OUTPUTDIR + os.sep + "fiberconcmiddle" + ".txt",'w')
-        for i in range(0,len(self.fiberconc_middle)):
-            filedata.write("%.5f %.5f\n" % (self.fiberconc_middle[i,0],self.fiberconc_middle[i,1]))
-        filedata.close()
-        filedata= open(utils.OUTPUTDIR + os.sep + "fiberconcsurface" + ".txt",'w')
-        for i in range(0,len(self.fiberconc_surface)):
-            filedata.write("%.5f %.5f\n" % (self.fiberconc_surface[i,0],self.fiberconc_surface[i,1]))
-        filedata.close()
+#        filedata= open(utils.OUTPUTDIR + os.sep + "fiberconccenter" + ".txt",'w')
+#        for i in range(0,len(self.fiberconc_center)):
+#            filedata.write("%.5f %.5f\n" % (self.fiberconc_center[i,0],self.fiberconc_center[i,1]))
+#        filedata.close()
+#        filedata= open(utils.OUTPUTDIR + os.sep + "fiberconcmiddle" + ".txt",'w')
+#        for i in range(0,len(self.fiberconc_middle)):
+#            filedata.write("%.5f %.5f\n" % (self.fiberconc_middle[i,0],self.fiberconc_middle[i,1]))
+#        filedata.close()
+#        filedata= open(utils.OUTPUTDIR + os.sep + "fiberconcsurface" + ".txt",'w')
+#        for i in range(0,len(self.fiberconc_surface)):
+#            filedata.write("%.5f %.5f\n" % (self.fiberconc_surface[i,0],self.fiberconc_surface[i,1]))
+#        filedata.close()
         
         return realtime, self.step_old_sol
 
