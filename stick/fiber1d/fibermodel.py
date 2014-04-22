@@ -477,9 +477,24 @@ class FiberModel(object):
             S = 1.
             if not self.only_compound:
                 # compound in a matrix, we need to correct effective surface. 
-                S = self.porosity_domain[self.tot_edges_no_extend-2] \
+                if eCs - eCy < 0:
+                    #absorption creates a film of pure compound. We mimic this
+                    # with absorption in the porous part
+                    S = self.porosity_domain[self.tot_edges_no_extend-2] 
+                    #impossible to absorb more that density
+                    if conc_r > self.density_compound:
+                        #stop absorbing
+                        S = 0.
+                else:
+                    #evaporation only possible where there is AI
+                    S = self.porosity_domain[self.tot_edges_no_extend-2] \
                     * conc_r / self.density_compound
             #return evaporative law
+#            print ("flux uR", S 
+#                    * self.evap_transfer * (eCs - eCy)
+#                    * Heaviside_oneside_smoothed(conc_r - self.evap_minbound, 
+#                                        eCs - eCy), Heaviside_oneside_smoothed(conc_r - self.evap_minbound, 
+#                                        eCs - eCy), eCs-eCy, eCs)
             return (S 
                     * self.evap_transfer * (eCs - eCy)
                     * Heaviside_oneside_smoothed(conc_r - self.evap_minbound, 
