@@ -34,8 +34,9 @@ import math
 from numpy import pi
 
 BASEDIR = '/Users/Tine/stickproject/'
+#'/Users/Tine/stickproject/'
 #PROBS = False  #set tot False if only one problem
-PROBTOLOAD = 'BlockingZone.ini'
+PROBTOLOAD = 'artikeltest10_04.ini'
 #PROBTOLOAD = 'fabricbednetY335_Deet.ini_50nmol8hour'
 #all problems must be over the same grid !
 #PROBSTOLOAD = ['fabricbednetY335_Deet.ini_50nmol8hour',
@@ -70,19 +71,23 @@ for ARG in ARGS:
     n = len(ARGS)
     concentration = open(BASEDIR + PROBTOLOAD + ARG,'r')
     conc = concentration.readlines()
-    globals()['times%s' % j] = np.empty(len(conc),float)
+    globals()['logtime%s' % j] = np.empty(len(conc),float)
     globals()['sol%s' % j] = np.empty(len(conc),float)
     globals()['logconc%s' % j] = np.empty(len(conc),float)
     for i in range(len(conc)):
         conc[i] = conc[i].strip()
         con = conc[i].split()
-        globals()['times%s' % j][i] = con[0]
+        globals()['logtime%s' % j][i] = con[0]
         globals()['sol%s' % j][i] = con[1]
         if float(con[1])>0:
             globals()['logconc%s' % j][i] = math.log(float(con[1]))
         else:
             globals()['logconc%s' % j][i] = 0
-    globals()['times%s' % j]= np.sort(globals()['times%s' % j])
+        if float(con[0])>0:
+            globals()['logtime%s' % j][i] = math.log(float(con[0]))
+        else:
+            globals()['logtime%s' % j][i] = 0    
+    globals()['logtime%s' % j]= np.sort(globals()['logtime%s' % j])
     globals()['sol%s' % j]= np.sort(globals()['sol%s' % j])
     globals()['logconc%s' % j]= np.sort(globals()['logconc%s' % j])
     j+=1
@@ -95,19 +100,19 @@ color = 0
 times=[]
 logconc = []
 for j in range(len(ARGS)):
-    times.append(globals()['times%s' %j])
+    times.append(globals()['logtime%s' %j])
     logconc.append(globals()['logconc%s' %j])
 
 def view_sol(time, concentration):
     global colors, lencolors, color
-    usecolor = colors[color%lencolors]
+    #usecolor = colors[color%lencolors]
     color += 1
     plt.rc("font", family="serif")
     plt.rc("font", size=10)
     plt.figure(figsize=(8, 5))
     plt.gca().set_xlabel('Time [s]')
     plt.gca().set_ylabel('Concentration [$\mu$g/mm$^3$]')
-    plt.title('Log(concentration) vs time')
+    plt.title('Log(concentration) vs Log(time)')
     plt.plot(time[0], concentration[0],'r-',time[1], concentration[1],'g-',time[2], concentration[2],'b-', time[3], concentration[3], 'c-', time[4], concentration[4],'y-', time[5], concentration[5],'m-',time[6],concentration[6],'k-',time[7], concentration[7],'r--')
     plt.legend( ["fiberconccenter.txt",
                       "fiberconcmiddle.txt",
@@ -117,8 +122,8 @@ def view_sol(time, concentration):
                       "roomconcLEFT.txt",
                       "roomconcMIDDLE.txt",
                       "roomconcRIGHT.txt"
-                 ],loc='upper center', bbox_to_anchor=(0.5, 0.85),
-               ncol=3, fancybox=True, shadow=True
+                 ], bbox_to_anchor=(1.5, 1),
+               ncol=1, fancybox=True, shadow=True
 )
     plt.draw()
 
