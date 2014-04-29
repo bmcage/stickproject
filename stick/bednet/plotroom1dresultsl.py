@@ -38,21 +38,29 @@ BASEDIR = '/home/benny/stickproject/'
 PROBS = False  #set tot False if only one problem
 #PROBTOLOAD = 'fabric.ini'
 #PROBTOLOAD = 'fabricbednetY335_Deet.ini_50nmol8hour'
-PROBTOLOAD = 'fabricbednetY335_replenishtest.ini'
+#PROBTOLOAD = 'fabricbednetY335_replenishtest.ini'
+PROBTOLOAD = 'fabricbednetY335_releasetest.inirelease'
 #ROBTOLOAD = 'fabric.inihigh'
 #PROBTOLOAD = 'fabric.inilow'
+
 #all problems must be over the same grid !
-PROBSTOLOAD = ['fabricbednetY335_Deet.ini_50nmol8hour', 
-    'fabricbednetY335_Deet.ini_100nmol8hour', 
-    'fabricbednetY335_Deet.ini_200nmol8hour', 
-    'fabricbednetY335_Deet.ini_400nmol8hour']
-LABELS = ['50 nmol', '100 nmol', '200 nmol', '400 nmol']
+SHOWLEGEND = True
+if not PROBS:
+    SHOWLEGEND = False
+#PROBSTOLOAD = ['fabricbednetY335_Deet.ini_50nmol8hour', 
+#    'fabricbednetY335_Deet.ini_100nmol8hour', 
+#    'fabricbednetY335_Deet.ini_200nmol8hour', 
+#    'fabricbednetY335_Deet.ini_400nmol8hour']
+#LABELS = ['50 nmol', '100 nmol', '200 nmol', '400 nmol']
+PROBSTOLOAD = ['fabric.inilow', 'fabric.inilowblock10',
+               'fabric.inilowblockpoly']
+LABELS = ['Case 1', 'Case 2', 'Case 3']
 #PROBSTOLOAD = ['fabricmuslin_Deet.ini_25nmol2min_b',
 #    'fabricmuslin_Deet.ini_20nmol2min_b', 'fabricmuslin_Deet.ini_15nmol2min_b',
 #    'fabricmuslin_Deet.ini_10nmol2min_b', 'fabricmuslin_Deet.ini_05nmol2min_b']
 ##LABELS = ['25 nmol', '20 nmol', '15 nmol', '10 nmol', '5 nmol']
 ARG = '/bednetroom1d_solpart_%05d.npz'
-INDEX = range(29) #range(4) # what dumped data to load
+INDEX = range(2) #range(4) # what dumped data to load
 EVERY = 60 #1    # what time data to skip to reduce plotting time
 
 #determine at what distance in mm to plot concentration over time: 
@@ -144,6 +152,8 @@ for xplot in x0:
 colors = 'bgrkmy'
 lencolors = len(colors)
 color = 0
+savedir = {}
+
 def view_sol(times, sol, label=None):
     global colors, lencolors, color
     ind = 0
@@ -172,7 +182,10 @@ def view_sol(times, sol, label=None):
         #plt.ylim(0, maxv*1.1)
         plt.plot(times, np.ones(len(times)) * saturation_conc, 'k--')
         plt.plot(times, np.ones(len(times)) * treshold, 'b--')
-        #plt.legend()
+        savedir['times'] = times
+        savedir['concpos_%g'%xval] = conc_in_point
+        if SHOWLEGEND:
+            plt.legend()
         plt.draw()
         ind += 1
         #same plot in unit minutes !
@@ -195,7 +208,8 @@ def view_sol(times, sol, label=None):
         #plt.ylim(0,  treshold*1.1)
         ##plt.plot(times/60, np.ones(len(times)) * saturation_conc, 'k--')
         plt.plot(times/60, np.ones(len(times)) * treshold, 'b--')
-        #plt.legend()
+        if SHOWLEGEND:
+            plt.legend()
         plt.draw()
         ind +=1
         #same plot in unit hour !
@@ -215,15 +229,18 @@ def view_sol(times, sol, label=None):
         plt.plot(times/60/60, conc_in_point, label=label)
         plt.plot(times/60/60, np.ones(len(times)) * saturation_conc, 'k--')
         plt.plot(times/60/60, np.ones(len(times)) * treshold, 'b--')
-        #plt.legend()
+        if SHOWLEGEND:
+            plt.legend()
         plt.draw()
         ind +=1
         #plt.savefig('AIconc_%03.1f_mm' % xval + '.png')
     return ind
 
-def view_fiberconc(ind, fibertimes, yfiberconc_center, yfiberconc_middle, yfiberconc_surf, label=None):
+def view_fiberconc(ind, fibertimes, yfiberconc_center, yfiberconc_middle,
+                   yfiberconc_surf, label=None):
     fignr = ind
     plt.ion()
+    fibnr = 0
     for fiberconc_center, fiberconc_middle, fiberconc_surf in zip(yfiberconc_center, yfiberconc_middle, yfiberconc_surf):
         plt.figure(fignr)
         fignr += 1
@@ -235,9 +252,10 @@ def view_fiberconc(ind, fibertimes, yfiberconc_center, yfiberconc_middle, yfiber
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Conc [$\mu$g/mm$^3$]')
         plt.title('Conc AI in fiber center')
-        print (len(fibertimes), len(fiberconc_center))
         plt.plot(fibertimes, fiberconc_center, '.', label=label)
         plt.figure(fignr)
+        if SHOWLEGEND:
+            plt.legend()
         fignr += 1
         #middle of fiber    
         plt.rc("font", family="serif")
@@ -248,6 +266,8 @@ def view_fiberconc(ind, fibertimes, yfiberconc_center, yfiberconc_middle, yfiber
         plt.gca().set_ylabel('Conc [$\mu$g/mm$^3$]')
         plt.title('Conc AI in middle of fiber coating')
         plt.plot(fibertimes, fiberconc_middle, '.', label=label)
+        if SHOWLEGEND:
+            plt.legend()
         plt.figure(fignr)
         fignr += 1
         #surface of fiber
@@ -258,9 +278,14 @@ def view_fiberconc(ind, fibertimes, yfiberconc_center, yfiberconc_middle, yfiber
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Conc [$\mu$g/mm$^3$]')
         plt.title('Conc AI on fiber surface')
-        plt.plot(fibertimes, fiberconc_surf, '.', label=label)    
+        plt.plot(fibertimes, fiberconc_surf, '.', label=label)  
+        if SHOWLEGEND:
+            plt.legend()  
+        savedir['fibertimes'] = fibertimes
+        savedir['fiberconc_surf_%d' % fibnr] = fiberconc_surf
+        fibnr += 1
 
-def view_sol_mass(ind, times, yarnmass, totyarnmass, totroommass, label=None):
+def view_sol_mass(ind, times, yarnmass, totyarnmass, totroommass, label=''):
     """
     Plot the evolution of the mass at current state of the solution
     """
@@ -279,7 +304,9 @@ def view_sol_mass(ind, times, yarnmass, totyarnmass, totroommass, label=None):
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Mass [$\mu$g]')
         plt.title('Mass AC in yarn type %d' % ind)
-        plt.plot(times, ymass, label=label)
+        plt.plot(times, ymass, label=(label or '')+" yarn %d" % ind)
+        if SHOWLEGEND:
+            plt.legend()
         fignr += 1
 
     plt.figure(fignr)
@@ -288,12 +315,16 @@ def view_sol_mass(ind, times, yarnmass, totyarnmass, totroommass, label=None):
     plt.title('Mass AC in the textile')
     #plt.plot([0,],[28.935,], 'r*')
     plt.plot(times/60/60, totyarnmass, label=label)
+    if SHOWLEGEND:
+        plt.legend()
     fignr += 1
     plt.figure(fignr)
     plt.gca().set_xlabel('Time [s]')
     plt.gca().set_ylabel('Mass [$\mu$g]')
     plt.title('Mass AC in the room')
     plt.plot(times, totroommass, label=label)
+    if SHOWLEGEND:
+        plt.legend()
     fignr += 1
     #plot to check mass conservation
     plt.figure(fignr)
@@ -301,6 +332,10 @@ def view_sol_mass(ind, times, yarnmass, totyarnmass, totroommass, label=None):
     plt.gca().set_ylabel('Mass [$\mu$g]')
     plt.title('Total Mass AC')
     plt.plot(times, totroommass+totyarnmass, label=label)
+    if SHOWLEGEND:
+        plt.legend()
+    savedir['totyarnmass'] = totyarnmass
+    savedir['totroommass'] = totroommass
     return fignr
 
 # we plot the data
@@ -318,8 +353,13 @@ for times, yarnmass, totyarnmass, totroommass, label in zip(ltimes, lyarnmass,
                                         ltotyarnmass, ltotroommass, LABELS):
     newind = view_sol_mass(ind, times, yarnmass, totyarnmass, totroommass, label)
 
-for times, fconc_sta, fconc_mid, fconc_end in zip(ltimes, lfconc_sta, 
-                                                  lfconc_mid, lfconc_end):
-    view_fiberconc(newind, times,fconc_sta,fconc_mid,fconc_end)
+for times, fconc_sta, fconc_mid, fconc_end, label in zip(ltimes, lfconc_sta, 
+                                             lfconc_mid, lfconc_end, LABELS):
+    view_fiberconc(newind, times, fconc_sta, fconc_mid, fconc_end, label)
+
+#store an npz file with main data for multiple printing
+if not PROBS:
+    np.savez(BASEDIR + PROBTOLOAD + os.sep + 'figout.npz',
+              **savedir)
 
 plt.show(block=True) #block=True)
