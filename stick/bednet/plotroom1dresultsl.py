@@ -39,6 +39,8 @@ PROBS = False  #set tot False if only one problem
 #PROBTOLOAD = 'fabric.ini'
 #PROBTOLOAD = 'fabricbednetY335_Deet.ini_50nmol8hour'
 PROBTOLOAD = 'fabricbednetY335_replenishtest.ini'
+#ROBTOLOAD = 'fabric.inihigh'
+#PROBTOLOAD = 'fabric.inilow'
 #all problems must be over the same grid !
 PROBSTOLOAD = ['fabricbednetY335_Deet.ini_50nmol8hour', 
     'fabricbednetY335_Deet.ini_100nmol8hour', 
@@ -50,8 +52,8 @@ LABELS = ['50 nmol', '100 nmol', '200 nmol', '400 nmol']
 #    'fabricmuslin_Deet.ini_10nmol2min_b', 'fabricmuslin_Deet.ini_05nmol2min_b']
 ##LABELS = ['25 nmol', '20 nmol', '15 nmol', '10 nmol', '5 nmol']
 ARG = '/bednetroom1d_solpart_%05d.npz'
-INDEX = range(1) #range(4) # what dumped data to load
-EVERY = 1 #1    # what time data to skip to reduce plotting time
+INDEX = range(29) #range(4) # what dumped data to load
+EVERY = 60 #1    # what time data to skip to reduce plotting time
 
 #determine at what distance in mm to plot concentration over time: 
 #x0 = [1, 5, 10, 500]
@@ -112,9 +114,9 @@ for PROBTOLOAD in PROBSTOLOAD:
                 fconc_end[ind] =  np.empty(0, float)
         for ind, dt in enumerate(data['yarnmass']):
             yarnmass[ind] = np.append(yarnmass[ind], dt[::EVERY])  #self.yarnmass
-            fconc_sta[ind] = np.append(fconc_sta[ind], data['fconc_sta'][::EVERY])
-            fconc_mid[ind] = np.append(fconc_mid[ind], data['fconc_mid'][::EVERY])
-            fconc_end[ind] = np.append(fconc_end[ind], data['fconc_end'][::EVERY])
+            fconc_sta[ind] = np.append(fconc_sta[ind], data['fconc_sta'][ind][::EVERY])
+            fconc_mid[ind] = np.append(fconc_mid[ind], data['fconc_mid'][ind][::EVERY])
+            fconc_end[ind] = np.append(fconc_end[ind], data['fconc_end'][ind][::EVERY])
         totyarnmass = np.append(totyarnmass, data['totyarnmass'][::EVERY]) #self.totyarnmass
         totroommass = np.append(totroommass, data['totroommass'][::EVERY]) #self.totroommass
         
@@ -233,6 +235,7 @@ def view_fiberconc(ind, fibertimes, yfiberconc_center, yfiberconc_middle, yfiber
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Conc [$\mu$g/mm$^3$]')
         plt.title('Conc AI in fiber center')
+        print (len(fibertimes), len(fiberconc_center))
         plt.plot(fibertimes, fiberconc_center, '.', label=label)
         plt.figure(fignr)
         fignr += 1
