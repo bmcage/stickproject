@@ -38,11 +38,13 @@ BASEDIR = '/home/benny/stickproject/'
 PROBS = False  #set tot False if only one problem
 #PROBTOLOAD = 'fabric.ini'
 #PROBTOLOAD = 'fabricbednetY335_Deet.ini_50nmol8hour'
-#PROBTOLOAD = 'fabricbednetY335_replenishtest.ini'
-PROBTOLOAD = 'fabricbednetY335_releasetest.inirelease'
+PROBTOLOAD = 'fabricbednetY335_replenishtest.ini'
+#PROBTOLOAD = 'fabricbednetY335_releasetest.inirelease'
 #ROBTOLOAD = 'fabric.inihigh'
 #PROBTOLOAD = 'fabric.inilow'
 
+#
+GRAY = True
 #all problems must be over the same grid !
 SHOWLEGEND = True
 if not PROBS:
@@ -53,14 +55,14 @@ if not PROBS:
 #    'fabricbednetY335_Deet.ini_400nmol8hour']
 #LABELS = ['50 nmol', '100 nmol', '200 nmol', '400 nmol']
 PROBSTOLOAD = ['fabric.inilow', 'fabric.inilowblock10',
-               'fabric.inilowblockpoly']
-LABELS = ['Case 1', 'Case 2', 'Case 3']
+               'fabric.inilowblockpoly', 'fabric.inilowblockpolyonlycomp']
+LABELS = ['Case 1', 'Case 2', 'Case 3', 'Case 4']
 #PROBSTOLOAD = ['fabricmuslin_Deet.ini_25nmol2min_b',
 #    'fabricmuslin_Deet.ini_20nmol2min_b', 'fabricmuslin_Deet.ini_15nmol2min_b',
 #    'fabricmuslin_Deet.ini_10nmol2min_b', 'fabricmuslin_Deet.ini_05nmol2min_b']
 ##LABELS = ['25 nmol', '20 nmol', '15 nmol', '10 nmol', '5 nmol']
 ARG = '/bednetroom1d_solpart_%05d.npz'
-INDEX = range(2) #range(4) # what dumped data to load
+INDEX = range(29) #range(4) # what dumped data to load
 EVERY = 60 #1    # what time data to skip to reduce plotting time
 
 #determine at what distance in mm to plot concentration over time: 
@@ -71,6 +73,45 @@ double = True
 
 if not PROBS:
     PROBSTOLOAD = [PROBTOLOAD]
+
+
+def setAxLinesBW(ax):
+    """
+    Take each Line2D in the axes, ax, and convert the line style to be 
+    suitable for black and white viewing.
+    """
+    MARKERSIZE = 3
+
+    COLORMAP = {
+        'b': {'marker': None, 'dash': (None,None)},
+        'g': {'marker': None, 'dash': [3,3]},
+        'r': {'marker': None, 'dash': [5,3,1,3]},
+        'c': {'marker': None, 'dash': [1,3]},
+        'm': {'marker': None, 'dash': [5,2,5,2,5,10]},
+        'y': {'marker': None, 'dash': [5,3,1,2,1,10]},
+       # 'k': {'marker': 'o', 'dash': (None,None)} #[1,2,1,10]}
+        }
+
+    extra = []
+    if not ax.get_legend() is None:
+        extra = ax.get_legend().get_lines()
+    for line in ax.get_lines() + extra:
+        origColor = line.get_color()
+        line.set_color('black')
+        if origColor in COLORMAP:
+            line.set_dashes(COLORMAP[origColor]['dash'])
+            line.set_marker(COLORMAP[origColor]['marker'])
+            line.set_markersize(MARKERSIZE)
+
+def setFigLinesBW(fig):
+    """
+    Take each axes in the figure, and for each line in the axes, make the
+    line viewable in black and white.
+    """
+    for ax in fig.get_axes():
+        if not ax is None:
+            setAxLinesBW(ax)
+
 
 prob = 0
 ltimes = []
@@ -173,7 +214,7 @@ def view_sol(times, sol, label=None):
         plt.rc("figure.subplot", right=(width-10/72.27)/width)
         plt.rc("figure.subplot", bottom=(14/72.27)/height)
         plt.rc("figure.subplot", top=(height-7/72.27)/height)
-        plt.figure(ind)
+        fig = plt.figure(ind)
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Concentration [$\mu$g/mm$^3$]')
         #plt.gca().yaxis.set_major_formatter(pylab.FormatStrFormatter('%e'))
@@ -181,11 +222,14 @@ def view_sol(times, sol, label=None):
         plt.plot(times, conc_in_point, label=label)
         #plt.ylim(0, maxv*1.1)
         plt.plot(times, np.ones(len(times)) * saturation_conc, 'k--')
-        plt.plot(times, np.ones(len(times)) * treshold, 'b--')
+        plt.plot(times, np.ones(len(times)) * treshold, 'k--')
         savedir['times'] = times
         savedir['concpos_%g'%xval] = conc_in_point
         if SHOWLEGEND:
             plt.legend()
+            
+        if GRAY:
+            setFigLinesBW(fig)
         plt.draw()
         ind += 1
         #same plot in unit minutes !
@@ -197,7 +241,7 @@ def view_sol(times, sol, label=None):
         plt.rc("figure.subplot", right=(width-10/72.27)/width)
         plt.rc("figure.subplot", bottom=(14/72.27)/height)
         plt.rc("figure.subplot", top=(height-7/72.27)/height)
-        plt.figure(ind)
+        fig = plt.figure(ind)
         plt.gca().set_xlabel('Time [min]')
         plt.gca().set_ylabel('Concentration [$\mu$g/mm$^3$]')
         #plt.gca().yaxis.set_major_formatter(pylab.FormatStrFormatter('%e'))
@@ -207,9 +251,11 @@ def view_sol(times, sol, label=None):
             #plt.plot(times/60, 2*conc_in_point, usecolor+'--', label='2 x '+label)
         #plt.ylim(0,  treshold*1.1)
         ##plt.plot(times/60, np.ones(len(times)) * saturation_conc, 'k--')
-        plt.plot(times/60, np.ones(len(times)) * treshold, 'b--')
+        plt.plot(times/60, np.ones(len(times)) * treshold, 'k-')
         if SHOWLEGEND:
             plt.legend()
+        if GRAY:
+            setFigLinesBW(fig)
         plt.draw()
         ind +=1
         #same plot in unit hour !
@@ -221,16 +267,18 @@ def view_sol(times, sol, label=None):
         plt.rc("figure.subplot", right=(width-10/72.27)/width)
         plt.rc("figure.subplot", bottom=(14/72.27)/height)
         plt.rc("figure.subplot", top=(height-7/72.27)/height)
-        plt.figure(ind)
+        fig = plt.figure(ind)
         plt.gca().set_xlabel('Time [hour]')
         plt.gca().set_ylabel('Concentration [$\mu$g/mm$^3$]')
         #plt.gca().yaxis.set_major_formatter(pylab.FormatStrFormatter('%e'))
         plt.title('Concentration at position %g mm' % xval)
         plt.plot(times/60/60, conc_in_point, label=label)
         plt.plot(times/60/60, np.ones(len(times)) * saturation_conc, 'k--')
-        plt.plot(times/60/60, np.ones(len(times)) * treshold, 'b--')
+        plt.plot(times/60/60, np.ones(len(times)) * treshold, 'k--')
         if SHOWLEGEND:
             plt.legend()
+        if GRAY:
+            setFigLinesBW(fig)
         plt.draw()
         ind +=1
         #plt.savefig('AIconc_%03.1f_mm' % xval + '.png')
@@ -242,7 +290,7 @@ def view_fiberconc(ind, fibertimes, yfiberconc_center, yfiberconc_middle,
     plt.ion()
     fibnr = 0
     for fiberconc_center, fiberconc_middle, fiberconc_surf in zip(yfiberconc_center, yfiberconc_middle, yfiberconc_surf):
-        plt.figure(fignr)
+        fig = plt.figure(fignr)
         fignr += 1
         #center of fiber
         plt.rc("font", family="serif")
@@ -252,10 +300,13 @@ def view_fiberconc(ind, fibertimes, yfiberconc_center, yfiberconc_middle,
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Conc [$\mu$g/mm$^3$]')
         plt.title('Conc AI in fiber center')
-        plt.plot(fibertimes, fiberconc_center, '.', label=label)
-        plt.figure(fignr)
+        plt.plot(fibertimes, fiberconc_center, '-', label=label)
+        if GRAY:
+            setFigLinesBW(fig)
         if SHOWLEGEND:
             plt.legend()
+
+        fig = plt.figure(fignr)
         fignr += 1
         #middle of fiber    
         plt.rc("font", family="serif")
@@ -265,10 +316,13 @@ def view_fiberconc(ind, fibertimes, yfiberconc_center, yfiberconc_middle,
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Conc [$\mu$g/mm$^3$]')
         plt.title('Conc AI in middle of fiber coating')
-        plt.plot(fibertimes, fiberconc_middle, '.', label=label)
+        plt.plot(fibertimes, fiberconc_middle, '-', label=label)
+        if GRAY:
+            setFigLinesBW(fig)
         if SHOWLEGEND:
             plt.legend()
-        plt.figure(fignr)
+
+        fig = plt.figure(fignr)
         fignr += 1
         #surface of fiber
         plt.rc("font", family="serif")
@@ -278,7 +332,9 @@ def view_fiberconc(ind, fibertimes, yfiberconc_center, yfiberconc_middle,
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Conc [$\mu$g/mm$^3$]')
         plt.title('Conc AI on fiber surface')
-        plt.plot(fibertimes, fiberconc_surf, '.', label=label)  
+        plt.plot(fibertimes, fiberconc_surf, '-', label=label)
+        if GRAY:
+            setFigLinesBW(fig)
         if SHOWLEGEND:
             plt.legend()  
         savedir['fibertimes'] = fibertimes
@@ -300,38 +356,47 @@ def view_sol_mass(ind, times, yarnmass, totyarnmass, totroommass, label=''):
         plt.rc("figure.subplot", right=(width-10/72.27)/width)
         plt.rc("figure.subplot", bottom=(14/72.27)/height)
         plt.rc("figure.subplot", top=(height-7/72.27)/height)
-        plt.figure(fignr)
+        fig = plt.figure(fignr)
+        fignr += 1
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Mass [$\mu$g]')
         plt.title('Mass AC in yarn type %d' % ind)
         plt.plot(times, ymass, label=(label or '')+" yarn %d" % ind)
         if SHOWLEGEND:
             plt.legend()
-        fignr += 1
+        if GRAY:
+            setFigLinesBW(fig)
 
-    plt.figure(fignr)
+    fig = plt.figure(fignr)
+    fignr += 1
     plt.gca().set_xlabel('Time [h]')
     plt.gca().set_ylabel('Mass [$\mu$g]')
     plt.title('Mass AC in the textile')
     #plt.plot([0,],[28.935,], 'r*')
     plt.plot(times/60/60, totyarnmass, label=label)
+    if GRAY:
+        setFigLinesBW(fig)
     if SHOWLEGEND:
         plt.legend()
+    fig = plt.figure(fignr)
     fignr += 1
-    plt.figure(fignr)
     plt.gca().set_xlabel('Time [s]')
     plt.gca().set_ylabel('Mass [$\mu$g]')
     plt.title('Mass AC in the room')
     plt.plot(times, totroommass, label=label)
+    if GRAY:
+        setFigLinesBW(fig)
     if SHOWLEGEND:
         plt.legend()
-    fignr += 1
     #plot to check mass conservation
-    plt.figure(fignr)
+    fig = plt.figure(fignr)
+    fignr += 1
     plt.gca().set_xlabel('Time [s]')
     plt.gca().set_ylabel('Mass [$\mu$g]')
     plt.title('Total Mass AC')
     plt.plot(times, totroommass+totyarnmass, label=label)
+    if GRAY:
+        setFigLinesBW(fig)
     if SHOWLEGEND:
         plt.legend()
     savedir['totyarnmass'] = totyarnmass
